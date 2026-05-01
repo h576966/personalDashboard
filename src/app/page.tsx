@@ -16,10 +16,17 @@ interface ErrorResponse {
   };
 }
 
+interface SuccessData {
+  results: SearchResult[];
+  summary?: string;
+  suggestions?: string[];
+  rewrittenQuery?: string;
+}
+
 type Status =
   | { type: "idle" }
   | { type: "loading" }
-  | { type: "success"; results: SearchResult[] }
+  | { type: "success"; data: SuccessData }
   | { type: "error"; message: string };
 
 type Freshness = "pd" | "pw" | "pm" | "py" | undefined;
@@ -37,10 +44,8 @@ export default function Home() {
   const [freshness, setFreshness] = useState<Freshness>(undefined);
   const [status, setStatus] = useState<Status>({ type: "idle" });
 
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-
-    const trimmed = query.trim();
+  async function performSearch(searchQuery: string) {
+    const trimmed = searchQuery.trim();
     if (!trimmed) return;
 
     setStatus({ type: "loading" });
@@ -61,14 +66,24 @@ export default function Home() {
         return;
       }
 
-      const data: { results: SearchResult[] } = await res.json();
-      setStatus({ type: "success", results: data.results });
+      const data: SuccessData = await res.json();
+      setStatus({ type: "success", data });
     } catch {
       setStatus({
         type: "error",
         message: "Network error — could not reach the server",
       });
     }
+  }
+
+  function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    performSearch(query);
+  }
+
+  function handleSuggestionClick(suggestion: string) {
+    setQuery(suggestion);
+    performSearch(suggestion);
   }
 
   return (
@@ -131,15 +146,52 @@ export default function Home() {
 
       {status.type === "success" && (
         <div className="w-full space-y-4">
+          {/* AI Summary card */}
+          {status.data.summary && (
+            <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
+              <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-blue-700 dark:text-blue-300">
+                AI Summary
+              </p>
+              <p className="text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed">
+                {status.data.summary}
+              </p>
+              {status.data.rewrittenQuery &&
+                status.data.rewrittenQuery !== query.trim() && (
+                  <p className="mt-2 text-xs text-zinc-400 dark:text-zinc-500 italic">
+                    Showing results for: {status.data.rewrittenQuery}
+                  </p>
+                )}
+            </div>
+          )}
+
+          {/* Suggestion buttons */}
+          {status.data.suggestions && status.data.suggestions.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              {status.data.suggestions.map((suggestion) => (
+                <button
+                  key={suggestion}
+                  type="button"
+                  onClick={() => handleSuggestionClick(suggestion)}
+                  className="rounded-full border border-zinc-300 bg-white px-3 py-1 text-xs font-medium text-zinc-600 hover:bg-zinc-50 hover:border-blue-400 hover:text-blue-600 transition-colors dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:border-blue-500 dark:hover:text-blue-300"
+                >
+                  {suggestion}
+                </button>
+              ))}
+            </div>
+          )}
+
           <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            {status.results.length} result{status.results.length !== 1 ? "s" : ""}
+            {status.data.results.length} result
+            {status.data.results.length !== 1 ? "s" : ""}
           </p>
 
-          {status.results.length === 0 ? (
-            <p className="text-zinc-500 dark:text-zinc-400">No results found.</p>
+          {status.data.results.length === 0 ? (
+            <p className="text-zinc-500 dark:text-zinc-400">
+              No results found.
+            </p>
           ) : (
             <ul className="space-y-4">
-              {status.results.map((r) => (
+              {status.data.results.map((r) => (
                 <li
                   key={r.url}
                   className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-800"

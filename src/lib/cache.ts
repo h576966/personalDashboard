@@ -1,7 +1,10 @@
 import type { ScoredResult } from "./search";
 
-interface CacheEntry {
+export interface CacheEntry {
   results: ScoredResult[];
+  summary?: string;
+  suggestions?: string[];
+  rewrittenQuery?: string;
   timestamp: number;
 }
 
@@ -29,7 +32,7 @@ function startCleanup(): void {
 startCleanup();
 
 export const searchCache = {
-  get(key: string): ScoredResult[] | undefined {
+  get(key: string): CacheEntry | undefined {
     const entry = store.get(key);
     if (!entry) return undefined;
 
@@ -38,10 +41,10 @@ export const searchCache = {
       return undefined;
     }
 
-    return entry.results;
+    return entry;
   },
 
-  set(key: string, results: ScoredResult[]): void {
+  set(key: string, entry: CacheEntry): void {
     // Evict oldest entry if at capacity
     if (store.size >= MAX_SIZE) {
       const oldestKey = store.keys().next().value;
@@ -50,7 +53,7 @@ export const searchCache = {
       }
     }
 
-    store.set(key, { results, timestamp: Date.now() });
+    store.set(key, entry);
   },
 
   clear(): void {

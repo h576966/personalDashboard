@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { searchBrave, BraveSearchError } from "@/lib/brave";
 import { processSearchResults } from "@/lib/search";
-import { searchCache } from "@/lib/cache";
+import { searchCache, type CacheEntry } from "@/lib/cache";
+import {
+  rewriteQuery,
+  summarizeResults,
+  DeepSeekError,
+} from "@/lib/deepseek";
 
 const MIN_COUNT = 1;
 const MAX_COUNT = 20;
@@ -101,13 +106,37 @@ export async function POST(request: NextRequest) {
     const cacheKey = `${validated.query}|${validated.count}|${validated.freshness ?? "any"}`;
     const cached = searchCache.get(cacheKey);
     if (cached) {
-      return NextResponse.json({ results: cached });
+      return NextResponse.json({
+        results: cached.results,
+        ...(cached.summary !== undefined && { summary: cached.summary }),
+        ...(cached.suggestions !== undefined && {
+          suggestions: cached.suggestions,
+        }),
+        ...(cached.rewrittenQuery !== undefined && {
+          rewrittenQuery: cached.rewrittenQuery,
+        }),
+      });
+    }
+
+    // Rewrite query via DeepSeek (fall back to original on error)
+    let searchQuery = validated.query;
+    let rewrittenQuery: string | undefined;
+
+    try {
+      rewrittenQuery = await rewriteQuery(validated.query);
+      searchQuery = rewrittenQuery;
+    } catch (err) {
+      if (err instanceof DeepSeekError) {
+        console.warn("Query rewrite failed, using original:", err.message);
+      } else {
+        console.warn("Unexpected query rewrite error:", err);
+      }
     }
 
     let rawResults;
     try {
       rawResults = await searchBrave(
-        validated.query,
+        searchQuery,
         validated.count,
         validated.freshness,
       );
@@ -124,12 +153,48 @@ export async function POST(request: NextRequest) {
 
     const results = processSearchResults(
       rawResults.web?.results ?? [],
-      validated.query,
+      searchQuery,
     );
 
-    searchCache.set(cacheKey, results);
+    // Summarize results via DeepSeek (graceful fallback on error)
+    let summary: string | undefined;
+    let suggestions: string[] | undefined;
 
-    return NextResponse.json({ results });
+    if (results.length > 0) {
+      try {
+        const top5 = results.slice(0, 5).map((r) => ({
+          title: r.title,
+          description: r.description,
+          url: r.url,
+        }));
+        const result = await summarizeResults(searchQuery, top5);
+        summary = result.summary;
+        suggestions = result.suggestions;
+      } catch (err) {
+        if (err instanceof DeepSeekError) {
+          console.warn("Result summary failed:", err.message);
+        } else {
+          console.warn("Unexpected summary error:", err);
+        }
+      }
+    }
+
+    const cacheEntry: CacheEntry = {
+      results,
+      summary,
+      suggestions,
+      rewrittenQuery,
+      timestamp: Date.now(),
+    };
+
+    searchCache.set(cacheKey, cacheEntry);
+
+    return NextResponse.json({
+      results,
+      ...(summary !== undefined && { summary }),
+      ...(suggestions !== undefined && { suggestions }),
+      ...(rewrittenQuery !== undefined && { rewrittenQuery }),
+    });
   } catch (err) {
     console.error("Unexpected search error:", err);
     return errorResponse(
