@@ -89,57 +89,59 @@ export default function Home() {
   return (
     <div className="flex flex-col items-center w-full max-w-3xl mx-auto px-4 py-12 gap-8">
       <header className="text-center">
-        <h1 className="text-3xl font-bold tracking-tight">Search Dashboard</h1>
+        <h1 className="text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">Search Dashboard</h1>
         <p className="mt-2 text-zinc-500 dark:text-zinc-400">
           Web search powered by Brave, re-ranked by relevance
         </p>
       </header>
 
-      <div className="flex flex-wrap items-center justify-center gap-2">
-        {FRESHNESS_OPTIONS.map((opt) => (
+      <div className="flex flex-col w-full gap-2">
+        <form onSubmit={handleSubmit} className="flex w-full gap-2">
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Enter a search query..."
+            className="flex-1 rounded-md border border-zinc-300 bg-white px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 selection:bg-teal-100 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 dark:selection:bg-teal-100"
+            disabled={status.type === "loading"}
+          />
           <button
-            key={opt.label}
-            type="button"
-            onClick={() => setFreshness(opt.value)}
-            className={
-              "rounded-full px-4 py-1.5 text-xs font-medium transition-colors " +
-              (freshness === opt.value
-                ? "bg-blue-600 text-white"
-                : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700")
-            }
+            type="submit"
+            disabled={status.type === "loading" || !query.trim()}
+            className="rounded-md bg-teal-700 px-6 py-2.5 text-sm font-medium text-white hover:bg-teal-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            {opt.label}
+            {status.type === "loading" ? "Searching..." : "Search"}
           </button>
-        ))}
-      </div>
+        </form>
 
-      <form onSubmit={handleSubmit} className="flex w-full gap-2">
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Enter a search query..."
-          className="flex-1 rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
-          disabled={status.type === "loading"}
-        />
-        <button
-          type="submit"
-          disabled={status.type === "loading" || !query.trim()}
-          className="rounded-lg bg-blue-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        >
-          {status.type === "loading" ? "Searching..." : "Search"}
-        </button>
-      </form>
+        <div className="flex flex-wrap items-center justify-start gap-2">
+          {FRESHNESS_OPTIONS.map((opt) => (
+            <button
+              key={opt.label}
+              type="button"
+              onClick={() => setFreshness(opt.value)}
+              className={
+                "rounded-md px-4 py-1.5 text-xs font-medium transition-colors " +
+                (freshness === opt.value
+                  ? "bg-teal-700 text-white"
+                  : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700")
+              }
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {status.type === "loading" && (
         <div className="flex items-center gap-2 text-zinc-500">
-          <span className="inline-block w-4 h-4 border-2 border-zinc-300 border-t-blue-500 rounded-full animate-spin" />
+          <span className="inline-block w-4 h-4 border-2 border-zinc-300 border-t-teal-600 rounded-full animate-spin" />
           <span>Searching...</span>
         </div>
       )}
 
       {status.type === "error" && (
-        <div className="w-full rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-700 dark:bg-red-900/20 dark:text-red-400">
+        <div className="w-full rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-700 dark:bg-red-900/20 dark:text-red-400">
           {status.message}
         </div>
       )}
@@ -148,8 +150,8 @@ export default function Home() {
         <div className="w-full space-y-4">
           {/* AI Summary card */}
           {status.data.summary && (
-            <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
-              <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-blue-700 dark:text-blue-300">
+            <div className="rounded-md border border-teal-100 bg-teal-50 p-4 dark:border-teal-900 dark:bg-teal-950/20">
+              <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-teal-800 dark:text-teal-400">
                 AI Summary
               </p>
               <p className="text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed">
@@ -172,7 +174,7 @@ export default function Home() {
                   key={suggestion}
                   type="button"
                   onClick={() => handleSuggestionClick(suggestion)}
-                  className="rounded-full border border-zinc-300 bg-white px-3 py-1 text-xs font-medium text-zinc-600 hover:bg-zinc-50 hover:border-blue-400 hover:text-blue-600 transition-colors dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:border-blue-500 dark:hover:text-blue-300"
+                  className="rounded-full border border-zinc-300 bg-white px-3 py-1 text-xs font-medium text-zinc-600 hover:bg-zinc-50 hover:border-teal-500 hover:text-teal-700 transition-colors dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:border-teal-600 dark:hover:text-teal-400"
                 >
                   {suggestion}
                 </button>
@@ -194,18 +196,18 @@ export default function Home() {
               {status.data.results.map((r) => (
                 <li
                   key={r.url}
-                  className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-800"
+                  className="rounded-md border border-zinc-200 bg-white p-4 shadow-sm hover:shadow-md transition-shadow duration-200 dark:border-zinc-700 dark:bg-zinc-800"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <a
                       href={r.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-base font-medium text-blue-600 hover:underline dark:text-blue-400"
+                      className="text-base font-medium text-zinc-900 hover:text-teal-700 dark:text-zinc-100 dark:hover:text-teal-500"
                     >
                       {r.title}
                     </a>
-                    <span className="shrink-0 rounded bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-500 dark:bg-zinc-700 dark:text-zinc-300">
+                    <span className="shrink-0 rounded-md bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-500 dark:bg-zinc-700 dark:text-zinc-300">
                       {r.score}
                     </span>
                   </div>

@@ -107,10 +107,10 @@ export async function summarizeResults(
 ): Promise<SummaryResponse> {
   const systemPrompt =
     "You are a search result summarizer. Given the search query and the top search results, " +
-    "produce a concise summary of the key findings (approximately 400 tokens) and three related " +
+    "produce a concise summary of the key findings (approximately 400 tokens) and two related " +
     "follow-up questions the user might want to explore next.\n\n" +
     "Respond with valid JSON only, using this exact format:\n" +
-    '{"summary": "...", "suggestions": ["...", "...", "..."]}\n' +
+    '{"summary": "...", "suggestions": ["...", "..."]}\n' +
     "Do not include any text outside the JSON object.";
 
   const resultItems = results

@@ -1,6 +1,10 @@
 import type { BraveWebResult } from "../brave";
 import { isBlocked } from "./quality";
 
+export function stripHtml(text: string): string {
+  return text.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
+}
+
 export interface FilteredResult {
   title: string;
   url: string;
@@ -36,6 +40,6 @@ export function filterResults(
   }).map((r) => ({
     title: r.title.trim(),
     url: r.url.trim(),
-    description: (r.description ?? "").trim(),
+    description: stripHtml(r.description ?? ""),
   }));
 }

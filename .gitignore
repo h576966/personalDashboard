@@ -36,6 +36,7 @@ Thumbs.db
 # Kilo Code
 .kilo/*.lock
 .kilo/local.*
+.kilo/plans/
 .kilo/snapshots/
 
 # Logs
