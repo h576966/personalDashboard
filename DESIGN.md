@@ -7,7 +7,11 @@
   CSS variables via `@theme inline` in `globals.css`.
 - **Dark mode:** Automatic via `@media (prefers-color-scheme: dark)`. No toggle.
 - **Colors:** Zinc-gray background (`zinc-900` text, `zinc-100`/`zinc-800` surfaces) with
-  teal accent (`teal-600` focus ring, `teal-700` primary buttons, `teal-800` hover).
+  teal accent via shadcn/ui semantic tokens. The ColorHunt palette (`#35858e #7da78c #c2d099
+  #e6eec9`) maps to `--primary: 185 46% 38%` (`teal-700`, `#35858E`) in `globals.css`
+  via real `:root` CSS variables. shadcn auto-derives hover, muted, and ring states
+  from `--primary`. Custom surfaces (search bar, AI summary) consume the original
+  `--color-teal-*` palette directly.
 - **Error UI:** Red border + red background (`border-red-300 bg-red-50 dark:border-red-700
   dark:bg-red-900/20`).
 - **AI Summary:** Teal-tinted card (`border-teal-100 bg-teal-50 dark:border-teal-900
@@ -126,7 +130,7 @@ async function loadData() {
 
 ```html
 <div class="flex items-center gap-2 text-zinc-500">
-  <span class="inline-block w-4 h-4 border-2 border-zinc-300 border-t-teal-600 rounded-full animate-spin" />
+  <span class="inline-block w-4 h-4 border-2 border-zinc-300 border-t-primary rounded-full animate-spin" />
   <span>Loading...</span>
 </div>
 ```
@@ -157,9 +161,10 @@ async function loadData() {
 
 | Element | Classes |
 |---------|---------|
-| Primary button | `rounded-md bg-teal-700 px-6 py-2.5 text-sm font-medium text-white hover:bg-teal-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors` |
-| Secondary button | `rounded-md border border-zinc-300 px-4 py-2.5 text-sm font-medium text-zinc-600 hover:bg-zinc-50 dark:border-zinc-600 dark:text-zinc-400 dark:hover:bg-zinc-700` |
-| Text input | `w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100` |
+| Primary button | `<Button>` (shadcn default variant, `bg-primary text-primary-foreground hover:bg-primary/90`) |
+| Secondary button | `<Button variant="secondary">` (shadcn) or manual `rounded-md border border-zinc-300 px-4 py-2.5 text-sm font-medium text-zinc-600 hover:bg-zinc-50 dark:border-zinc-600 dark:text-zinc-400 dark:hover:bg-zinc-700` |
+| Outline button | `<Button variant="outline">` with `text-primary border-primary/30 hover:bg-primary/5` for teal accent |
+| Text input | `<Input>` (shadcn, `border-input focus-visible:ring-ring`) |
 | Label | `mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400` |
 | Tag/chip | `rounded bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400` |
 | Score badge | `shrink-0 rounded-md bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-500 dark:bg-zinc-700 dark:text-zinc-300` |
@@ -185,3 +190,17 @@ for the canonical reference.
 - Comfortable touch targets (`py-2.5` minimum for buttons).
 - Text never smaller than `text-xs`.
 - Full-width containers on small screens (`w-full`, `max-w-3xl`).
+
+## Design Constraints
+
+- **Deterministic before AI** — Every feature must function without AI APIs. AI is an
+  enhancement layer on top of a working core.
+- **Advanced config behind sections** — Technical configuration (scoring thresholds,
+  source filters, keywords) should be grouped in expandable sections or topic detail views,
+  not in the main UI flow.
+- **Family-friendly text** — UI labels must be understandable by non-technical users.
+  Avoid acronyms (e.g., write "Past Week" not "pw").
+- **API keys stay server-side** — Never expose API keys to the browser. Browser code calls
+  local API routes, never third-party APIs directly.
+- **Graceful AI fallback** — AI features (summaries, query rewriting) must fail silently
+  with fallback. A DeepSeek outage should not break core functionality.

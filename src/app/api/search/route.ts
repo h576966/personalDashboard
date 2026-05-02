@@ -15,7 +15,11 @@ const DEFAULT_COUNT = 10;
 const VALID_FRESHNESS = new Set(["pd", "pw", "pm", "py"]);
 
 const VALID_COUNTRIES = new Set([
-  "US", "GB", "DE", "FR", "JP", "CA", "AU", "IN", "SE", "NO",
+  "US", "GB", "DE", "FR", "ES", "IT", "PT", "NL", "BE", "CH",
+  "AT", "SE", "NO", "DK", "FI", "PL", "CZ", "HU", "RO", "GR",
+  "TR", "RU", "JP", "CN", "KR", "IN", "BR", "CA", "AU", "NZ",
+  "AR", "CL", "CO", "MX", "ZA", "NG", "EG", "IL", "AE", "SG",
+  "HK", "TW",
 ]);
 
 interface SearchRequestBody {

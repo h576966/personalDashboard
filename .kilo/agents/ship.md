@@ -24,7 +24,7 @@ Always return:
 
 ## Confirm & Act
 
-When the gate review result is `ready`, use the `question` tool to ask:
+When the gate review result is `ready`, output the following options in your response so the user can choose:
 
 - **Commit and push** — run `git add -A`, `git commit -m "<message>"`, `git push`
 - **Commit only** — run `git add -A` and `git commit -m "<message>"` without pushing

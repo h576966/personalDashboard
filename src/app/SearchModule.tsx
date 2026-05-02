@@ -1,6 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import Spinner from "./components/Spinner";
+import ErrorCard from "./components/ErrorCard";
+import { type Status } from "./components/Status";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { COUNTRY_OPTIONS } from "@/lib/db/topics";
 
 interface SearchResult {
   title: string;
@@ -23,31 +29,11 @@ interface SuccessData {
   rewrittenQuery?: string;
 }
 
-type Status =
-  | { type: "idle" }
-  | { type: "loading" }
-  | { type: "success"; data: SuccessData }
-  | { type: "error"; message: string };
-
-const COUNTRY_OPTIONS = [
-  { label: "Global", value: "" },
-  { label: "United States", value: "US" },
-  { label: "United Kingdom", value: "GB" },
-  { label: "Germany", value: "DE" },
-  { label: "France", value: "FR" },
-  { label: "Japan", value: "JP" },
-  { label: "Canada", value: "CA" },
-  { label: "Australia", value: "AU" },
-  { label: "India", value: "IN" },
-  { label: "Sweden", value: "SE" },
-  { label: "Norway", value: "NO" },
-];
-
 export default function SearchModule() {
   const [query, setQuery] = useState("");
   const [freshness, setFreshness] = useState("");
   const [country, setCountry] = useState("");
-  const [status, setStatus] = useState<Status>({ type: "idle" });
+  const [status, setStatus] = useState<Status<SuccessData>>({ type: "idle" });
 
   async function performSearch(searchQuery: string) {
     const trimmed = searchQuery.trim();
@@ -101,23 +87,23 @@ export default function SearchModule() {
     <>
       <div className="bg-teal-900 dark:bg-teal-950 border-b border-teal-700 dark:border-teal-800">
         <div className="flex flex-wrap items-center gap-2 mx-auto max-w-5xl px-4 py-2">
-          <input
+          <Input
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Search..."
-            className="flex-1 min-w-0 rounded-md border border-teal-600 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-teal-400 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder:text-zinc-500"
+            className="flex-1 min-w-0 border-teal-600 bg-white dark:bg-zinc-800 dark:text-zinc-100"
             disabled={status.type === "loading"}
           />
-          <button
+          <Button
             type="button"
             onClick={() => performSearch(query)}
             disabled={!query.trim() || status.type === "loading"}
-            className="rounded-md bg-teal-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-teal-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            size="sm"
           >
             {status.type === "loading" ? "..." : "Go"}
-          </button>
+          </Button>
             {/* Freshness */}
           <div className="flex items-center gap-1">
             <span className="text-teal-300">
@@ -160,16 +146,11 @@ export default function SearchModule() {
       {status.type !== "idle" && (
         <div className="max-w-5xl mx-auto px-6 pb-8 pt-6">
           {status.type === "loading" && (
-            <div className="flex items-center gap-2 text-zinc-500">
-              <span className="inline-block w-4 h-4 border-2 border-zinc-300 border-t-teal-600 rounded-full animate-spin" />
-              <span>Searching...</span>
-            </div>
+            <Spinner label="Searching..." />
           )}
 
           {status.type === "error" && (
-            <div className="w-full rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-700 dark:bg-red-900/20 dark:text-red-400">
-              {status.message}
-            </div>
+            <ErrorCard message={status.message} />
           )}
 
           {status.type === "success" && (

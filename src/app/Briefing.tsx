@@ -1,5 +1,10 @@
 "use client";
 
+import Spinner from "./components/Spinner";
+import ErrorCard from "./components/ErrorCard";
+import { type Status } from "./components/Status";
+import { Button } from "@/components/ui/button";
+
 interface BriefingItem {
   id: string;
   title: string;
@@ -14,57 +19,40 @@ interface BriefingItem {
 }
 
 interface BriefingProps {
-  items: BriefingItem[];
-  loading: boolean;
-  error: string | null;
+  status: Status<BriefingItem[]>;
   onDismiss: (id: string) => void;
   onSave: (id: string) => void;
   onRefresh: () => void;
 }
 
 export default function Briefing({
-  items,
-  loading,
-  error,
+  status,
   onDismiss,
   onSave,
   onRefresh,
 }: BriefingProps) {
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-16">
-        <div className="flex items-center gap-2 text-zinc-500">
-          <span className="inline-block w-4 h-4 border-2 border-zinc-300 border-t-teal-600 rounded-full animate-spin" />
-          <span>Loading briefing...</span>
-        </div>
-      </div>
-    );
+  if (status.type === "loading") {
+    return <Spinner label="Loading briefing..." />;
   }
 
-  if (error) {
-    return (
-      <div className="w-full rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-700 dark:bg-red-900/20 dark:text-red-400">
-        {error}
-      </div>
-    );
+  if (status.type === "error") {
+    return <ErrorCard message={status.message} />;
   }
 
-  if (items.length === 0) {
+  if (status.type === "idle" || status.data.length === 0) {
     return (
       <div className="flex flex-col items-center gap-4 py-16">
         <p className="text-zinc-500 dark:text-zinc-400">
           No briefing items yet.
         </p>
-        <button
-          type="button"
-          onClick={onRefresh}
-          className="rounded-md bg-teal-700 px-6 py-2.5 text-sm font-medium text-white hover:bg-teal-800 transition-colors"
-        >
+        <Button type="button" onClick={onRefresh}>
           Fetch morning briefing
-        </button>
+        </Button>
       </div>
     );
   }
+
+  const items = status.data;
 
   // Group items by topic
   const grouped = items.reduce<Record<string, BriefingItem[]>>((acc, item) => {
@@ -79,13 +67,14 @@ export default function Briefing({
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
           {items.length} item{items.length !== 1 ? "s" : ""} in briefing
         </p>
-        <button
+        <Button
           type="button"
           onClick={onRefresh}
-          className="rounded-md bg-teal-700 px-4 py-1.5 text-xs font-medium text-white hover:bg-teal-800 transition-colors"
+          variant="secondary"
+          size="sm"
         >
           Refresh
-        </button>
+        </Button>
       </div>
 
       {Object.entries(grouped).map(([topicName, topicItems]) => (
@@ -126,13 +115,15 @@ export default function Briefing({
                   >
                     Dismiss
                   </button>
-                  <button
+                  <Button
                     type="button"
                     onClick={() => onSave(item.id)}
-                    className="rounded-md border border-teal-300 px-3 py-1 text-xs font-medium text-teal-700 hover:bg-teal-50 transition-colors dark:border-teal-700 dark:text-teal-400 dark:hover:bg-teal-950/30"
+                    variant="outline"
+                    size="sm"
+                    className="text-primary border-primary/30 hover:bg-primary/5"
                   >
                     Save
-                  </button>
+                  </Button>
                 </div>
               </li>
             ))}

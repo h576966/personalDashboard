@@ -1,6 +1,11 @@
 "use client";
 
 import { useState, useEffect, FormEvent } from "react";
+import Spinner from "./components/Spinner";
+import ErrorCard from "./components/ErrorCard";
+import { type Status } from "./components/Status";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   LANGUAGE_OPTIONS,
   COUNTRY_OPTIONS,
@@ -52,8 +57,7 @@ function mergeCurrentValue(
 }
 
 export default function TopicsEditor() {
-  const [topics, setTopics] = useState<NewsTopic[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [status, setStatus] = useState<Status<NewsTopic[]>>({ type: "loading" });
   const [error, setError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -61,8 +65,7 @@ export default function TopicsEditor() {
   const [togglingId, setTogglingId] = useState<string | null>(null);
 
   async function loadTopics() {
-    setLoading(true);
-    setError(null);
+    setStatus({ type: "loading" });
     try {
       const res = await fetch("/api/news/topics");
       if (!res.ok) {
@@ -70,11 +73,12 @@ export default function TopicsEditor() {
         throw new Error(err.error?.message ?? "Failed to load topics");
       }
       const data = await res.json();
-      setTopics(data.topics ?? []);
+      setStatus({ type: "success", data: data.topics ?? [] });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load topics");
-    } finally {
-      setLoading(false);
+      setStatus({
+        type: "error",
+        message: err instanceof Error ? err.message : "Failed to load topics",
+      });
     }
   }
 
@@ -184,8 +188,10 @@ export default function TopicsEditor() {
     setTogglingId(topic.id);
 
     // Optimistic update
-    setTopics((prev) =>
-      prev.map((t) => (t.id === topic.id ? { ...t, enabled: newEnabled } : t)),
+    setStatus((prev) =>
+      prev.type === "success"
+        ? { ...prev, data: prev.data.map((t) => (t.id === topic.id ? { ...t, enabled: newEnabled } : t)) }
+        : prev,
     );
 
     try {
@@ -200,10 +206,10 @@ export default function TopicsEditor() {
       }
     } catch (err) {
       // Revert on error
-      setTopics((prev) =>
-        prev.map((t) =>
-          t.id === topic.id ? { ...t, enabled: !newEnabled } : t,
-        ),
+      setStatus((prev) =>
+        prev.type === "success"
+          ? { ...prev, data: prev.data.map((t) => (t.id === topic.id ? { ...t, enabled: !newEnabled } : t)) }
+          : prev,
       );
       setError(err instanceof Error ? err.message : "Failed to toggle topic");
     } finally {
@@ -237,24 +243,16 @@ export default function TopicsEditor() {
     }
   }
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-16">
-        <div className="flex items-center gap-2 text-zinc-500">
-          <span className="inline-block w-4 h-4 border-2 border-zinc-300 border-t-teal-600 rounded-full animate-spin" />
-          <span>Loading topics...</span>
-        </div>
-      </div>
-    );
+  if (status.type === "loading") {
+    return <Spinner label="Loading topics..." />;
   }
+
+  const topics = status.type === "success" ? status.data : [];
 
   return (
     <div className="space-y-8">
-      {error && (
-        <div className="w-full rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-700 dark:bg-red-900/20 dark:text-red-400">
-          {error}
-        </div>
-      )}
+      {status.type === "error" && <ErrorCard message={status.message} />}
+      {error && <ErrorCard message={error} />}
 
       {/* Topic Form */}
       <div className="rounded-md border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-700 dark:bg-zinc-800">
@@ -273,7 +271,7 @@ export default function TopicsEditor() {
               <select
                 value=""
                 onChange={(e) => handlePresetChange(e.target.value)}
-                className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
+                className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
               >
                 <option value="" disabled>
                   Select a preset...
@@ -294,12 +292,11 @@ export default function TopicsEditor() {
                 <label className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400">
                   Topic name *
                 </label>
-                <input
+                <Input
                   type="text"
                   value={form.name}
                   onChange={(e) => updateForm("name", e.target.value)}
                   required
-                  className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
                   placeholder="e.g. Tech News"
                 />
               </div>
@@ -310,7 +307,7 @@ export default function TopicsEditor() {
                 <select
                   value={form.language}
                   onChange={(e) => updateForm("language", e.target.value)}
-                  className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
+                  className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
                 >
                   {mergeCurrentValue(LANGUAGE_OPTIONS, form.language).map(
                     (opt) => (
@@ -332,7 +329,7 @@ export default function TopicsEditor() {
                 onChange={(e) => updateForm("queries", e.target.value)}
                 required
                 rows={3}
-                className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
+                className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
                 placeholder={"latest AI news\nmachine learning breakthroughs"}
               />
             </div>
@@ -341,11 +338,10 @@ export default function TopicsEditor() {
               <label className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400">
                 Short description
               </label>
-              <input
+              <Input
                 type="text"
                 value={form.description}
                 onChange={(e) => updateForm("description", e.target.value)}
-                className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
                 placeholder="Optional description"
               />
             </div>
@@ -378,7 +374,7 @@ export default function TopicsEditor() {
                   <select
                     value={form.country}
                     onChange={(e) => updateForm("country", e.target.value)}
-                    className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
+                    className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
                   >
                     {mergeCurrentValue(COUNTRY_OPTIONS, form.country).map(
                       (opt) => (
@@ -393,11 +389,10 @@ export default function TopicsEditor() {
                   <label className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400">
                     Region filter
                   </label>
-                  <input
+                  <Input
                     type="text"
                     value={form.region}
                     onChange={(e) => updateForm("region", e.target.value)}
-                    className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
                     placeholder="e.g. EU"
                   />
                 </div>
@@ -414,7 +409,7 @@ export default function TopicsEditor() {
                       updateForm("preferredSources", e.target.value)
                     }
                     rows={3}
-                    className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
+                    className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
                     placeholder="reuters.com&#10;apnews.com"
                   />
                 </div>
@@ -428,7 +423,7 @@ export default function TopicsEditor() {
                       updateForm("blockedSources", e.target.value)
                     }
                     rows={3}
-                    className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
+                    className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
                     placeholder="spam-site.com"
                   />
                 </div>
@@ -445,7 +440,7 @@ export default function TopicsEditor() {
                       updateForm("requiredKeywords", e.target.value)
                     }
                     rows={3}
-                    className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
+                    className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
                     placeholder="keyword1"
                   />
                 </div>
@@ -459,7 +454,7 @@ export default function TopicsEditor() {
                       updateForm("blockedKeywords", e.target.value)
                     }
                     rows={3}
-                    className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
+                    className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
                     placeholder="spam"
                   />
                 </div>
@@ -470,7 +465,7 @@ export default function TopicsEditor() {
                   <label className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400">
                     Articles per day
                   </label>
-                  <input
+                  <Input
                     type="number"
                     value={form.maxItemsPerDay}
                     onChange={(e) =>
@@ -481,14 +476,13 @@ export default function TopicsEditor() {
                     }
                     min={1}
                     max={100}
-                    className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
                   />
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400">
                     Quality threshold (0-10)
                   </label>
-                  <input
+                  <Input
                     type="number"
                     value={form.minScore}
                     onChange={(e) =>
@@ -499,7 +493,6 @@ export default function TopicsEditor() {
                     }
                     min={0}
                     max={10}
-                    className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
                   />
                 </div>
               </div>
@@ -508,12 +501,9 @@ export default function TopicsEditor() {
 
           {/* Submit buttons */}
           <div className="flex items-center gap-3">
-            <button
-              type="submit"
-              className="rounded-md bg-teal-700 px-6 py-2.5 text-sm font-medium text-white hover:bg-teal-800 transition-colors"
-            >
+            <Button type="submit">
               {editingId ? "Update Topic" : "Create Topic"}
-            </button>
+            </Button>
             {editingId && (
               <button
                 type="button"
@@ -576,7 +566,7 @@ export default function TopicsEditor() {
                     onChange={() => handleToggleEnabled(topic)}
                     className="sr-only peer"
                   />
-                  <div className="w-9 h-5 bg-zinc-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-teal-600 rounded-full peer peer-checked:after:translate-x-full peer-checked:bg-teal-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all dark:bg-zinc-600" />
+                  <div className="w-9 h-5 bg-zinc-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary rounded-full peer peer-checked:after:translate-x-full peer-checked:bg-primary after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all dark:bg-zinc-600" />
                 </label>
                 <button
                   type="button"
