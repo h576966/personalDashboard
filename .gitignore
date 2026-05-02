@@ -43,3 +43,6 @@ Thumbs.db
 logs/*
 !logs/.gitkeep
 *.log
+
+# Database
+# (migrated to Supabase Postgres — no local DB files)
