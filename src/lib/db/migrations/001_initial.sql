@@ -100,3 +100,8 @@ CREATE INDEX IF NOT EXISTS idx_news_items_title_hash ON news_items(title_hash);
 CREATE INDEX IF NOT EXISTS idx_news_items_status ON news_items(status);
 CREATE INDEX IF NOT EXISTS idx_news_topic_items_topic ON news_topic_items(topic_id);
 CREATE INDEX IF NOT EXISTS idx_news_topic_items_run ON news_topic_items(run_id);
+
+-- Grant privileges to service_role (required for supabase-js with service_role key)
+GRANT ALL ON ALL TABLES IN SCHEMA public TO service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO service_role;
+GRANT ALL ON ALL FUNCTIONS IN SCHEMA public TO service_role;

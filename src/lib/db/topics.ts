@@ -1,5 +1,108 @@
 import { getSupabase } from "./supabase";
 
+// ── UI Constants ────────────────────────────────────────────────
+
+export interface LanguageOption {
+  value: string;
+  label: string;
+}
+
+export interface CountryOption {
+  value: string;
+  label: string;
+}
+
+export interface TopicPreset {
+  label: string;
+  queries: string;
+}
+
+export const LANGUAGE_OPTIONS: LanguageOption[] = [
+  { value: "", label: "Any" },
+  { value: "en", label: "English" },
+  { value: "de", label: "German" },
+  { value: "fr", label: "French" },
+  { value: "es", label: "Spanish" },
+  { value: "it", label: "Italian" },
+  { value: "pt", label: "Portuguese" },
+  { value: "nl", label: "Dutch" },
+  { value: "ru", label: "Russian" },
+  { value: "ja", label: "Japanese" },
+  { value: "zh", label: "Chinese" },
+  { value: "ko", label: "Korean" },
+  { value: "ar", label: "Arabic" },
+  { value: "sv", label: "Swedish" },
+  { value: "no", label: "Norwegian" },
+  { value: "da", label: "Danish" },
+  { value: "fi", label: "Finnish" },
+  { value: "pl", label: "Polish" },
+  { value: "cs", label: "Czech" },
+  { value: "hu", label: "Hungarian" },
+  { value: "ro", label: "Romanian" },
+  { value: "el", label: "Greek" },
+  { value: "tr", label: "Turkish" },
+  { value: "th", label: "Thai" },
+  { value: "vi", label: "Vietnamese" },
+  { value: "hi", label: "Hindi" },
+];
+
+export const COUNTRY_OPTIONS: CountryOption[] = [
+  { value: "", label: "Any" },
+  { value: "US", label: "United States" },
+  { value: "GB", label: "United Kingdom" },
+  { value: "DE", label: "Germany" },
+  { value: "FR", label: "France" },
+  { value: "ES", label: "Spain" },
+  { value: "IT", label: "Italy" },
+  { value: "PT", label: "Portugal" },
+  { value: "NL", label: "Netherlands" },
+  { value: "BE", label: "Belgium" },
+  { value: "CH", label: "Switzerland" },
+  { value: "AT", label: "Austria" },
+  { value: "SE", label: "Sweden" },
+  { value: "NO", label: "Norway" },
+  { value: "DK", label: "Denmark" },
+  { value: "FI", label: "Finland" },
+  { value: "PL", label: "Poland" },
+  { value: "CZ", label: "Czech Republic" },
+  { value: "HU", label: "Hungary" },
+  { value: "RO", label: "Romania" },
+  { value: "GR", label: "Greece" },
+  { value: "TR", label: "Turkey" },
+  { value: "RU", label: "Russia" },
+  { value: "JP", label: "Japan" },
+  { value: "CN", label: "China" },
+  { value: "KR", label: "South Korea" },
+  { value: "IN", label: "India" },
+  { value: "BR", label: "Brazil" },
+  { value: "CA", label: "Canada" },
+  { value: "AU", label: "Australia" },
+  { value: "NZ", label: "New Zealand" },
+  { value: "AR", label: "Argentina" },
+  { value: "CL", label: "Chile" },
+  { value: "CO", label: "Colombia" },
+  { value: "MX", label: "Mexico" },
+  { value: "ZA", label: "South Africa" },
+  { value: "NG", label: "Nigeria" },
+  { value: "EG", label: "Egypt" },
+  { value: "IL", label: "Israel" },
+  { value: "AE", label: "United Arab Emirates" },
+  { value: "SG", label: "Singapore" },
+  { value: "HK", label: "Hong Kong" },
+  { value: "TW", label: "Taiwan" },
+];
+
+export const TOPIC_PRESETS: TopicPreset[] = [
+  { label: "Custom", queries: "" },
+  { label: "Technology", queries: "technology news\nAI\ncybersecurity" },
+  { label: "World News", queries: "world news\ninternational affairs\nglobal politics" },
+  { label: "Sports", queries: "sports news\nscores\nathletics" },
+  { label: "Science", queries: "science news\nresearch discoveries\nspace" },
+  { label: "Business", queries: "business news\nfinancial markets\neconomy" },
+];
+
+// ── Types ───────────────────────────────────────────────────────
+
 export interface NewsTopic {
   id: string;
   name: string;
@@ -117,7 +220,7 @@ export async function createTopic(data: CreateTopicData): Promise<NewsTopic> {
       blocked_sources: data.blockedSources ?? [],
       required_keywords: data.requiredKeywords ?? [],
       blocked_keywords: data.blockedKeywords ?? [],
-      max_items_per_day: data.maxItemsPerDay ?? 10,
+      max_items_per_day: data.maxItemsPerDay ?? 5,
       min_score: data.minScore ?? 0,
       enabled: data.enabled !== false,
     })

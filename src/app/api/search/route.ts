@@ -14,10 +14,15 @@ const DEFAULT_COUNT = 10;
 
 const VALID_FRESHNESS = new Set(["pd", "pw", "pm", "py"]);
 
+const VALID_COUNTRIES = new Set([
+  "US", "GB", "DE", "FR", "JP", "CA", "AU", "IN", "SE", "NO",
+]);
+
 interface SearchRequestBody {
   query?: string;
   count?: number;
   freshness?: string;
+  country?: string;
 }
 
 interface ErrorResponse {
@@ -33,12 +38,13 @@ function validateBody(body: unknown): {
   query: string;
   count: number;
   freshness: Freshness | undefined;
+  country: string | undefined;
 } | null {
   if (typeof body !== "object" || body === null) {
     return null;
   }
 
-  const { query, count, freshness } = body as SearchRequestBody;
+  const { query, count, freshness, country } = body as SearchRequestBody;
 
   if (typeof query !== "string" || query.trim().length === 0) {
     return null;
@@ -65,7 +71,21 @@ function validateBody(body: unknown): {
     parsedFreshness = freshness as Freshness;
   }
 
-  return { query: query.trim(), count: parsedCount, freshness: parsedFreshness };
+  let parsedCountry: string | undefined;
+
+  if (country !== undefined) {
+    if (typeof country !== "string" || !VALID_COUNTRIES.has(country)) {
+      return null;
+    }
+    parsedCountry = country;
+  }
+
+  return {
+    query: query.trim(),
+    count: parsedCount,
+    freshness: parsedFreshness,
+    country: parsedCountry,
+  };
 }
 
 function errorResponse(
@@ -103,7 +123,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check cache
-    const cacheKey = `${validated.query}|${validated.count}|${validated.freshness ?? "any"}`;
+    const cacheKey = `${validated.query}|${validated.count}|${validated.freshness ?? "any"}|${validated.country ?? "any"}`;
     const cached = searchCache.get(cacheKey);
     if (cached) {
       return NextResponse.json({
@@ -139,6 +159,7 @@ export async function POST(request: NextRequest) {
         searchQuery,
         validated.count,
         validated.freshness,
+        validated.country,
       );
     } catch (err) {
       if (err instanceof BraveSearchError) {

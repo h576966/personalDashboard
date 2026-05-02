@@ -20,21 +20,24 @@ export default function DashboardModule({
   return (
     <div className="rounded-md border border-zinc-200 bg-white shadow-sm dark:border-zinc-700 dark:bg-zinc-800">
       {/* Header */}
-      <button
-        type="button"
+      <div
+        role="button"
+        tabIndex={0}
         onClick={() => setExpanded((prev) => !prev)}
-        className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-750"
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setExpanded((prev) => !prev);
+          }
+        }}
+        className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-750 cursor-pointer"
       >
         <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
           {title}
         </span>
         <div className="flex items-center gap-2">
-          {/* Actions rendered before the chevron so they sit to its left */}
           {actions && (
-            <div
-              onClick={(e) => e.stopPropagation()}
-              className="flex items-center gap-2"
-            >
+            <div className="flex items-center gap-2">
               {actions}
             </div>
           )}
@@ -55,7 +58,7 @@ export default function DashboardModule({
             />
           </svg>
         </div>
-      </button>
+      </div>
 
       {/* Collapsible body */}
       <div

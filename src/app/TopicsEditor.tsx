@@ -1,6 +1,11 @@
 "use client";
 
 import { useState, useEffect, FormEvent } from "react";
+import {
+  LANGUAGE_OPTIONS,
+  COUNTRY_OPTIONS,
+  TOPIC_PRESETS,
+} from "@/lib/db/topics";
 
 interface NewsTopic {
   id: string;
@@ -32,10 +37,19 @@ const EMPTY_FORM = {
   blockedSources: "",
   requiredKeywords: "",
   blockedKeywords: "",
-  maxItemsPerDay: 10,
+  maxItemsPerDay: 5,
   minScore: 0,
-  enabled: true,
 };
+
+/** Ensure the current value appears in the dropdown options (for backward compat). */
+function mergeCurrentValue(
+  options: { value: string; label: string }[],
+  currentValue: string,
+): { value: string; label: string }[] {
+  if (!currentValue) return options;
+  if (options.some((o) => o.value === currentValue)) return options;
+  return [...options, { value: currentValue, label: currentValue }];
+}
 
 export default function TopicsEditor() {
   const [topics, setTopics] = useState<NewsTopic[]>([]);
@@ -43,6 +57,8 @@ export default function TopicsEditor() {
   const [error, setError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
 
   async function loadTopics() {
     setLoading(true);
@@ -67,8 +83,22 @@ export default function TopicsEditor() {
     loadTopics();
   }, []);
 
+  function hasAdvancedValues(topic: NewsTopic) {
+    return (
+      topic.country !== "" ||
+      topic.region !== "" ||
+      topic.preferredSources.length > 0 ||
+      topic.blockedSources.length > 0 ||
+      topic.requiredKeywords.length > 0 ||
+      topic.blockedKeywords.length > 0 ||
+      topic.maxItemsPerDay !== 5 ||
+      topic.minScore !== 0
+    );
+  }
+
   function startEdit(topic: NewsTopic) {
     setEditingId(topic.id);
+    setShowAdvanced(hasAdvancedValues(topic));
     setForm({
       name: topic.name,
       description: topic.description,
@@ -82,12 +112,12 @@ export default function TopicsEditor() {
       blockedKeywords: topic.blockedKeywords.join("\n"),
       maxItemsPerDay: topic.maxItemsPerDay,
       minScore: topic.minScore,
-      enabled: topic.enabled,
     });
   }
 
   function resetForm() {
     setEditingId(null);
+    setShowAdvanced(false);
     setForm(EMPTY_FORM);
   }
 
@@ -95,20 +125,34 @@ export default function TopicsEditor() {
     e.preventDefault();
     setError(null);
 
-    const body = {
+    const body: Record<string, unknown> = {
       name: form.name.trim(),
       description: form.description.trim(),
-      queries: form.queries.split("\n").map((s) => s.trim()).filter(Boolean),
+      queries: form.queries
+        .split("\n")
+        .map((s) => s.trim())
+        .filter(Boolean),
       country: form.country.trim(),
       region: form.region.trim(),
       language: form.language.trim(),
-      preferredSources: form.preferredSources.split("\n").map((s) => s.trim()).filter(Boolean),
-      blockedSources: form.blockedSources.split("\n").map((s) => s.trim()).filter(Boolean),
-      requiredKeywords: form.requiredKeywords.split("\n").map((s) => s.trim()).filter(Boolean),
-      blockedKeywords: form.blockedKeywords.split("\n").map((s) => s.trim()).filter(Boolean),
+      preferredSources: form.preferredSources
+        .split("\n")
+        .map((s) => s.trim())
+        .filter(Boolean),
+      blockedSources: form.blockedSources
+        .split("\n")
+        .map((s) => s.trim())
+        .filter(Boolean),
+      requiredKeywords: form.requiredKeywords
+        .split("\n")
+        .map((s) => s.trim())
+        .filter(Boolean),
+      blockedKeywords: form.blockedKeywords
+        .split("\n")
+        .map((s) => s.trim())
+        .filter(Boolean),
       maxItemsPerDay: form.maxItemsPerDay,
       minScore: form.minScore,
-      enabled: form.enabled,
     };
 
     try {
@@ -135,6 +179,38 @@ export default function TopicsEditor() {
     }
   }
 
+  async function handleToggleEnabled(topic: NewsTopic) {
+    const newEnabled = !topic.enabled;
+    setTogglingId(topic.id);
+
+    // Optimistic update
+    setTopics((prev) =>
+      prev.map((t) => (t.id === topic.id ? { ...t, enabled: newEnabled } : t)),
+    );
+
+    try {
+      const res = await fetch(`/api/news/topics/${topic.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: newEnabled }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to toggle topic");
+      }
+    } catch (err) {
+      // Revert on error
+      setTopics((prev) =>
+        prev.map((t) =>
+          t.id === topic.id ? { ...t, enabled: !newEnabled } : t,
+        ),
+      );
+      setError(err instanceof Error ? err.message : "Failed to toggle topic");
+    } finally {
+      setTogglingId(null);
+    }
+  }
+
   async function handleDelete(id: string) {
     if (!confirm("Delete this topic?")) return;
 
@@ -152,6 +228,13 @@ export default function TopicsEditor() {
 
   function updateForm(field: string, value: string | number | boolean) {
     setForm((prev) => ({ ...prev, [field]: value }));
+  }
+
+  function handlePresetChange(presetLabel: string) {
+    const preset = TOPIC_PRESETS.find((p) => p.label === presetLabel);
+    if (preset) {
+      updateForm("queries", preset.queries);
+    }
   }
 
   if (loading) {
@@ -180,191 +263,250 @@ export default function TopicsEditor() {
         </h3>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {/* ── Essential Fields ── */}
+          <div className="space-y-4">
+            {/* Preset selector */}
             <div>
               <label className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400">
-                Name *
+                Topic preset
               </label>
-              <input
-                type="text"
-                value={form.name}
-                onChange={(e) => updateForm("name", e.target.value)}
-                required
+              <select
+                value=""
+                onChange={(e) => handlePresetChange(e.target.value)}
                 className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
-                placeholder="e.g. Tech News"
-              />
+              >
+                <option value="" disabled>
+                  Select a preset...
+                </option>
+                {TOPIC_PRESETS.map((p) => (
+                  <option key={p.label} value={p.label}>
+                    {p.label}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
+                Selecting a preset will replace any existing search terms.
+              </p>
             </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400">
-                Enabled
-              </label>
-              <label className="flex items-center gap-2 pt-2">
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                  Topic name *
+                </label>
                 <input
-                  type="checkbox"
-                  checked={form.enabled}
-                  onChange={(e) => updateForm("enabled", e.target.checked)}
-                  className="rounded border-zinc-300 text-teal-600 focus:ring-teal-600 dark:border-zinc-600"
+                  type="text"
+                  value={form.name}
+                  onChange={(e) => updateForm("name", e.target.value)}
+                  required
+                  className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
+                  placeholder="e.g. Tech News"
                 />
-                <span className="text-sm text-zinc-600 dark:text-zinc-400">
-                  Topic is active
-                </span>
-              </label>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                  Language
+                </label>
+                <select
+                  value={form.language}
+                  onChange={(e) => updateForm("language", e.target.value)}
+                  className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
+                >
+                  {mergeCurrentValue(LANGUAGE_OPTIONS, form.language).map(
+                    (opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ),
+                  )}
+                </select>
+              </div>
             </div>
-          </div>
 
-          <div>
-            <label className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400">
-              Description
-            </label>
-            <input
-              type="text"
-              value={form.description}
-              onChange={(e) => updateForm("description", e.target.value)}
-              className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
-              placeholder="Optional description"
-            />
-          </div>
-
-          <div>
-            <label className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400">
-              Queries * (one per line)
-            </label>
-            <textarea
-              value={form.queries}
-              onChange={(e) => updateForm("queries", e.target.value)}
-              required
-              rows={3}
-              className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
-              placeholder="latest AI news&#10;machine learning breakthroughs"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div>
               <label className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400">
-                Country
+                Search terms * (one per line)
+              </label>
+              <textarea
+                value={form.queries}
+                onChange={(e) => updateForm("queries", e.target.value)}
+                required
+                rows={3}
+                className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
+                placeholder={"latest AI news\nmachine learning breakthroughs"}
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                Short description
               </label>
               <input
                 type="text"
-                value={form.country}
-                onChange={(e) => updateForm("country", e.target.value)}
+                value={form.description}
+                onChange={(e) => updateForm("description", e.target.value)}
                 className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
-                placeholder="e.g. US"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400">
-                Region
-              </label>
-              <input
-                type="text"
-                value={form.region}
-                onChange={(e) => updateForm("region", e.target.value)}
-                className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
-                placeholder="e.g. EU"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400">
-                Language
-              </label>
-              <input
-                type="text"
-                value={form.language}
-                onChange={(e) => updateForm("language", e.target.value)}
-                className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
-                placeholder="e.g. en"
+                placeholder="Optional description"
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-              <label className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400">
-                Preferred Sources (one per line)
-              </label>
-              <textarea
-                value={form.preferredSources}
-                onChange={(e) => updateForm("preferredSources", e.target.value)}
-                rows={3}
-                className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
-                placeholder="reuters.com&#10;apnews.com"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400">
-                Blocked Sources (one per line)
-              </label>
-              <textarea
-                value={form.blockedSources}
-                onChange={(e) => updateForm("blockedSources", e.target.value)}
-                rows={3}
-                className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
-                placeholder="spam-site.com"
-              />
-            </div>
-          </div>
+          {/* ── Advanced Toggle ── */}
+          <button
+            type="button"
+            onClick={() => setShowAdvanced(!showAdvanced)}
+            className="flex items-center gap-2 text-xs font-medium text-zinc-500 hover:text-zinc-700 transition-colors dark:text-zinc-400 dark:hover:text-zinc-300"
+          >
+            <span
+              className={`inline-block transition-transform ${
+                showAdvanced ? "rotate-90" : ""
+              }`}
+            >
+              &#x25B6;
+            </span>
+            Advanced settings
+          </button>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-              <label className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400">
-                Required Keywords (one per line)
-              </label>
-              <textarea
-                value={form.requiredKeywords}
-                onChange={(e) =>
-                  updateForm("requiredKeywords", e.target.value)
-                }
-                rows={3}
-                className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
-                placeholder="keyword1"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400">
-                Blocked Keywords (one per line)
-              </label>
-              <textarea
-                value={form.blockedKeywords}
-                onChange={(e) => updateForm("blockedKeywords", e.target.value)}
-                rows={3}
-                className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
-                placeholder="spam"
-              />
-            </div>
-          </div>
+          {/* ── Advanced Fields ── */}
+          {showAdvanced && (
+            <div className="space-y-4 border-t border-zinc-200 pt-4 dark:border-zinc-700">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                    Country
+                  </label>
+                  <select
+                    value={form.country}
+                    onChange={(e) => updateForm("country", e.target.value)}
+                    className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
+                  >
+                    {mergeCurrentValue(COUNTRY_OPTIONS, form.country).map(
+                      (opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ),
+                    )}
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                    Region filter
+                  </label>
+                  <input
+                    type="text"
+                    value={form.region}
+                    onChange={(e) => updateForm("region", e.target.value)}
+                    className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
+                    placeholder="e.g. EU"
+                  />
+                </div>
+              </div>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-              <label className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400">
-                Max Items Per Day
-              </label>
-              <input
-                type="number"
-                value={form.maxItemsPerDay}
-                onChange={(e) =>
-                  updateForm("maxItemsPerDay", parseInt(e.target.value, 10) || 0)
-                }
-                min={1}
-                max={100}
-                className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400">
-                Min Score
-              </label>
-              <input
-                type="number"
-                value={form.minScore}
-                onChange={(e) =>
-                  updateForm("minScore", parseInt(e.target.value, 10) || 0)
-                }
-                className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
-              />
-            </div>
-          </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                    Prefer these sources (one per line)
+                  </label>
+                  <textarea
+                    value={form.preferredSources}
+                    onChange={(e) =>
+                      updateForm("preferredSources", e.target.value)
+                    }
+                    rows={3}
+                    className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
+                    placeholder="reuters.com&#10;apnews.com"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                    Ignore these sources (one per line)
+                  </label>
+                  <textarea
+                    value={form.blockedSources}
+                    onChange={(e) =>
+                      updateForm("blockedSources", e.target.value)
+                    }
+                    rows={3}
+                    className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
+                    placeholder="spam-site.com"
+                  />
+                </div>
+              </div>
 
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                    Must include keywords (one per line)
+                  </label>
+                  <textarea
+                    value={form.requiredKeywords}
+                    onChange={(e) =>
+                      updateForm("requiredKeywords", e.target.value)
+                    }
+                    rows={3}
+                    className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
+                    placeholder="keyword1"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                    Exclude keywords (one per line)
+                  </label>
+                  <textarea
+                    value={form.blockedKeywords}
+                    onChange={(e) =>
+                      updateForm("blockedKeywords", e.target.value)
+                    }
+                    rows={3}
+                    className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
+                    placeholder="spam"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                    Articles per day
+                  </label>
+                  <input
+                    type="number"
+                    value={form.maxItemsPerDay}
+                    onChange={(e) =>
+                      updateForm(
+                        "maxItemsPerDay",
+                        parseInt(e.target.value, 10) || 0,
+                      )
+                    }
+                    min={1}
+                    max={100}
+                    className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                    Quality threshold (0-10)
+                  </label>
+                  <input
+                    type="number"
+                    value={form.minScore}
+                    onChange={(e) =>
+                      updateForm(
+                        "minScore",
+                        parseInt(e.target.value, 10) || 0,
+                      )
+                    }
+                    min={0}
+                    max={10}
+                    className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Submit buttons */}
           <div className="flex items-center gap-3">
             <button
               type="submit"
@@ -419,6 +561,23 @@ export default function TopicsEditor() {
                 )}
               </div>
               <div className="flex items-center gap-2 shrink-0">
+                {/* Inline enabled toggle */}
+                <label
+                  className={`relative inline-flex items-center cursor-pointer ${
+                    togglingId === topic.id
+                      ? "opacity-50 pointer-events-none"
+                      : ""
+                  }`}
+                  title={topic.enabled ? "Disable topic" : "Enable topic"}
+                >
+                  <input
+                    type="checkbox"
+                    checked={topic.enabled}
+                    onChange={() => handleToggleEnabled(topic)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-9 h-5 bg-zinc-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-teal-600 rounded-full peer peer-checked:after:translate-x-full peer-checked:bg-teal-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all dark:bg-zinc-600" />
+                </label>
                 <button
                   type="button"
                   onClick={() => startEdit(topic)}
@@ -446,7 +605,8 @@ export default function TopicsEditor() {
               ))}
             </div>
             <div className="mt-2 text-xs text-zinc-400 dark:text-zinc-500">
-              Max {topic.maxItemsPerDay}/day &middot; Min score {topic.minScore} &middot;
+              Max {topic.maxItemsPerDay}/day &middot; Min score{" "}
+              {topic.minScore} &middot;
               {topic.preferredSources.length > 0 &&
                 ` ${topic.preferredSources.length} preferred sources`}
             </div>

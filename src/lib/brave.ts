@@ -26,6 +26,7 @@ export async function searchBrave(
   query: string,
   count: number = 10,
   freshness?: "pd" | "pw" | "pm" | "py",
+  country?: string,
 ): Promise<BraveSearchResponse> {
   const apiKey = process.env.BRAVE_API_KEY;
 
@@ -41,6 +42,10 @@ export async function searchBrave(
 
   if (freshness) {
     url.searchParams.set("freshness", freshness);
+  }
+
+  if (country) {
+    url.searchParams.set("country", country);
   }
 
   const response = await fetch(url.toString(), {

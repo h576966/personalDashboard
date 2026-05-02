@@ -10,12 +10,71 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* Color palette: https://colorhunt.co/palette/35858e7da78cc2d099e6eec9 */
+  --color-teal-50: #F3F6E4;
+  --color-teal-100: #E6EEC9;
+  --color-teal-200: #D4DFB1;
+  --color-teal-300: #C2D099;
+  --color-teal-400: #A0BC93;
+  --color-teal-500: #7DA78C;
+  --color-teal-600: #59968D;
+  --color-teal-700: #35858E;
+  --color-teal-800: #24646D;
+  --color-teal-900: #174349;
+  --color-teal-950: #0D2226;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
+  }
+}
+
+/* Text selection highlight — use palette colors instead of browser default blue */
+::selection {
+  background-color: #C2D099;
+  color: #174349;
+}
+
+@media (prefers-color-scheme: dark) {
+  ::selection {
+    background-color: #35858E;
+    color: #E6EEC9;
+  }
+}
+
+/* Dropdown option styling — override browser default blue highlight */
+select option {
+  background-color: #fff;
+  color: #171717;
+}
+
+select option:hover {
+  background-color: var(--color-teal-200);
+  color: var(--color-teal-900);
+}
+
+select option:checked {
+  background-color: var(--color-teal-200);
+  color: var(--color-teal-900);
+}
+
+@media (prefers-color-scheme: dark) {
+  select option {
+    background-color: #0a0a0a;
+    color: #ededed;
+  }
+
+  select option:hover {
+    background-color: var(--color-teal-600);
+    color: #fff;
+  }
+
+  select option:checked {
+    background-color: var(--color-teal-700);
+    color: var(--color-teal-100);
   }
 }
 
