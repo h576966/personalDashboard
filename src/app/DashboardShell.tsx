@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import NewsModule from "./NewsModule";
 import SearchModule from "./SearchModule";
 import SavedModule from "./SavedModule";
@@ -27,12 +27,6 @@ interface SearchData {
   rewrittenQuery?: string;
 }
 
-interface ErrorResponse {
-  error?: {
-    message?: string;
-  };
-}
-
 export default function DashboardShell() {
   const [activeModule, setActiveModule] = useState<ActiveModule>("news");
 
@@ -53,11 +47,7 @@ export default function DashboardShell() {
     [savedItems],
   );
 
-  useEffect(() => {
-    loadSavedItems();
-  }, []);
-
-  async function loadSavedItems() {
+  const loadSavedItems = useCallback(async () => {
     setIsLoadingSaved(true);
     setSavedError(null);
 
@@ -76,7 +66,11 @@ export default function DashboardShell() {
     } finally {
       setIsLoadingSaved(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    loadSavedItems();
+  }, [loadSavedItems]);
 
   async function saveItem(item: SearchResult) {
     if (savedUrls.has(item.url)) return;
