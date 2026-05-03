@@ -1,6 +1,7 @@
 "use client";
 
 interface SavedItem {
+  id: string;
   title: string;
   url: string;
   description: string;
@@ -9,10 +10,11 @@ interface SavedItem {
 
 interface SavedModuleProps {
   items: SavedItem[];
-  onRemove: (url: string) => void;
+  isLoading: boolean;
+  onRemove: (id: string) => void;
 }
 
-export default function SavedModule({ items, onRemove }: SavedModuleProps) {
+export default function SavedModule({ items, isLoading, onRemove }: SavedModuleProps) {
   return (
     <div className="rounded-md border border-zinc-200 bg-white shadow-sm dark:border-zinc-700 dark:bg-zinc-800">
       <div className="border-b border-zinc-200 px-4 py-3 dark:border-zinc-700">
@@ -23,7 +25,9 @@ export default function SavedModule({ items, onRemove }: SavedModuleProps) {
       </div>
 
       <div className="p-4">
-        {items.length === 0 ? (
+        {isLoading ? (
+          <p className="text-sm text-zinc-500">Loading...</p>
+        ) : items.length === 0 ? (
           <p className="text-sm text-zinc-500 dark:text-zinc-400">
             No saved items yet. Save results from search to keep them here.
           </p>
@@ -31,7 +35,7 @@ export default function SavedModule({ items, onRemove }: SavedModuleProps) {
           <ul className="space-y-4">
             {items.map((item) => (
               <li
-                key={item.url}
+                key={item.id}
                 className="rounded-md border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-700 dark:bg-zinc-900"
               >
                 <div className="flex items-start justify-between gap-3">
@@ -45,7 +49,7 @@ export default function SavedModule({ items, onRemove }: SavedModuleProps) {
                   </a>
                   <button
                     type="button"
-                    onClick={() => onRemove(item.url)}
+                    onClick={() => onRemove(item.id)}
                     className="shrink-0 text-xs font-medium text-zinc-400 hover:text-red-600"
                   >
                     Remove
