@@ -120,7 +120,7 @@ export default function SearchModule() {
               <Clock className="w-3.5 h-3.5" />
             </span>
             <Select value={freshness} onValueChange={setFreshness} disabled={status.type === "loading"}>
-              <SelectTrigger className="rounded-md bg-primary-hover border border-primary px-2 py-1 h-auto text-xs text-white focus:ring-primary w-[110px] [&>svg]:text-white">
+              <SelectTrigger className="rounded-md bg-primary-hover border border-primary px-2 py-1 h-auto text-xs text-white focus:ring-primary w-[110px] [&>svg]:text-white [&>span]:text-white">
                 <SelectValue placeholder="Any time" />
               </SelectTrigger>
               <SelectContent className="w-[110px] min-w-[110px] bg-primary border-primary text-white">
@@ -138,7 +138,7 @@ export default function SearchModule() {
               <Globe className="w-3.5 h-3.5" />
             </span>
             <Select value={country} onValueChange={setCountry} disabled={status.type === "loading"}>
-              <SelectTrigger className="rounded-md bg-primary-hover border border-primary px-2 py-1 h-auto text-xs text-white focus:ring-primary w-[140px] [&>svg]:text-white">
+              <SelectTrigger className="rounded-md bg-primary-hover border border-primary px-2 py-1 h-auto text-xs text-white focus:ring-primary w-[140px] [&>svg]:text-white [&>span]:text-white">
                 <SelectValue placeholder="All regions" />
               </SelectTrigger>
               <SelectContent className="w-[140px] min-w-[140px] bg-primary border-primary text-white max-h-[200px]">
