@@ -123,12 +123,12 @@ export default function SearchModule() {
               <SelectTrigger className="rounded-md bg-primary-hover border border-primary px-2 py-1 h-auto text-xs text-white focus:ring-primary w-[110px] [&>svg]:text-white">
                 <SelectValue placeholder="Any time" />
               </SelectTrigger>
-              <SelectContent className="w-[110px] min-w-[110px] bg-accent border-accent text-black">
-                <SelectItem value="all" className="text-black focus:bg-white focus:text-black text-xs">Any time</SelectItem>
-                <SelectItem value="pd" className="text-black focus:bg-white focus:text-black text-xs">Past Day</SelectItem>
-                <SelectItem value="pw" className="text-black focus:bg-white focus:text-black text-xs">Past Week</SelectItem>
-                <SelectItem value="pm" className="text-black focus:bg-white focus:text-black text-xs">Past Month</SelectItem>
-                <SelectItem value="py" className="text-black focus:bg-white focus:text-black text-xs">Past Year</SelectItem>
+              <SelectContent className="w-[110px] min-w-[110px] bg-primary border-primary text-white">
+                <SelectItem value="all" className="text-white focus:bg-primary-hover focus:text-white text-xs">Any time</SelectItem>
+                <SelectItem value="pd" className="text-white focus:bg-primary-hover focus:text-white text-xs">Past Day</SelectItem>
+                <SelectItem value="pw" className="text-white focus:bg-primary-hover focus:text-white text-xs">Past Week</SelectItem>
+                <SelectItem value="pm" className="text-white focus:bg-primary-hover focus:text-white text-xs">Past Month</SelectItem>
+                <SelectItem value="py" className="text-white focus:bg-primary-hover focus:text-white text-xs">Past Year</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -141,9 +141,9 @@ export default function SearchModule() {
               <SelectTrigger className="rounded-md bg-primary-hover border border-primary px-2 py-1 h-auto text-xs text-white focus:ring-primary w-[140px] [&>svg]:text-white">
                 <SelectValue placeholder="All regions" />
               </SelectTrigger>
-              <SelectContent className="w-[140px] min-w-[140px] bg-accent border-accent text-black max-h-[200px]">
+              <SelectContent className="w-[140px] min-w-[140px] bg-primary border-primary text-white max-h-[200px]">
                 {COUNTRY_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value} className="text-black focus:bg-white focus:text-black text-xs">
+                  <SelectItem key={opt.value} value={opt.value} className="text-white focus:bg-primary-hover focus:text-white text-xs">
                     {opt.label}
                   </SelectItem>
                 ))}
