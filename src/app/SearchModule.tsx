@@ -42,14 +42,14 @@ export default function SearchModule({
 
   return (
     <div className="bg-primary-hover border-b border-primary-hover/70 dark:border-primary-hover/80">
-      <div className="flex flex-wrap items-center gap-2 mx-auto max-w-7xl px-4 py-2">
+      <div className="mx-auto grid max-w-7xl grid-cols-1 gap-2 px-4 py-2 md:grid-cols-[minmax(320px,1fr)_auto_auto_auto] md:items-center">
         <Input
           type="text"
           value={query}
           onChange={(e) => onQueryChange(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Search..."
-          className="flex-1 min-w-[280px] h-11 border-primary bg-white dark:bg-zinc-800 dark:text-zinc-100"
+          className="h-11 min-w-0 border-primary bg-white dark:bg-zinc-800 dark:text-zinc-100"
           disabled={isLoading}
         />
         <Button
@@ -57,20 +57,19 @@ export default function SearchModule({
           onClick={() => onSearch(query)}
           disabled={!query.trim() || isLoading}
           size="sm"
-          className="h-11 bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+          className="h-11 bg-muted px-5 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
         >
           {isLoading ? "..." : "Go"}
         </Button>
-          {/* Freshness */}
         <div className="flex items-center gap-1">
           <span className="text-white">
             <Clock className="w-3.5 h-3.5" />
           </span>
           <Select value={freshness} onValueChange={onFreshnessChange} disabled={isLoading}>
-            <SelectTrigger className="rounded-md bg-primary-hover border border-primary px-2 py-1 h-auto text-xs text-white focus:ring-primary w-[110px] [&>svg]:text-white [&>span]:text-white">
+            <SelectTrigger className="h-9 w-[130px] rounded-md border border-primary bg-primary-hover px-2 py-1 text-xs text-white focus:ring-primary [&>span]:text-white [&>svg]:text-white">
               <SelectValue placeholder="Any time" />
             </SelectTrigger>
-            <SelectContent className="w-[110px] min-w-[110px] bg-primary border-primary text-white">
+            <SelectContent className="w-[130px] min-w-[130px] bg-primary border-primary text-white">
               <SelectItem value="all" className="text-white focus:bg-primary-hover focus:text-white text-xs">Any time</SelectItem>
               <SelectItem value="pd" className="text-white focus:bg-primary-hover focus:text-white text-xs">Past Day</SelectItem>
               <SelectItem value="pw" className="text-white focus:bg-primary-hover focus:text-white text-xs">Past Week</SelectItem>
@@ -79,16 +78,15 @@ export default function SearchModule({
             </SelectContent>
           </Select>
         </div>
-          {/* Region */}
         <div className="flex items-center gap-1">
           <span className="text-white">
             <Globe className="w-3.5 h-3.5" />
           </span>
           <Select value={country} onValueChange={onCountryChange} disabled={isLoading}>
-            <SelectTrigger className="rounded-md bg-primary-hover border border-primary px-2 py-1 h-auto text-xs text-white focus:ring-primary w-[140px] [&>svg]:text-white [&>span]:text-white">
+            <SelectTrigger className="h-9 w-[150px] rounded-md border border-primary bg-primary-hover px-2 py-1 text-xs text-white focus:ring-primary [&>span]:text-white [&>svg]:text-white">
               <SelectValue placeholder="All regions" />
             </SelectTrigger>
-            <SelectContent className="w-[140px] min-w-[140px] bg-primary border-primary text-white max-h-[200px]">
+            <SelectContent className="w-[150px] min-w-[150px] bg-primary border-primary text-white max-h-[200px]">
               {COUNTRY_OPTIONS.map((opt) => (
                 <SelectItem key={opt.value} value={opt.value} className="text-white focus:bg-primary-hover focus:text-white text-xs">
                   {opt.label}
