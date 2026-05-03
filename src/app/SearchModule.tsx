@@ -102,7 +102,7 @@ export default function SearchModule() {
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Search..."
-            className="flex-1 min-w-0 h-11 border-primary bg-white dark:bg-zinc-800 dark:text-zinc-100"
+            className="flex-1 min-w-[280px] h-11 border-primary bg-white dark:bg-zinc-800 dark:text-zinc-100"
             disabled={status.type === "loading"}
           />
           <Button
@@ -120,10 +120,10 @@ export default function SearchModule() {
               <Clock className="w-3.5 h-3.5" />
             </span>
             <Select value={freshness} onValueChange={setFreshness} disabled={status.type === "loading"}>
-              <SelectTrigger className="rounded-md bg-primary-hover border border-primary px-2 py-1 h-auto text-xs text-white focus:ring-primary min-w-[90px] [&>svg]:text-white">
+              <SelectTrigger className="rounded-md bg-primary-hover border border-primary px-2 py-1 h-auto text-xs text-white focus:ring-primary w-[110px] [&>svg]:text-white">
                 <SelectValue placeholder="Any time" />
               </SelectTrigger>
-              <SelectContent className="bg-secondary border-accent text-black">
+              <SelectContent className="w-[110px] min-w-[110px] bg-secondary border-accent text-black">
                 <SelectItem value="all" className="text-black focus:bg-accent focus:text-accent-foreground text-xs">Any time</SelectItem>
                 <SelectItem value="pd" className="text-black focus:bg-accent focus:text-accent-foreground text-xs">Past Day</SelectItem>
                 <SelectItem value="pw" className="text-black focus:bg-accent focus:text-accent-foreground text-xs">Past Week</SelectItem>
@@ -138,10 +138,10 @@ export default function SearchModule() {
               <Globe className="w-3.5 h-3.5" />
             </span>
             <Select value={country} onValueChange={setCountry} disabled={status.type === "loading"}>
-              <SelectTrigger className="rounded-md bg-primary-hover border border-primary px-2 py-1 h-auto text-xs text-white focus:ring-primary min-w-[110px] [&>svg]:text-white">
+              <SelectTrigger className="rounded-md bg-primary-hover border border-primary px-2 py-1 h-auto text-xs text-white focus:ring-primary w-[140px] [&>svg]:text-white">
                 <SelectValue placeholder="All regions" />
               </SelectTrigger>
-              <SelectContent className="bg-secondary border-accent text-black max-h-[200px]">
+              <SelectContent className="w-[140px] min-w-[140px] bg-secondary border-accent text-black max-h-[200px]">
                 {COUNTRY_OPTIONS.map((opt) => (
                   <SelectItem key={opt.value} value={opt.value} className="text-black focus:bg-accent focus:text-accent-foreground text-xs">
                     {opt.label}
