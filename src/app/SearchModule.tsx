@@ -110,7 +110,7 @@ export default function SearchModule() {
             onClick={() => performSearch(query)}
             disabled={!query.trim() || status.type === "loading"}
             size="sm"
-            className="h-11 bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground"
+            className="h-11 bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground"
           >
             {status.type === "loading" ? "..." : "Go"}
           </Button>
@@ -123,7 +123,7 @@ export default function SearchModule() {
               <SelectTrigger className="rounded-md bg-primary-hover border border-primary px-2 py-1 h-auto text-xs text-white focus:ring-primary min-w-[90px] [&>svg]:text-white">
                 <SelectValue placeholder="Any time" />
               </SelectTrigger>
-              <SelectContent className="bg-muted border-accent text-black">
+              <SelectContent className="bg-secondary border-accent text-black">
                 <SelectItem value="all" className="text-black focus:bg-accent focus:text-accent-foreground text-xs">Any time</SelectItem>
                 <SelectItem value="pd" className="text-black focus:bg-accent focus:text-accent-foreground text-xs">Past Day</SelectItem>
                 <SelectItem value="pw" className="text-black focus:bg-accent focus:text-accent-foreground text-xs">Past Week</SelectItem>
@@ -141,7 +141,7 @@ export default function SearchModule() {
               <SelectTrigger className="rounded-md bg-primary-hover border border-primary px-2 py-1 h-auto text-xs text-white focus:ring-primary min-w-[110px] [&>svg]:text-white">
                 <SelectValue placeholder="All regions" />
               </SelectTrigger>
-              <SelectContent className="bg-muted border-accent text-black max-h-[200px]">
+              <SelectContent className="bg-secondary border-accent text-black max-h-[200px]">
                 {COUNTRY_OPTIONS.map((opt) => (
                   <SelectItem key={opt.value} value={opt.value} className="text-black focus:bg-accent focus:text-accent-foreground text-xs">
                     {opt.label}
