@@ -11,10 +11,11 @@ interface SavedItem {
 interface SavedModuleProps {
   items: SavedItem[];
   isLoading: boolean;
-  onRemove: (id: string) => void;
+  error?: string | null;
+  onRemove: (id: string) => void | Promise<void>;
 }
 
-export default function SavedModule({ items, isLoading, onRemove }: SavedModuleProps) {
+export default function SavedModule({ items, isLoading, error, onRemove }: SavedModuleProps) {
   return (
     <div className="rounded-md border border-zinc-200 bg-white shadow-sm dark:border-zinc-700 dark:bg-zinc-800">
       <div className="border-b border-zinc-200 px-4 py-3 dark:border-zinc-700">
@@ -25,6 +26,12 @@ export default function SavedModule({ items, isLoading, onRemove }: SavedModuleP
       </div>
 
       <div className="p-4">
+        {error && (
+          <div className="mb-4 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-700 dark:bg-red-900/20 dark:text-red-400">
+            {error}
+          </div>
+        )}
+
         {isLoading ? (
           <p className="text-sm text-zinc-500">Loading...</p>
         ) : items.length === 0 ? (
