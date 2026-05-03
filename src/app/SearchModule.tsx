@@ -110,7 +110,7 @@ export default function SearchModule() {
             onClick={() => performSearch(query)}
             disabled={!query.trim() || status.type === "loading"}
             size="sm"
-            className="h-11 bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+            className="h-11 bg-accent text-accent-foreground hover:bg-muted hover:text-muted-foreground"
           >
             {status.type === "loading" ? "..." : "Go"}
           </Button>
@@ -123,12 +123,12 @@ export default function SearchModule() {
               <SelectTrigger className="rounded-md bg-primary-hover border border-primary px-2 py-1 h-auto text-xs text-white focus:ring-primary w-[110px] [&>svg]:text-white">
                 <SelectValue placeholder="Any time" />
               </SelectTrigger>
-              <SelectContent className="w-[110px] min-w-[110px] bg-secondary border-accent text-black">
-                <SelectItem value="all" className="text-black focus:bg-accent focus:text-accent-foreground text-xs">Any time</SelectItem>
-                <SelectItem value="pd" className="text-black focus:bg-accent focus:text-accent-foreground text-xs">Past Day</SelectItem>
-                <SelectItem value="pw" className="text-black focus:bg-accent focus:text-accent-foreground text-xs">Past Week</SelectItem>
-                <SelectItem value="pm" className="text-black focus:bg-accent focus:text-accent-foreground text-xs">Past Month</SelectItem>
-                <SelectItem value="py" className="text-black focus:bg-accent focus:text-accent-foreground text-xs">Past Year</SelectItem>
+              <SelectContent className="w-[110px] min-w-[110px] bg-accent border-accent text-black">
+                <SelectItem value="all" className="text-black focus:bg-white focus:text-black text-xs">Any time</SelectItem>
+                <SelectItem value="pd" className="text-black focus:bg-white focus:text-black text-xs">Past Day</SelectItem>
+                <SelectItem value="pw" className="text-black focus:bg-white focus:text-black text-xs">Past Week</SelectItem>
+                <SelectItem value="pm" className="text-black focus:bg-white focus:text-black text-xs">Past Month</SelectItem>
+                <SelectItem value="py" className="text-black focus:bg-white focus:text-black text-xs">Past Year</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -141,9 +141,9 @@ export default function SearchModule() {
               <SelectTrigger className="rounded-md bg-primary-hover border border-primary px-2 py-1 h-auto text-xs text-white focus:ring-primary w-[140px] [&>svg]:text-white">
                 <SelectValue placeholder="All regions" />
               </SelectTrigger>
-              <SelectContent className="w-[140px] min-w-[140px] bg-secondary border-accent text-black max-h-[200px]">
+              <SelectContent className="w-[140px] min-w-[140px] bg-accent border-accent text-black max-h-[200px]">
                 {COUNTRY_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value} className="text-black focus:bg-accent focus:text-accent-foreground text-xs">
+                  <SelectItem key={opt.value} value={opt.value} className="text-black focus:bg-white focus:text-black text-xs">
                     {opt.label}
                   </SelectItem>
                 ))}
