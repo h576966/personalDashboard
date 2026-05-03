@@ -1,4 +1,5 @@
 import { getSupabase } from "./supabase";
+import { assertField } from "./assert";
 
 export interface Event {
   id: string;
@@ -13,14 +14,14 @@ export interface Event {
 
 function rowToEvent(row: Record<string, unknown>): Event {
   return {
-    id: row.id as string,
-    title: row.title as string,
-    description: row.description as string,
-    startDate: row.start_date as string,
-    endDate: row.end_date as string | null,
-    allDay: row.all_day as boolean,
-    createdAt: row.created_at as string,
-    updatedAt: row.updated_at as string,
+    id: assertField<string>(row, "id", "string"),
+    title: assertField<string>(row, "title", "string"),
+    description: assertField<string>(row, "description", "string"),
+    startDate: assertField<string>(row, "start_date", "string"),
+    endDate: (row.end_date as string | null) ?? null,
+    allDay: assertField<boolean>(row, "all_day", "boolean"),
+    createdAt: assertField<string>(row, "created_at", "string"),
+    updatedAt: assertField<string>(row, "updated_at", "string"),
   };
 }
 

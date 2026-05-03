@@ -1,17 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getTopics, createTopic, type CreateTopicData } from "@/lib/db/topics";
-
-interface ErrorResponse {
-  error: { message: string; code: string };
-}
-
-function errorResponse(
-  message: string,
-  code: string,
-  status: number,
-): NextResponse<ErrorResponse> {
-  return NextResponse.json({ error: { message, code } }, { status });
-}
+import { errorResponse } from "@/lib/api/errors";
 
 export async function GET() {
   try {

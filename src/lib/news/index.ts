@@ -10,8 +10,7 @@ import {
 import { fetchTopicNews, type TopicNewsResult } from "./fetch";
 import { deduplicate } from "./deduplicate";
 import type { ScoredNewsItem } from "./score";
-
-const GLOBAL_DAILY_LIMIT = 50;
+import { GLOBAL_DAILY_LIMIT } from "@/lib/config";
 
 export interface BriefingResult {
   runId: string;

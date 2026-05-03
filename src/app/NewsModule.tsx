@@ -5,19 +5,7 @@ import Briefing from "./Briefing";
 import TopicsEditor from "./TopicsEditor";
 import { type Status } from "./components/Status";
 import { Button } from "@/components/ui/button";
-
-interface BriefingItem {
-  id: string;
-  title: string;
-  url: string;
-  description: string;
-  source: string;
-  score: number;
-  topicName: string;
-  topicId: string;
-  status: string;
-  firstSeenAt: string;
-}
+import type { BriefingItem } from "@/lib/db/newsItems";
 
 type Tab = "briefing" | "topics";
 
@@ -176,7 +164,7 @@ export default function NewsModule() {
                   className={
                     "px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px " +
                     (tab === "briefing"
-                      ? "border-teal-600 text-teal-700 dark:text-teal-400"
+                      ? "border-primary text-primary dark:text-secondary"
                       : "border-transparent text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300")
                   }
                 >
@@ -188,7 +176,7 @@ export default function NewsModule() {
                   className={
                     "px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px " +
                     (tab === "topics"
-                      ? "border-teal-600 text-teal-700 dark:text-teal-400"
+                      ? "border-primary text-primary dark:text-secondary"
                       : "border-transparent text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300")
                   }
                 >

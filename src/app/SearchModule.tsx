@@ -6,7 +6,16 @@ import ErrorCard from "./components/ErrorCard";
 import { type Status } from "./components/Status";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { normalizeParam } from "@/lib/utils";
 import { COUNTRY_OPTIONS } from "@/lib/db/topics";
+import { Clock, Globe } from "lucide-react";
 
 interface SearchResult {
   title: string;
@@ -47,8 +56,8 @@ export default function SearchModule() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           query: trimmed,
-          freshness: freshness || undefined,
-          country: country || undefined,
+          freshness: normalizeParam(freshness),
+          country: normalizeParam(country),
         }),
       });
 
@@ -85,7 +94,7 @@ export default function SearchModule() {
 
   return (
     <>
-      <div className="bg-teal-900 dark:bg-teal-950 border-b border-teal-700 dark:border-teal-800">
+      <div className="bg-primary-hover border-b border-primary-hover/70 dark:border-primary-hover/80">
         <div className="flex flex-wrap items-center gap-2 mx-auto max-w-5xl px-4 py-2">
           <Input
             type="text"
@@ -93,7 +102,7 @@ export default function SearchModule() {
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Search..."
-            className="flex-1 min-w-0 border-teal-600 bg-white dark:bg-zinc-800 dark:text-zinc-100"
+            className="flex-1 min-w-0 border-primary bg-white dark:bg-zinc-800 dark:text-zinc-100"
             disabled={status.type === "loading"}
           />
           <Button
@@ -106,39 +115,39 @@ export default function SearchModule() {
           </Button>
             {/* Freshness */}
           <div className="flex items-center gap-1">
-            <span className="text-teal-300">
-              <svg className="w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <span className="text-secondary">
+              <Clock className="w-3.5 h-3.5" />
             </span>
-            <select
-              value={freshness}
-              onChange={(e) => setFreshness(e.target.value)}
-              disabled={status.type === "loading"}
-              className="rounded-md bg-teal-800 dark:bg-teal-900 border border-teal-600 dark:border-teal-700 px-2 py-1 text-xs text-white focus:outline-none focus:ring-2 focus:ring-teal-400 cursor-pointer appearance-[base]"
-            >
-              <option value="" className="bg-teal-800 text-teal-100 hover:bg-teal-600 hover:text-white">Any time</option>
-              <option value="pd" className="bg-teal-800 text-teal-100 hover:bg-teal-600 hover:text-white">Past Day</option>
-              <option value="pw" className="bg-teal-800 text-teal-100 hover:bg-teal-600 hover:text-white">Past Week</option>
-              <option value="pm" className="bg-teal-800 text-teal-100 hover:bg-teal-600 hover:text-white">Past Month</option>
-              <option value="py" className="bg-teal-800 text-teal-100 hover:bg-teal-600 hover:text-white">Past Year</option>
-            </select>
+            <Select value={freshness} onValueChange={setFreshness} disabled={status.type === "loading"}>
+              <SelectTrigger className="rounded-md bg-primary-hover border border-primary px-2 py-1 h-auto text-xs text-white focus:ring-primary min-w-[90px] [&>svg]:text-secondary">
+                <SelectValue placeholder="Any time" />
+              </SelectTrigger>
+              <SelectContent className="bg-primary-hover border-primary">
+                <SelectItem value="all" className="text-accent focus:bg-primary focus:text-primary-foreground text-xs">Any time</SelectItem>
+                <SelectItem value="pd" className="text-accent focus:bg-primary focus:text-primary-foreground text-xs">Past Day</SelectItem>
+                <SelectItem value="pw" className="text-accent focus:bg-primary focus:text-primary-foreground text-xs">Past Week</SelectItem>
+                <SelectItem value="pm" className="text-accent focus:bg-primary focus:text-primary-foreground text-xs">Past Month</SelectItem>
+                <SelectItem value="py" className="text-accent focus:bg-primary focus:text-primary-foreground text-xs">Past Year</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
             {/* Region */}
           <div className="flex items-center gap-1">
-            <span className="text-teal-300">
-              <svg className="w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+            <span className="text-secondary">
+              <Globe className="w-3.5 h-3.5" />
             </span>
-            <select
-              value={country}
-              onChange={(e) => setCountry(e.target.value)}
-              disabled={status.type === "loading"}
-              className="rounded-md bg-teal-800 dark:bg-teal-900 border border-teal-600 dark:border-teal-700 px-2 py-1 text-xs text-white focus:outline-none focus:ring-2 focus:ring-teal-400 cursor-pointer appearance-[base]"
-            >
-              {COUNTRY_OPTIONS.map((opt) => (
-                <option key={opt.label} value={opt.value} className="bg-teal-800 text-teal-100 hover:bg-teal-600 hover:text-white">
-                  {opt.label}
-                </option>
-              ))}
-            </select>
+            <Select value={country} onValueChange={setCountry} disabled={status.type === "loading"}>
+              <SelectTrigger className="rounded-md bg-primary-hover border border-primary px-2 py-1 h-auto text-xs text-white focus:ring-primary min-w-[110px] [&>svg]:text-secondary">
+                <SelectValue placeholder="All regions" />
+              </SelectTrigger>
+              <SelectContent className="bg-primary-hover border-primary max-h-[200px]">
+                {COUNTRY_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value} className="text-accent focus:bg-primary focus:text-primary-foreground text-xs">
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
         </div>
@@ -156,8 +165,8 @@ export default function SearchModule() {
           {status.type === "success" && (
             <div className="w-full space-y-4">
               {status.data.summary && (
-                <div className="rounded-md border border-teal-100 bg-teal-50 p-4 dark:border-teal-900 dark:bg-teal-950/20">
-                  <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-teal-800 dark:text-teal-400">
+                <div className="rounded-md border border-muted bg-muted p-4 dark:border-primary-hover dark:bg-primary-hover/20">
+                  <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-primary-hover dark:text-secondary">
                     AI Summary
                   </p>
                   <p className="text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed">
@@ -180,7 +189,7 @@ export default function SearchModule() {
                         key={suggestion}
                         type="button"
                         onClick={() => handleSuggestionClick(suggestion)}
-                        className="rounded-full border border-zinc-300 bg-white px-3 py-1 text-xs font-medium text-zinc-600 hover:bg-zinc-50 hover:border-teal-500 hover:text-teal-700 transition-colors dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:border-teal-600 dark:hover:text-teal-400"
+                        className="rounded-full border border-zinc-300 bg-white px-3 py-1 text-xs font-medium text-zinc-600 hover:bg-zinc-50 hover:border-secondary hover:text-primary transition-colors dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:border-primary dark:hover:text-secondary"
                       >
                         {suggestion}
                       </button>
@@ -209,7 +218,7 @@ export default function SearchModule() {
                           href={r.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-base font-medium text-zinc-900 hover:text-teal-700 dark:text-zinc-100 dark:hover:text-teal-500"
+                          className="text-base font-medium text-zinc-900 hover:text-primary dark:text-zinc-100 dark:hover:text-secondary"
                         >
                           {r.title}
                         </a>

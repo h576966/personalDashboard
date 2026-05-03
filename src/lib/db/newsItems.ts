@@ -1,4 +1,5 @@
 import { getSupabase } from "./supabase";
+import { assertField } from "./assert";
 
 export interface NewsItemRow {
   id: string;
@@ -39,29 +40,29 @@ export interface NewsRun {
 
 function rowToNewsItem(row: Record<string, unknown>): NewsItemRow {
   return {
-    id: row.id as string,
-    title: row.title as string,
-    url: row.url as string,
-    canonicalUrl: row.canonical_url as string,
-    titleHash: row.title_hash as string,
-    contentHash: row.content_hash as string,
-    description: row.description as string,
-    source: row.source as string,
-    score: row.score as number,
-    firstSeenAt: row.first_seen_at as string,
-    lastSeenAt: row.last_seen_at as string,
-    status: row.status as string,
+    id: assertField<string>(row, "id", "string"),
+    title: assertField<string>(row, "title", "string"),
+    url: assertField<string>(row, "url", "string"),
+    canonicalUrl: assertField<string>(row, "canonical_url", "string"),
+    titleHash: assertField<string>(row, "title_hash", "string"),
+    contentHash: assertField<string>(row, "content_hash", "string"),
+    description: assertField<string>(row, "description", "string"),
+    source: assertField<string>(row, "source", "string"),
+    score: assertField<number>(row, "score", "number"),
+    firstSeenAt: assertField<string>(row, "first_seen_at", "string"),
+    lastSeenAt: assertField<string>(row, "last_seen_at", "string"),
+    status: assertField<string>(row, "status", "string"),
   };
 }
 
 function rowToRun(row: Record<string, unknown>): NewsRun {
   return {
-    id: row.id as string,
-    startedAt: row.started_at as string,
-    completedAt: row.completed_at as string | null,
-    status: row.status as string,
-    itemCount: row.item_count as number,
-    error: row.error as string | null,
+    id: assertField<string>(row, "id", "string"),
+    startedAt: assertField<string>(row, "started_at", "string"),
+    completedAt: (row.completed_at as string | null) ?? null,
+    status: assertField<string>(row, "status", "string"),
+    itemCount: assertField<number>(row, "item_count", "number"),
+    error: (row.error as string | null) ?? null,
   };
 }
 

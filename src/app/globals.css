@@ -1,6 +1,13 @@
 @import "tailwindcss";
 
 :root {
+  /* Palette — 5 core colors: https://colorhunt.co/palette/35858e7da78cc2d099e6eec9 */
+  --palette-primary: 186 46% 38%;
+  --palette-primary-hover: 186 48% 27%;
+  --palette-secondary: 141 19% 57%;
+  --palette-accent: 105 37% 71%;
+  --palette-muted: 107 52% 86%;
+
   --background: #ffffff;
   --foreground: #171717;
 
@@ -9,19 +16,20 @@
   --card-foreground: 240 6% 10%;
   --popover: 0 0% 100%;
   --popover-foreground: 240 6% 10%;
-  --primary: 185 46% 38%;
+  --primary: var(--palette-primary);
+  --primary-hover: var(--palette-primary-hover);
   --primary-foreground: 0 0% 100%;
-  --secondary: 240 5% 96%;
+  --secondary: var(--palette-secondary);
   --secondary-foreground: 240 6% 10%;
-  --muted: 240 5% 96%;
-  --muted-foreground: 240 4% 46%;
-  --accent: 240 5% 96%;
+  --muted: var(--palette-muted);
+  --muted-foreground: var(--palette-primary-hover);
+  --accent: var(--palette-accent);
   --accent-foreground: 240 6% 10%;
   --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 98%;
   --border: 240 6% 90%;
   --input: 240 6% 90%;
-  --ring: 185 46% 38%;
+  --ring: var(--palette-primary);
   --radius: 0.5rem;
 }
 
@@ -49,20 +57,8 @@
   --color-border: hsl(var(--border));
   --color-input: hsl(var(--input));
   --color-ring: hsl(var(--ring));
+  --color-primary-hover: hsl(var(--primary-hover));
   --radius: 0.5rem;
-
-  /* Color palette: https://colorhunt.co/palette/35858e7da78cc2d099e6eec9 */
-  --color-teal-50: #F3F6E4;
-  --color-teal-100: #E6EEC9;
-  --color-teal-200: #D4DFB1;
-  --color-teal-300: #C2D099;
-  --color-teal-400: #A0BC93;
-  --color-teal-500: #7DA78C;
-  --color-teal-600: #59968D;
-  --color-teal-700: #35858E;
-  --color-teal-800: #24646D;
-  --color-teal-900: #174349;
-  --color-teal-950: #0D2226;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -74,65 +70,33 @@
     --card-foreground: 0 0% 98%;
     --popover: 240 4% 10%;
     --popover-foreground: 0 0% 98%;
-    --primary: 185 46% 38%;
+    --primary: var(--palette-primary);
+    --primary-hover: var(--palette-primary-hover);
     --primary-foreground: 0 0% 98%;
-    --secondary: 240 4% 16%;
+    --secondary: var(--palette-secondary);
     --secondary-foreground: 240 5% 96%;
-    --muted: 240 4% 16%;
-    --muted-foreground: 240 5% 65%;
-    --accent: 240 4% 16%;
+    --muted: var(--palette-muted);
+    --muted-foreground: var(--palette-accent);
+    --accent: var(--palette-accent);
     --accent-foreground: 240 5% 96%;
     --destructive: 0 63% 31%;
     --destructive-foreground: 0 0% 98%;
     --border: 240 4% 16%;
     --input: 240 4% 16%;
-    --ring: 185 46% 38%;
+    --ring: var(--palette-primary);
   }
 }
 
 /* Text selection highlight — use palette colors instead of browser default blue */
 ::selection {
-  background-color: #C2D099;
-  color: #174349;
+  background-color: hsl(var(--palette-accent));
+  color: hsl(var(--palette-primary-hover));
 }
 
 @media (prefers-color-scheme: dark) {
   ::selection {
-    background-color: #35858E;
-    color: #E6EEC9;
-  }
-}
-
-/* Dropdown option styling — override browser default blue highlight */
-select option {
-  background-color: #fff;
-  color: #171717;
-}
-
-select option:hover {
-  background-color: var(--color-teal-200);
-  color: var(--color-teal-900);
-}
-
-select option:checked {
-  background-color: var(--color-teal-200);
-  color: var(--color-teal-900);
-}
-
-@media (prefers-color-scheme: dark) {
-  select option {
-    background-color: #0a0a0a;
-    color: #ededed;
-  }
-
-  select option:hover {
-    background-color: var(--color-teal-600);
-    color: #fff;
-  }
-
-  select option:checked {
-    background-color: var(--color-teal-700);
-    color: var(--color-teal-100);
+    background-color: hsl(var(--palette-primary));
+    color: hsl(var(--palette-muted));
   }
 }
 

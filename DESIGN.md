@@ -7,15 +7,15 @@
   CSS variables via `@theme inline` in `globals.css`.
 - **Dark mode:** Automatic via `@media (prefers-color-scheme: dark)`. No toggle.
 - **Colors:** Zinc-gray background (`zinc-900` text, `zinc-100`/`zinc-800` surfaces) with
-  teal accent via shadcn/ui semantic tokens. The ColorHunt palette (`#35858e #7da78c #c2d099
-  #e6eec9`) maps to `--primary: 185 46% 38%` (`teal-700`, `#35858E`) in `globals.css`
-  via real `:root` CSS variables. shadcn auto-derives hover, muted, and ring states
-  from `--primary`. Custom surfaces (search bar, AI summary) consume the original
-  `--color-teal-*` palette directly.
+  a minimal 5-color ColorHunt palette (`#35858e #7da78c #c2d099 #e6eec9 #245f66`) mapped to
+  semantic CSS variables in `globals.css`. Five `--palette-*` variables hold the raw HSL
+  values; shadcn/ui semantic tokens (`--primary`, `--secondary`, `--accent`, `--muted`,
+  `--ring`, plus custom `--primary-hover`) reference them directly. Tailwind utilities
+  (`bg-primary`, `bg-primary-hover`, `text-accent`, etc.) are exposed via `@theme inline`.
 - **Error UI:** Red border + red background (`border-red-300 bg-red-50 dark:border-red-700
   dark:bg-red-900/20`).
-- **AI Summary:** Teal-tinted card (`border-teal-100 bg-teal-50 dark:border-teal-900
-  dark:bg-teal-950/20`).
+- **AI Summary:** Muted card (`border-muted bg-muted dark:border-primary-hover
+  dark:bg-primary-hover/20`).
 
 ## Layout Conventions
 
@@ -150,7 +150,7 @@ async function loadData() {
 <li class="rounded-md border border-zinc-200 bg-white p-4 shadow-sm hover:shadow-md transition-shadow duration-200
           dark:border-zinc-700 dark:bg-zinc-800">
   <a href="{url}" target="_blank" rel="noopener noreferrer"
-     class="text-base font-medium text-zinc-900 hover:text-teal-700 dark:text-zinc-100 dark:hover:text-teal-500">
+     class="text-base font-medium text-zinc-900 hover:text-primary dark:text-zinc-100 dark:hover:text-secondary">
     {title}
   </a>
   <p class="mt-1 text-sm text-zinc-500 line-clamp-2 dark:text-zinc-400">{description}</p>
@@ -163,12 +163,12 @@ async function loadData() {
 |---------|---------|
 | Primary button | `<Button>` (shadcn default variant, `bg-primary text-primary-foreground hover:bg-primary/90`) |
 | Secondary button | `<Button variant="secondary">` (shadcn) or manual `rounded-md border border-zinc-300 px-4 py-2.5 text-sm font-medium text-zinc-600 hover:bg-zinc-50 dark:border-zinc-600 dark:text-zinc-400 dark:hover:bg-zinc-700` |
-| Outline button | `<Button variant="outline">` with `text-primary border-primary/30 hover:bg-primary/5` for teal accent |
+| Outline button | `<Button variant="outline">` with `text-primary border-primary/30 hover:bg-primary/5` |
 | Text input | `<Input>` (shadcn, `border-input focus-visible:ring-ring`) |
 | Label | `mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400` |
 | Tag/chip | `rounded bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400` |
 | Score badge | `shrink-0 rounded-md bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-500 dark:bg-zinc-700 dark:text-zinc-300` |
-| Active tab | `border-teal-600 text-teal-700 dark:text-teal-400` |
+| Active tab | `border-primary text-primary dark:text-secondary` |
 | Inactive tab | `border-transparent text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300` |
 
 ## API Error Response Pattern

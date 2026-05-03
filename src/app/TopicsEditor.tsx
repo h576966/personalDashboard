@@ -7,29 +7,19 @@ import { type Status } from "./components/Status";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { normalizeDbValue } from "@/lib/utils";
+import {
   LANGUAGE_OPTIONS,
   COUNTRY_OPTIONS,
   TOPIC_PRESETS,
+  type NewsTopic,
 } from "@/lib/db/topics";
-
-interface NewsTopic {
-  id: string;
-  name: string;
-  description: string;
-  queries: string[];
-  country: string;
-  region: string;
-  language: string;
-  preferredSources: string[];
-  blockedSources: string[];
-  requiredKeywords: string[];
-  blockedKeywords: string[];
-  maxItemsPerDay: number;
-  minScore: number;
-  enabled: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
 
 const EMPTY_FORM = {
   name: "",
@@ -63,6 +53,7 @@ export default function TopicsEditor() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [presetKey, setPresetKey] = useState(0);
 
   async function loadTopics() {
     setStatus({ type: "loading" });
@@ -87,18 +78,18 @@ export default function TopicsEditor() {
     loadTopics();
   }, []);
 
-  function hasAdvancedValues(topic: NewsTopic) {
-    return (
-      topic.country !== "" ||
-      topic.region !== "" ||
-      topic.preferredSources.length > 0 ||
-      topic.blockedSources.length > 0 ||
-      topic.requiredKeywords.length > 0 ||
-      topic.blockedKeywords.length > 0 ||
-      topic.maxItemsPerDay !== 5 ||
-      topic.minScore !== 0
-    );
-  }
+function hasAdvancedValues(topic: NewsTopic) {
+  return (
+    topic.country !== EMPTY_FORM.country ||
+    topic.region !== EMPTY_FORM.region ||
+    topic.preferredSources.length > (EMPTY_FORM.preferredSources as unknown as string[]).length ||
+    topic.blockedSources.length > (EMPTY_FORM.blockedSources as unknown as string[]).length ||
+    topic.requiredKeywords.length > (EMPTY_FORM.requiredKeywords as unknown as string[]).length ||
+    topic.blockedKeywords.length > (EMPTY_FORM.blockedKeywords as unknown as string[]).length ||
+    topic.maxItemsPerDay !== EMPTY_FORM.maxItemsPerDay ||
+    topic.minScore !== EMPTY_FORM.minScore
+  );
+}
 
   function startEdit(topic: NewsTopic) {
     setEditingId(topic.id);
@@ -125,6 +116,13 @@ export default function TopicsEditor() {
     setForm(EMPTY_FORM);
   }
 
+  function splitLines(text: string): string[] {
+    return text
+      .split("\n")
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
@@ -132,29 +130,14 @@ export default function TopicsEditor() {
     const body: Record<string, unknown> = {
       name: form.name.trim(),
       description: form.description.trim(),
-      queries: form.queries
-        .split("\n")
-        .map((s) => s.trim())
-        .filter(Boolean),
-      country: form.country.trim(),
+      queries: splitLines(form.queries),
+      country: normalizeDbValue(form.country.trim()),
       region: form.region.trim(),
-      language: form.language.trim(),
-      preferredSources: form.preferredSources
-        .split("\n")
-        .map((s) => s.trim())
-        .filter(Boolean),
-      blockedSources: form.blockedSources
-        .split("\n")
-        .map((s) => s.trim())
-        .filter(Boolean),
-      requiredKeywords: form.requiredKeywords
-        .split("\n")
-        .map((s) => s.trim())
-        .filter(Boolean),
-      blockedKeywords: form.blockedKeywords
-        .split("\n")
-        .map((s) => s.trim())
-        .filter(Boolean),
+      language: normalizeDbValue(form.language.trim()),
+      preferredSources: splitLines(form.preferredSources),
+      blockedSources: splitLines(form.blockedSources),
+      requiredKeywords: splitLines(form.requiredKeywords),
+      blockedKeywords: splitLines(form.blockedKeywords),
       maxItemsPerDay: form.maxItemsPerDay,
       minScore: form.minScore,
     };
@@ -241,6 +224,7 @@ export default function TopicsEditor() {
     if (preset) {
       updateForm("queries", preset.queries);
     }
+    setPresetKey((k) => k + 1);
   }
 
   if (status.type === "loading") {
@@ -268,20 +252,18 @@ export default function TopicsEditor() {
               <label className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400">
                 Topic preset
               </label>
-              <select
-                value=""
-                onChange={(e) => handlePresetChange(e.target.value)}
-                className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
-              >
-                <option value="" disabled>
-                  Select a preset...
-                </option>
-                {TOPIC_PRESETS.map((p) => (
-                  <option key={p.label} value={p.label}>
-                    {p.label}
-                  </option>
-                ))}
-              </select>
+              <Select key={presetKey} value="" onValueChange={handlePresetChange}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select a preset..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {TOPIC_PRESETS.map((p) => (
+                    <SelectItem key={p.label} value={p.label}>
+                      {p.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
                 Selecting a preset will replace any existing search terms.
               </p>
@@ -304,19 +286,20 @@ export default function TopicsEditor() {
                 <label className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400">
                   Language
                 </label>
-                <select
-                  value={form.language}
-                  onChange={(e) => updateForm("language", e.target.value)}
-                  className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
-                >
-                  {mergeCurrentValue(LANGUAGE_OPTIONS, form.language).map(
-                    (opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ),
-                  )}
-                </select>
+                <Select value={form.language} onValueChange={(v) => updateForm("language", v)}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select language" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {mergeCurrentValue(LANGUAGE_OPTIONS, form.language).map(
+                      (opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ),
+                    )}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
@@ -371,19 +354,20 @@ export default function TopicsEditor() {
                   <label className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400">
                     Country
                   </label>
-                  <select
-                    value={form.country}
-                    onChange={(e) => updateForm("country", e.target.value)}
-                    className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
-                  >
-                    {mergeCurrentValue(COUNTRY_OPTIONS, form.country).map(
-                      (opt) => (
-                        <option key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </option>
-                      ),
-                    )}
-                  </select>
+                  <Select value={form.country} onValueChange={(v) => updateForm("country", v)}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="All countries" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {mergeCurrentValue(COUNTRY_OPTIONS, form.country).map(
+                        (opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ),
+                      )}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400">

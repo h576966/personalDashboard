@@ -1,4 +1,5 @@
 import { getSupabase } from "./supabase";
+import { assertField } from "./assert";
 
 export interface Task {
   id: string;
@@ -13,14 +14,14 @@ export interface Task {
 
 function rowToTask(row: Record<string, unknown>): Task {
   return {
-    id: row.id as string,
-    title: row.title as string,
-    isCompleted: row.is_completed as boolean,
-    dueDate: row.due_date as string | null,
-    assignedTo: row.assigned_to as string,
-    sortOrder: row.sort_order as number,
-    createdAt: row.created_at as string,
-    updatedAt: row.updated_at as string,
+    id: assertField<string>(row, "id", "string"),
+    title: assertField<string>(row, "title", "string"),
+    isCompleted: assertField<boolean>(row, "is_completed", "boolean"),
+    dueDate: (row.due_date as string | null) ?? null,
+    assignedTo: assertField<string>(row, "assigned_to", "string"),
+    sortOrder: assertField<number>(row, "sort_order", "number"),
+    createdAt: assertField<string>(row, "created_at", "string"),
+    updatedAt: assertField<string>(row, "updated_at", "string"),
   };
 }
 

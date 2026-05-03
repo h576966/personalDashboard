@@ -93,7 +93,7 @@ export default function Briefing({
                     href={item.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-base font-medium text-zinc-900 hover:text-teal-700 dark:text-zinc-100 dark:hover:text-teal-500"
+                    className="text-base font-medium text-zinc-900 hover:text-primary dark:text-zinc-100 dark:hover:text-secondary"
                   >
                     {item.title}
                   </a>

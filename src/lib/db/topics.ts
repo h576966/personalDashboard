@@ -1,4 +1,5 @@
 import { getSupabase } from "./supabase";
+import { assertField } from "./assert";
 
 // ── UI Constants ────────────────────────────────────────────────
 
@@ -18,7 +19,7 @@ export interface TopicPreset {
 }
 
 export const LANGUAGE_OPTIONS: LanguageOption[] = [
-  { value: "", label: "Any" },
+  { value: "all", label: "Any" },
   { value: "en", label: "English" },
   { value: "de", label: "German" },
   { value: "fr", label: "French" },
@@ -47,7 +48,7 @@ export const LANGUAGE_OPTIONS: LanguageOption[] = [
 ];
 
 export const COUNTRY_OPTIONS: CountryOption[] = [
-  { value: "", label: "Any" },
+  { value: "all", label: "Any" },
   { value: "US", label: "United States" },
   { value: "GB", label: "United Kingdom" },
   { value: "DE", label: "Germany" },
@@ -91,6 +92,11 @@ export const COUNTRY_OPTIONS: CountryOption[] = [
   { value: "HK", label: "Hong Kong" },
   { value: "TW", label: "Taiwan" },
 ];
+
+/** Real country codes (excludes the "all" sentinel). */
+export const COUNTRY_VALUES: ReadonlySet<string> = new Set(
+  COUNTRY_OPTIONS.map((o) => o.value).filter((v) => v !== "all"),
+);
 
 export const TOPIC_PRESETS: TopicPreset[] = [
   { label: "Custom", queries: "" },
@@ -156,22 +162,22 @@ export interface UpdateTopicData {
 
 function rowToTopic(row: Record<string, unknown>): NewsTopic {
   return {
-    id: row.id as string,
-    name: row.name as string,
-    description: row.description as string,
-    queries: row.queries as string[],
-    country: row.country as string,
-    region: row.region as string,
-    language: row.language as string,
-    preferredSources: row.preferred_sources as string[],
-    blockedSources: row.blocked_sources as string[],
-    requiredKeywords: row.required_keywords as string[],
-    blockedKeywords: row.blocked_keywords as string[],
-    maxItemsPerDay: row.max_items_per_day as number,
-    minScore: row.min_score as number,
-    enabled: row.enabled as boolean,
-    createdAt: row.created_at as string,
-    updatedAt: row.updated_at as string,
+    id: assertField<string>(row, "id", "string"),
+    name: assertField<string>(row, "name", "string"),
+    description: assertField<string>(row, "description", "string"),
+    queries: assertField<string[]>(row, "queries", "array"),
+    country: assertField<string>(row, "country", "string"),
+    region: assertField<string>(row, "region", "string"),
+    language: assertField<string>(row, "language", "string"),
+    preferredSources: assertField<string[]>(row, "preferred_sources", "array"),
+    blockedSources: assertField<string[]>(row, "blocked_sources", "array"),
+    requiredKeywords: assertField<string[]>(row, "required_keywords", "array"),
+    blockedKeywords: assertField<string[]>(row, "blocked_keywords", "array"),
+    maxItemsPerDay: assertField<number>(row, "max_items_per_day", "number"),
+    minScore: assertField<number>(row, "min_score", "number"),
+    enabled: assertField<boolean>(row, "enabled", "boolean"),
+    createdAt: assertField<string>(row, "created_at", "string"),
+    updatedAt: assertField<string>(row, "updated_at", "string"),
   };
 }
 

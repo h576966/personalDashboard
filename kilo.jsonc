@@ -2,7 +2,8 @@
   "$schema": "https://app.kilo.ai/config.json",
 
   // ⬇ Change models here — all agents configured in one place
-  "model": "deepseek/deepseek-v4-pro",
+  // Default to V4 Flash. Use V4 Pro only through explicit Pro agents/escalation triggers.
+  "model": "deepseek/deepseek-v4-flash",
   "small_model": "deepseek/deepseek-v4-flash",
 
   // Persistent instructions loaded every session. AGENTS.md is auto-loaded by Kilo — only rules need explicit paths.
@@ -14,20 +15,21 @@
     ".kilo/rules/22-backend.md"
   ],
 
-  // Agent models — explicit per-agent to prevent subagent model inheritance.
-  // Tier strategy: V4 Pro for architecture (plan), V4 Flash for everything else.
-  // If Flash fails twice on a step, report the failure — do NOT auto-escalate.
-  // Switching models requires a human decision (or replanning with the plan agent).
+  // Agent models — explicit per-agent to prevent accidental model inheritance.
+  // Tier strategy: V4 Flash by default; V4 Pro only for high-complexity planning and hard recovery.
+  // Plan is Flash-first. Use pro-plan only when complexity score >= 3, ambiguity persists, or prior implementation failed.
+  // Code escalates early for hard-failure classes; otherwise after 2 failed attempts.
   "agent": {
-    "plan":       { "model": "deepseek/deepseek-v4-pro" },
-    "ask":        { "model": "deepseek/deepseek-v4-flash" },
-    "reviewer":   { "model": "deepseek/deepseek-v4-flash" },
-    "code":       { "model": "deepseek/deepseek-v4-flash" },
+    "plan":        { "model": "deepseek/deepseek-v4-flash" },
+    "pro-plan":    { "model": "deepseek/deepseek-v4-pro" },
+    "ask":         { "model": "deepseek/deepseek-v4-flash" },
+    "reviewer":    { "model": "deepseek/deepseek-v4-flash" },
+    "code":        { "model": "deepseek/deepseek-v4-flash" },
     "flash-patch": { "model": "deepseek/deepseek-v4-flash" },
     "flash-debug": { "model": "deepseek/deepseek-v4-flash" },
-    "ship":       { "model": "deepseek/deepseek-v4-flash" },
-    "compaction": { "model": "deepseek/deepseek-v4-flash" },
-    "explore":    { "model": "deepseek/deepseek-v4-flash" }
+    "ship":        { "model": "deepseek/deepseek-v4-flash" },
+    "compaction":  { "model": "deepseek/deepseek-v4-flash" },
+    "explore":     { "model": "deepseek/deepseek-v4-flash" }
   },
 
   // Permissions — bash is allowed for running lint, tests, and build commands

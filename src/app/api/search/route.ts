@@ -2,38 +2,29 @@ import { NextRequest, NextResponse } from "next/server";
 import { searchBrave, BraveSearchError } from "@/lib/brave";
 import { processSearchResults } from "@/lib/search";
 import { searchCache, type CacheEntry } from "@/lib/cache";
+import { COUNTRY_VALUES } from "@/lib/db/topics";
+import { errorResponse } from "@/lib/api/errors";
 import {
   rewriteQuery,
   summarizeResults,
   DeepSeekError,
 } from "@/lib/deepseek";
-
-const MIN_COUNT = 1;
-const MAX_COUNT = 20;
-const DEFAULT_COUNT = 10;
+import {
+  SEARCH_MIN_COUNT,
+  SEARCH_MAX_COUNT,
+  SEARCH_DEFAULT_COUNT,
+} from "@/lib/config";
 
 const VALID_FRESHNESS = new Set(["pd", "pw", "pm", "py"]);
 
-const VALID_COUNTRIES = new Set([
-  "US", "GB", "DE", "FR", "ES", "IT", "PT", "NL", "BE", "CH",
-  "AT", "SE", "NO", "DK", "FI", "PL", "CZ", "HU", "RO", "GR",
-  "TR", "RU", "JP", "CN", "KR", "IN", "BR", "CA", "AU", "NZ",
-  "AR", "CL", "CO", "MX", "ZA", "NG", "EG", "IL", "AE", "SG",
-  "HK", "TW",
-]);
+// VALID_COUNTRIES is derived from COUNTRY_OPTIONS in src/lib/db/topics.ts
+const VALID_COUNTRIES = COUNTRY_VALUES;
 
 interface SearchRequestBody {
   query?: string;
   count?: number;
   freshness?: string;
   country?: string;
-}
-
-interface ErrorResponse {
-  error: {
-    message: string;
-    code: string;
-  };
 }
 
 type Freshness = "pd" | "pw" | "pm" | "py";
@@ -54,13 +45,13 @@ function validateBody(body: unknown): {
     return null;
   }
 
-  let parsedCount = DEFAULT_COUNT;
+  let parsedCount = SEARCH_DEFAULT_COUNT;
 
   if (count !== undefined) {
     if (typeof count !== "number" || !Number.isInteger(count)) {
       return null;
     }
-    if (count < MIN_COUNT || count > MAX_COUNT) {
+    if (count < SEARCH_MIN_COUNT || count > SEARCH_MAX_COUNT) {
       return null;
     }
     parsedCount = count;
@@ -90,17 +81,6 @@ function validateBody(body: unknown): {
     freshness: parsedFreshness,
     country: parsedCountry,
   };
-}
-
-function errorResponse(
-  message: string,
-  code: string,
-  status: number,
-): NextResponse<ErrorResponse> {
-  return NextResponse.json(
-    { error: { message, code } },
-    { status },
-  );
 }
 
 export async function POST(request: NextRequest) {

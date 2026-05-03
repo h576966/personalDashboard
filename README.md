@@ -29,8 +29,8 @@ a tabbed view with today's briefing and a topic CRUD editor.
 |-------|-----------|
 | Framework | Next.js 16, React 19 |
 | Language | TypeScript 5 |
-| Styling | Tailwind CSS 4, shadcn/ui (Button, Input, Card), Geist font |
-| Component Lib | shadcn/ui with ColorHunt teal palette (`--primary: 185 46% 38%`) |
+| Styling | Tailwind CSS 4, shadcn/ui (Button, Input, Select), Geist font |
+| Component Lib | shadcn/ui with ColorHunt 5-color palette (`--primary: 186 46% 38%`) |
 | Database | SQLite via better-sqlite3 |
 | Search API | Brave Search API |
 | AI API | DeepSeek Chat API |

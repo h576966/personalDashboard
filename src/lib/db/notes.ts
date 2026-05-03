@@ -1,4 +1,5 @@
 import { getSupabase } from "./supabase";
+import { assertField } from "./assert";
 
 export interface Note {
   id: string;
@@ -10,11 +11,11 @@ export interface Note {
 
 function rowToNote(row: Record<string, unknown>): Note {
   return {
-    id: row.id as string,
-    title: row.title as string,
-    content: row.content as string,
-    createdAt: row.created_at as string,
-    updatedAt: row.updated_at as string,
+    id: assertField<string>(row, "id", "string"),
+    title: assertField<string>(row, "title", "string"),
+    content: assertField<string>(row, "content", "string"),
+    createdAt: assertField<string>(row, "created_at", "string"),
+    updatedAt: assertField<string>(row, "updated_at", "string"),
   };
 }
 
