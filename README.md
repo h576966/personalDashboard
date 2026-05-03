@@ -23,6 +23,14 @@ with follow-up suggestions.
 preferred/blocked sources, keywords, scoring thresholds, and per-topic limits. The UI shows
 a tabbed view with today's briefing and a topic CRUD editor.
 
+**Dashboard Layout:** A two-column responsive layout with:
+- **Top Search Bar** for global queries
+- **Main Workspace (≈70%)** where active content is rendered
+- **Module Sidebar (≈30%)** for navigation between modules
+
+Search results temporarily override the main workspace, while modules (e.g. News, Saved)
+control the default content.
+
 ## Tech Stack
 
 | Layer | Technology |
@@ -37,15 +45,15 @@ a tabbed view with today's briefing and a topic CRUD editor.
 
 ## Product Principles
 
-- **One dynamic dashboard page** — A single page with expandable/collapsible modules, not
-  separate navigation tabs.
-- **Mobile-aware** — Responsive layout that works on phones and tablets.
+- **Single dashboard shell** — One layout with a persistent module sidebar instead of page navigation.
+- **Workspace-driven UI** — The main area adapts based on user actions (search vs module selection).
+- **Minimal but extensible modules** — Modules are compact in the sidebar and expand into the main area.
+- **Mobile-aware** — Sidebar collapses into a horizontal module rail on smaller screens.
 - **Precision over recall** — Quality filters and scoring prioritize useful results over volume.
 - **Deterministic before AI** — Core functionality works without AI. AI enhances results
   (summaries, suggestions) but is never required.
 - **Local-first persistence** — SQLite for local storage.
-- **Developer-friendly config** — Topics, sources, and thresholds editable via the UI, not
-  config files.
+- **Developer-friendly config** — Topics, sources, and thresholds editable via the UI.
 
 ## Directory Structure
 
@@ -58,10 +66,12 @@ a tabbed view with today's briefing and a topic CRUD editor.
 │   ├── app/
 │   │   ├── api/
 │   │   ├── components/
-│   │   │   └── ui/          # shadcn/ui primitives (Button, Input, Card)
+│   │   │   └── ui/          # shadcn/ui primitives (Button, Input, Select)
+│   │   ├── DashboardShell.tsx  # Layout + state orchestration
+│   │   ├── SearchModule.tsx    # Controlled search input
 │   │   └── ...
 │   └── lib/
-│       └── utils.ts         # cn() helper for shadcn/ui
+│       └── utils.ts
 ├── scripts/
 └── .kilo/
     ├── agents/
@@ -73,5 +83,6 @@ a tabbed view with today's briefing and a topic CRUD editor.
 ## Philosophy
 
 - **Local-first** — Everything lives in your repo.
-- **Minimal** — Focused agents, few dependencies, convention over configuration.
+- **Minimal** — Focused modules, clean layout, no unnecessary complexity.
+- **Composable** — New modules can be added without restructuring the app.
 - **Verified** — Every phase has a non-negotiable quality gate.
