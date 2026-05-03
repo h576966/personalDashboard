@@ -110,7 +110,7 @@ export default function SearchModule() {
             onClick={() => performSearch(query)}
             disabled={!query.trim() || status.type === "loading"}
             size="sm"
-            className="h-11 bg-accent text-accent-foreground hover:bg-muted hover:text-muted-foreground"
+            className="h-11 bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground"
           >
             {status.type === "loading" ? "..." : "Go"}
           </Button>
