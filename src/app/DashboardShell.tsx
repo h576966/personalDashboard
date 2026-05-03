@@ -1,34 +1,77 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import NewsModule from "./NewsModule";
 import SearchModule from "./SearchModule";
 import SavedModule from "./SavedModule";
 import { normalizeParam } from "@/lib/utils";
-import { Bookmark, Newspaper } from "lucide-react";
+import { dashboardModules, type ActiveModule } from "./modules";
 
-// (rest unchanged above)
+interface SearchResult {
+  title: string;
+  url: string;
+  description: string;
+  score: number;
+}
+
+interface SavedItem extends SearchResult {
+  id: string;
+}
+
+interface SearchData {
+  results: SearchResult[];
+}
+
+interface ErrorResponse {
+  error?: {
+    message?: string;
+  };
+}
 
 export default function DashboardShell() {
   const [activeModule, setActiveModule] = useState<ActiveModule>("news");
+
   const [query, setQuery] = useState("");
   const [freshness, setFreshness] = useState("");
   const [country, setCountry] = useState("");
+
   const [isSearching, setIsSearching] = useState(false);
   const [searchData, setSearchData] = useState<SearchData | null>(null);
   const [searchError, setSearchError] = useState<string | null>(null);
 
-  const [savedItems, setSavedItems] = useState<SearchResult[]>([]);
+  const [savedItems, setSavedItems] = useState<SavedItem[]>([]);
+  const [isLoadingSaved, setIsLoadingSaved] = useState(false);
 
-  function saveItem(item: SearchResult) {
-    setSavedItems((prev) => {
-      if (prev.find((i) => i.url === item.url)) return prev;
-      return [item, ...prev];
-    });
+  useEffect(() => {
+    loadSavedItems();
+  }, []);
+
+  async function loadSavedItems() {
+    setIsLoadingSaved(true);
+    try {
+      const res = await fetch("/api/saved");
+      const data = await res.json();
+      setSavedItems(data.items ?? []);
+    } catch {
+      setSavedItems([]);
+    } finally {
+      setIsLoadingSaved(false);
+    }
   }
 
-  function removeItem(url: string) {
-    setSavedItems((prev) => prev.filter((i) => i.url !== url));
+  async function saveItem(item: SearchResult) {
+    await fetch("/api/saved", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(item),
+    });
+
+    await loadSavedItems();
+  }
+
+  async function removeItem(id: string) {
+    await fetch(`/api/saved/${id}`, { method: "DELETE" });
+    setSavedItems((prev) => prev.filter((i) => i.id !== id));
   }
 
   async function handleSearch(searchQuery: string) {
@@ -52,7 +95,7 @@ export default function DashboardShell() {
 
       if (!res.ok) {
         const err: ErrorResponse = await res.json();
-        throw new Error(err.error?.message ?? `Request failed (${res.status})`);
+        throw new Error(err.error?.message ?? "Search failed");
       }
 
       const data: SearchData = await res.json();
@@ -62,11 +105,6 @@ export default function DashboardShell() {
     } finally {
       setIsSearching(false);
     }
-  }
-
-  function handleSuggestionClick(suggestion: string) {
-    setQuery(suggestion);
-    handleSearch(suggestion);
   }
 
   function selectModule(module: ActiveModule) {
@@ -89,38 +127,38 @@ export default function DashboardShell() {
       />
 
       <div className="mx-auto grid max-w-7xl gap-6 px-6 py-8 lg:grid-cols-[minmax(0,7fr)_minmax(280px,3fr)]">
-        {/* sidebar unchanged */}
+        <aside className="order-1 lg:order-2">
+          <div className="rounded-md border p-3">
+            <div className="flex flex-col gap-2">
+              {dashboardModules.map((m) => (
+                <button key={m.id} onClick={() => selectModule(m.id)}>
+                  {m.title}
+                </button>
+              ))}
+            </div>
+          </div>
+        </aside>
 
-        <main className="order-2 min-w-0 lg:order-1">
-          {isSearching && <div className="p-4">Searching...</div>}
-
-          {!isSearching && searchError && <div className="p-4 text-red-600">{searchError}</div>}
-
-          {!isSearching && searchData && (
-            <ul className="space-y-4">
+        <main className="order-2">
+          {searchData && (
+            <ul>
               {searchData.results.map((r) => (
-                <li key={r.url} className="border p-4">
-                  <div className="flex justify-between gap-2">
-                    <a href={r.url} className="font-medium">
-                      {r.title}
-                    </a>
-                    <button
-                      onClick={() => saveItem(r)}
-                      className="text-xs text-primary"
-                    >
-                      Save
-                    </button>
-                  </div>
-                  <p className="text-sm text-zinc-500">{r.description}</p>
+                <li key={r.url}>
+                  {r.title}
+                  <button onClick={() => saveItem(r)}>Save</button>
                 </li>
               ))}
             </ul>
           )}
 
-          {!isSearching && !searchData && !searchError && activeModule === "news" && <NewsModule />}
+          {!searchData && activeModule === "news" && <NewsModule />}
 
-          {!isSearching && !searchData && !searchError && activeModule === "saved" && (
-            <SavedModule items={savedItems} onRemove={removeItem} />
+          {!searchData && activeModule === "saved" && (
+            <SavedModule
+              items={savedItems}
+              isLoading={isLoadingSaved}
+              onRemove={removeItem}
+            />
           )}
         </main>
       </div>
