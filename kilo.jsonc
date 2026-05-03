@@ -2,7 +2,7 @@
   "$schema": "https://app.kilo.ai/config.json",
 
   // ⬇ Change models here — all agents configured in one place
-  // Default to V4 Flash. Use V4 Pro only through explicit Pro agents/escalation triggers.
+  // Default to V4 Flash. Use V4 Pro manually only when the plan/code handoff says it is justified.
   "model": "deepseek/deepseek-v4-flash",
   "small_model": "deepseek/deepseek-v4-flash",
 
@@ -10,18 +10,19 @@
   "instructions": [
     ".kilo/rules/00-conventions.md",
     ".kilo/rules/10-workflow.md",
+    ".kilo/rules/11-model-routing.md",
+    ".kilo/rules/12-context-budget.md",
     ".kilo/rules/20-security.md",
     ".kilo/rules/21-docs.md",
     ".kilo/rules/22-backend.md"
   ],
 
   // Agent models — explicit per-agent to prevent accidental model inheritance.
-  // Tier strategy: V4 Flash by default; V4 Pro only for high-complexity planning and hard recovery.
-  // Plan is Flash-first. Use pro-plan only when complexity score >= 3, ambiguity persists, or prior implementation failed.
+  // Tier strategy: V4 Flash by default. Planning is Flash-first.
+  // If planning complexity score >= 3, rerun planning manually with V4 Pro using the compact handoff.
   // Code escalates early for hard-failure classes; otherwise after 2 failed attempts.
   "agent": {
     "plan":        { "model": "deepseek/deepseek-v4-flash" },
-    "pro-plan":    { "model": "deepseek/deepseek-v4-pro" },
     "ask":         { "model": "deepseek/deepseek-v4-flash" },
     "reviewer":    { "model": "deepseek/deepseek-v4-flash" },
     "code":        { "model": "deepseek/deepseek-v4-flash" },
