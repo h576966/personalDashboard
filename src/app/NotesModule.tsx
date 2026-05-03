@@ -10,13 +10,24 @@ interface Note {
   updated_at: string;
 }
 
+interface NoteInput {
+  title: string;
+  body: string;
+}
+
 interface NotesModuleProps {
   notes: Note[];
   isLoading: boolean;
   error?: string | null;
-  onCreate: (note: { title: string; body: string }) => Promise<void>;
-  onUpdate: (id: string, note: { title: string; body: string }) => Promise<void>;
+  onCreate: (note: NoteInput) => Promise<void>;
+  onUpdate: (id: string, note: NoteInput) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
+}
+
+interface EditFormProps {
+  note: Note;
+  onSave: (id: string, note: NoteInput) => Promise<void>;
+  onCancel: () => void;
 }
 
 export default function NotesModule({ notes, isLoading, error, onCreate, onUpdate, onDelete }: NotesModuleProps) {
@@ -93,16 +104,22 @@ export default function NotesModule({ notes, isLoading, error, onCreate, onUpdat
   );
 }
 
-function EditForm({ note, onSave, onCancel }: any) {
+function EditForm({ note, onSave, onCancel }: EditFormProps) {
   const [title, setTitle] = useState(note.title);
   const [body, setBody] = useState(note.body);
+
+  async function handleSave() {
+    if (!title.trim()) return;
+    await onSave(note.id, { title, body });
+    onCancel();
+  }
 
   return (
     <div className="space-y-2">
       <input value={title} onChange={(e) => setTitle(e.target.value)} className="w-full border p-2 text-sm" />
       <textarea value={body} onChange={(e) => setBody(e.target.value)} className="w-full border p-2 text-sm" />
       <div className="flex gap-2 text-xs">
-        <button onClick={() => onSave(note.id, { title, body })}>Save</button>
+        <button onClick={handleSave}>Save</button>
         <button onClick={onCancel}>Cancel</button>
       </div>
     </div>
