@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import NewsModule from "./NewsModule";
 import SearchModule from "./SearchModule";
 import SavedModule from "./SavedModule";
@@ -41,6 +41,7 @@ export default function DashboardShell() {
   const [savedItems, setSavedItems] = useState<SavedItem[]>([]);
   const [isLoadingSaved, setIsLoadingSaved] = useState(false);
   const [savedError, setSavedError] = useState<string | null>(null);
+  const [hasLoadedSaved, setHasLoadedSaved] = useState(false);
 
   const savedUrls = useMemo(
     () => new Set(savedItems.map((item) => item.url)),
@@ -48,6 +49,8 @@ export default function DashboardShell() {
   );
 
   const loadSavedItems = useCallback(async () => {
+    if (hasLoadedSaved || isLoadingSaved) return;
+
     setIsLoadingSaved(true);
     setSavedError(null);
 
@@ -60,17 +63,15 @@ export default function DashboardShell() {
       }
 
       setSavedItems(data.items ?? []);
+      setHasLoadedSaved(true);
     } catch (err) {
       setSavedItems([]);
       setSavedError(err instanceof Error ? err.message : "Failed to load saved items");
+      setHasLoadedSaved(true);
     } finally {
       setIsLoadingSaved(false);
     }
-  }, []);
-
-  useEffect(() => {
-    loadSavedItems();
-  }, [loadSavedItems]);
+  }, [hasLoadedSaved, isLoadingSaved]);
 
   async function saveItem(item: SearchResult) {
     if (savedUrls.has(item.url)) return;
@@ -91,6 +92,7 @@ export default function DashboardShell() {
       const withoutDuplicate = prev.filter((saved) => saved.url !== data.item.url);
       return [data.item, ...withoutDuplicate];
     });
+    setHasLoadedSaved(true);
   }
 
   async function removeItem(id: string) {
@@ -147,6 +149,10 @@ export default function DashboardShell() {
     setActiveModule(module);
     setSearchData(null);
     setSearchError(null);
+
+    if (module === "saved") {
+      loadSavedItems();
+    }
   }
 
   return (
