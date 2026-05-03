@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import NewsModule from "./NewsModule";
+import NotesModule from "./NotesModule";
 import SearchModule from "./SearchModule";
 import SavedModule from "./SavedModule";
 import { normalizeParam } from "@/lib/utils";
@@ -18,6 +19,15 @@ interface SavedItem extends SearchResult {
   id: string;
   source?: string;
   created_at?: string;
+}
+
+interface Note {
+  id: string;
+  title: string;
+  body: string;
+  source_url?: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 interface SearchData {
@@ -42,6 +52,11 @@ export default function DashboardShell() {
   const [isLoadingSaved, setIsLoadingSaved] = useState(false);
   const [savedError, setSavedError] = useState<string | null>(null);
   const [hasLoadedSaved, setHasLoadedSaved] = useState(false);
+
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [isLoadingNotes, setIsLoadingNotes] = useState(false);
+  const [notesError, setNotesError] = useState<string | null>(null);
+  const [hasLoadedNotes, setHasLoadedNotes] = useState(false);
 
   const savedUrls = useMemo(
     () => new Set(savedItems.map((item) => item.url)),
@@ -72,6 +87,31 @@ export default function DashboardShell() {
       setIsLoadingSaved(false);
     }
   }, [hasLoadedSaved, isLoadingSaved]);
+
+  const loadNotes = useCallback(async () => {
+    if (hasLoadedNotes || isLoadingNotes) return;
+
+    setIsLoadingNotes(true);
+    setNotesError(null);
+
+    try {
+      const res = await fetch("/api/notes");
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error?.message ?? "Failed to load notes");
+      }
+
+      setNotes(data.notes ?? []);
+      setHasLoadedNotes(true);
+    } catch (err) {
+      setNotes([]);
+      setNotesError(err instanceof Error ? err.message : "Failed to load notes");
+      setHasLoadedNotes(true);
+    } finally {
+      setIsLoadingNotes(false);
+    }
+  }, [hasLoadedNotes, isLoadingNotes]);
 
   async function saveItem(item: SearchResult) {
     if (savedUrls.has(item.url)) return;
@@ -105,6 +145,51 @@ export default function DashboardShell() {
     }
 
     setSavedItems((prev) => prev.filter((item) => item.id !== id));
+  }
+
+  async function createNote(note: { title: string; body: string }) {
+    const res = await fetch("/api/notes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(note),
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      setNotesError(data.error?.message ?? "Failed to create note");
+      return;
+    }
+
+    setNotes((prev) => [data.note, ...prev]);
+    setHasLoadedNotes(true);
+  }
+
+  async function updateNote(id: string, note: { title: string; body: string }) {
+    const res = await fetch(`/api/notes/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(note),
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      setNotesError(data.error?.message ?? "Failed to update note");
+      return;
+    }
+
+    setNotes((prev) => prev.map((existing) => (existing.id === id ? data.note : existing)));
+  }
+
+  async function deleteNote(id: string) {
+    const res = await fetch(`/api/notes/${id}`, { method: "DELETE" });
+    const data = await res.json();
+
+    if (!res.ok) {
+      setNotesError(data.error?.message ?? "Failed to delete note");
+      return;
+    }
+
+    setNotes((prev) => prev.filter((note) => note.id !== id));
   }
 
   async function handleSearch(searchQuery: string) {
@@ -152,6 +237,10 @@ export default function DashboardShell() {
 
     if (module === "saved") {
       loadSavedItems();
+    }
+
+    if (module === "notes") {
+      loadNotes();
     }
   }
 
@@ -280,6 +369,17 @@ export default function DashboardShell() {
                 </ul>
               )}
             </div>
+          )}
+
+          {!isSearching && !searchData && !searchError && activeModule === "notes" && (
+            <NotesModule
+              notes={notes}
+              isLoading={isLoadingNotes}
+              error={notesError}
+              onCreate={createNote}
+              onUpdate={updateNote}
+              onDelete={deleteNote}
+            />
           )}
 
           {!isSearching && !searchData && !searchError && activeModule === "news" && <NewsModule />}
