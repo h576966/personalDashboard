@@ -5,7 +5,7 @@ import NewsModule from "./NewsModule";
 import SearchModule from "./SearchModule";
 import { normalizeParam } from "@/lib/utils";
 
-type ActiveModule = "news";
+type ActiveModule = "news" | "saved";
 
 interface SearchResult {
   title: string;
@@ -26,6 +26,23 @@ interface ErrorResponse {
     message?: string;
   };
 }
+
+const modules: Array<{
+  id: ActiveModule;
+  title: string;
+  description: string;
+}> = [
+  {
+    id: "news",
+    title: "News",
+    description: "Briefing and topics",
+  },
+  {
+    id: "saved",
+    title: "Saved",
+    description: "Saved items and links",
+  },
+];
 
 export default function DashboardShell() {
   const [activeModule, setActiveModule] = useState<ActiveModule>("news");
@@ -74,8 +91,8 @@ export default function DashboardShell() {
     handleSearch(suggestion);
   }
 
-  function selectNewsModule() {
-    setActiveModule("news");
+  function selectModule(module: ActiveModule) {
+    setActiveModule(module);
     setSearchData(null);
     setSearchError(null);
   }
@@ -93,28 +110,34 @@ export default function DashboardShell() {
         onSearch={handleSearch}
       />
 
-      <div className="mx-auto grid max-w-7xl gap-6 px-6 py-8 lg:grid-cols-[minmax(0,7fr)_minmax(260px,3fr)]">
-        <aside className="order-1 lg:order-2">
-          <div className="rounded-md border border-zinc-200 bg-white p-3 shadow-sm dark:border-zinc-700 dark:bg-zinc-800">
+      <div className="mx-auto grid max-w-7xl gap-6 px-6 py-8 lg:grid-cols-[minmax(0,7fr)_minmax(280px,3fr)]">
+        <aside className="order-1 lg:order-2 lg:border-l lg:border-zinc-200 lg:pl-6 dark:lg:border-zinc-700">
+          <div className="w-full rounded-md border border-zinc-200 bg-white p-3 shadow-sm dark:border-zinc-700 dark:bg-zinc-800">
             <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
               Modules
             </p>
-            <div className="flex gap-2 overflow-x-auto lg:flex-col lg:overflow-visible">
-              <button
-                type="button"
-                onClick={selectNewsModule}
-                className={
-                  "min-w-[140px] rounded-md border px-3 py-2 text-left text-sm font-medium transition-colors lg:min-w-0 " +
-                  (activeModule === "news" && !searchData && !searchError
-                    ? "border-primary bg-primary-hover text-white"
-                    : "border-zinc-200 bg-white text-zinc-700 hover:border-primary hover:text-primary dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200")
-                }
-              >
-                <span className="block">News</span>
-                <span className="mt-1 block text-xs font-normal opacity-75">
-                  Briefing and topics
-                </span>
-              </button>
+            <div className="flex w-full gap-2 overflow-x-auto lg:flex-col lg:overflow-visible">
+              {modules.map((module) => {
+                const isActive = activeModule === module.id && !searchData && !searchError;
+                return (
+                  <button
+                    key={module.id}
+                    type="button"
+                    onClick={() => selectModule(module.id)}
+                    className={
+                      "w-full min-w-[160px] rounded-md border px-3 py-2 text-left text-sm font-medium transition-colors lg:min-w-0 " +
+                      (isActive
+                        ? "border-primary bg-primary-hover text-white"
+                        : "border-zinc-200 bg-white text-zinc-700 hover:border-primary hover:text-primary dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200")
+                    }
+                  >
+                    <span className="block truncate">{module.title}</span>
+                    <span className="mt-1 block truncate text-xs font-normal opacity-75">
+                      {module.description}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </div>
         </aside>
@@ -205,6 +228,15 @@ export default function DashboardShell() {
           )}
 
           {!isSearching && !searchData && !searchError && activeModule === "news" && <NewsModule />}
+
+          {!isSearching && !searchData && !searchError && activeModule === "saved" && (
+            <div className="rounded-md border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-700 dark:bg-zinc-800">
+              <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Saved</p>
+              <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
+                Saved items will appear here later.
+              </p>
+            </div>
+          )}
         </main>
       </div>
     </div>
