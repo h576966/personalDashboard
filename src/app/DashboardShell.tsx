@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import NewsModule from "./NewsModule";
 import SearchModule from "./SearchModule";
 import SavedModule from "./SavedModule";
@@ -16,10 +16,15 @@ interface SearchResult {
 
 interface SavedItem extends SearchResult {
   id: string;
+  source?: string;
+  created_at?: string;
 }
 
 interface SearchData {
   results: SearchResult[];
+  summary?: string;
+  suggestions?: string[];
+  rewrittenQuery?: string;
 }
 
 interface ErrorResponse {
@@ -41,6 +46,12 @@ export default function DashboardShell() {
 
   const [savedItems, setSavedItems] = useState<SavedItem[]>([]);
   const [isLoadingSaved, setIsLoadingSaved] = useState(false);
+  const [savedError, setSavedError] = useState<string | null>(null);
+
+  const savedUrls = useMemo(
+    () => new Set(savedItems.map((item) => item.url)),
+    [savedItems],
+  );
 
   useEffect(() => {
     loadSavedItems();
@@ -48,30 +59,56 @@ export default function DashboardShell() {
 
   async function loadSavedItems() {
     setIsLoadingSaved(true);
+    setSavedError(null);
+
     try {
       const res = await fetch("/api/saved");
       const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error?.message ?? "Failed to load saved items");
+      }
+
       setSavedItems(data.items ?? []);
-    } catch {
+    } catch (err) {
       setSavedItems([]);
+      setSavedError(err instanceof Error ? err.message : "Failed to load saved items");
     } finally {
       setIsLoadingSaved(false);
     }
   }
 
   async function saveItem(item: SearchResult) {
-    await fetch("/api/saved", {
+    if (savedUrls.has(item.url)) return;
+
+    const res = await fetch("/api/saved", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(item),
     });
+    const data = await res.json();
 
-    await loadSavedItems();
+    if (!res.ok) {
+      setSavedError(data.error?.message ?? "Failed to save item");
+      return;
+    }
+
+    setSavedItems((prev) => {
+      const withoutDuplicate = prev.filter((saved) => saved.url !== data.item.url);
+      return [data.item, ...withoutDuplicate];
+    });
   }
 
   async function removeItem(id: string) {
-    await fetch(`/api/saved/${id}`, { method: "DELETE" });
-    setSavedItems((prev) => prev.filter((i) => i.id !== id));
+    const res = await fetch(`/api/saved/${id}`, { method: "DELETE" });
+    const data = await res.json();
+
+    if (!res.ok) {
+      setSavedError(data.error?.message ?? "Failed to remove item");
+      return;
+    }
+
+    setSavedItems((prev) => prev.filter((item) => item.id !== id));
   }
 
   async function handleSearch(searchQuery: string) {
@@ -93,18 +130,23 @@ export default function DashboardShell() {
         }),
       });
 
+      const data = await res.json();
+
       if (!res.ok) {
-        const err: ErrorResponse = await res.json();
-        throw new Error(err.error?.message ?? "Search failed");
+        throw new Error(data.error?.message ?? "Search failed");
       }
 
-      const data: SearchData = await res.json();
       setSearchData(data);
     } catch (err) {
       setSearchError(err instanceof Error ? err.message : "Search failed");
     } finally {
       setIsSearching(false);
     }
+  }
+
+  function handleSuggestionClick(suggestion: string) {
+    setQuery(suggestion);
+    handleSearch(suggestion);
   }
 
   function selectModule(module: ActiveModule) {
@@ -127,40 +169,187 @@ export default function DashboardShell() {
       />
 
       <div className="mx-auto grid max-w-7xl gap-6 px-6 py-8 lg:grid-cols-[minmax(0,7fr)_minmax(280px,3fr)]">
-        <aside className="order-1 lg:order-2">
-          <div className="rounded-md border p-3">
-            <div className="flex flex-col gap-2">
-              {dashboardModules.map((m) => (
-                <button key={m.id} onClick={() => selectModule(m.id)}>
-                  {m.title}
-                </button>
-              ))}
+        <main className="order-2 min-w-0 lg:order-1">
+          {isSearching && (
+            <div className="rounded-md border border-zinc-200 bg-white p-4 text-sm text-zinc-500 shadow-sm dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400">
+              Searching...
             </div>
-          </div>
-        </aside>
-
-        <main className="order-2">
-          {searchData && (
-            <ul>
-              {searchData.results.map((r) => (
-                <li key={r.url}>
-                  {r.title}
-                  <button onClick={() => saveItem(r)}>Save</button>
-                </li>
-              ))}
-            </ul>
           )}
 
-          {!searchData && activeModule === "news" && <NewsModule />}
+          {!isSearching && searchError && (
+            <div className="rounded-md border border-red-300 bg-red-50 p-4 text-sm text-red-700 dark:border-red-700 dark:bg-red-900/20 dark:text-red-400">
+              {searchError}
+            </div>
+          )}
 
-          {!searchData && activeModule === "saved" && (
+          {!isSearching && searchData && (
+            <div className="w-full space-y-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                    Search results
+                  </p>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                    {searchData.results.length} result{searchData.results.length !== 1 ? "s" : ""}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => selectModule(activeModule)}
+                  className="text-xs font-medium text-primary hover:text-primary-hover"
+                >
+                  Clear search
+                </button>
+              </div>
+
+              {searchData.summary && (
+                <div className="rounded-md border border-muted bg-muted p-4 dark:border-primary-hover dark:bg-primary-hover/20">
+                  <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-primary-hover dark:text-secondary">
+                    AI Summary
+                  </p>
+                  <p className="text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">
+                    {searchData.summary}
+                  </p>
+                  {searchData.rewrittenQuery && searchData.rewrittenQuery !== query.trim() && (
+                    <p className="mt-2 text-xs italic text-zinc-400 dark:text-zinc-500">
+                      Showing results for: {searchData.rewrittenQuery}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {searchData.suggestions && searchData.suggestions.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2">
+                  {searchData.suggestions.map((suggestion) => (
+                    <button
+                      key={suggestion}
+                      type="button"
+                      onClick={() => handleSuggestionClick(suggestion)}
+                      className="rounded-full border border-zinc-300 bg-white px-3 py-1 text-xs font-medium text-zinc-600 transition-colors hover:border-secondary hover:bg-zinc-50 hover:text-primary dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:border-primary dark:hover:text-secondary"
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {searchData.results.length === 0 ? (
+                <p className="text-sm text-zinc-500 dark:text-zinc-400">No results found.</p>
+              ) : (
+                <ul className="space-y-4">
+                  {searchData.results.map((result) => {
+                    const alreadySaved = savedUrls.has(result.url);
+
+                    return (
+                      <li
+                        key={result.url}
+                        className="rounded-md border border-zinc-200 bg-white p-4 shadow-sm transition-shadow duration-200 hover:shadow-md dark:border-zinc-700 dark:bg-zinc-800"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <a
+                            href={result.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-base font-medium text-zinc-900 hover:text-primary dark:text-zinc-100 dark:hover:text-secondary"
+                          >
+                            {result.title}
+                          </a>
+                          <div className="flex shrink-0 items-center gap-2">
+                            <span className="rounded-md bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-500 dark:bg-zinc-700 dark:text-zinc-300">
+                              {result.score}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => saveItem(result)}
+                              disabled={alreadySaved}
+                              className="rounded-md border border-zinc-300 bg-white px-3 py-1 text-xs font-medium text-zinc-600 transition-colors hover:border-primary hover:text-primary disabled:cursor-default disabled:border-zinc-200 disabled:text-zinc-400 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+                            >
+                              {alreadySaved ? "Saved" : "Save"}
+                            </button>
+                          </div>
+                        </div>
+                        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+                          {result.description}
+                        </p>
+                        <p className="mt-1 truncate text-xs text-zinc-400 dark:text-zinc-500">
+                          {result.url}
+                        </p>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          )}
+
+          {!isSearching && !searchData && !searchError && activeModule === "news" && <NewsModule />}
+
+          {!isSearching && !searchData && !searchError && activeModule === "saved" && (
             <SavedModule
               items={savedItems}
               isLoading={isLoadingSaved}
+              error={savedError}
               onRemove={removeItem}
             />
           )}
         </main>
+
+        <aside className="order-1 lg:order-2 lg:border-l lg:border-zinc-200 lg:pl-6 dark:lg:border-zinc-700">
+          <div className="w-full rounded-md border border-zinc-200 bg-white p-3 shadow-sm dark:border-zinc-700 dark:bg-zinc-800">
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                Modules
+              </p>
+              {(searchData || searchError) && (
+                <button
+                  type="button"
+                  onClick={() => selectModule(activeModule)}
+                  className="text-xs font-medium text-primary hover:text-primary-hover"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+
+            <div className="flex w-full gap-2 overflow-x-auto lg:flex-col lg:overflow-visible">
+              {dashboardModules.map((module) => {
+                const Icon = module.icon;
+                const isActive = activeModule === module.id && !searchData && !searchError;
+
+                return (
+                  <button
+                    key={module.id}
+                    type="button"
+                    onClick={() => selectModule(module.id)}
+                    className={
+                      "group flex w-full min-w-[180px] items-center gap-3 rounded-md border px-3 py-2 text-left transition-colors lg:min-w-0 " +
+                      (isActive
+                        ? "border-primary bg-primary-hover text-white"
+                        : "border-zinc-200 bg-white text-zinc-700 hover:border-primary hover:bg-muted/40 hover:text-primary dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200")
+                    }
+                  >
+                    <span
+                      className={
+                        "flex h-8 w-8 shrink-0 items-center justify-center rounded-md border " +
+                        (isActive
+                          ? "border-white/20 bg-white/10 text-white"
+                          : "border-zinc-200 bg-zinc-50 text-primary group-hover:border-primary dark:border-zinc-700 dark:bg-zinc-800")
+                      }
+                    >
+                      <Icon className="h-4 w-4" />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-semibold">{module.title}</span>
+                      <span className="mt-0.5 block truncate text-xs opacity-75">
+                        {module.description}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </aside>
       </div>
     </div>
   );
