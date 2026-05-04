@@ -5,14 +5,14 @@ import { useState } from "react";
 interface Note {
   id: string;
   title: string;
-  body: string;
+  content: string;
   created_at: string;
   updated_at: string;
 }
 
 interface NoteInput {
   title: string;
-  body: string;
+  content: string;
 }
 
 interface NotesModuleProps {
@@ -33,14 +33,14 @@ interface EditFormProps {
 export default function NotesModule({ notes, isLoading, error, onCreate, onUpdate, onDelete }: NotesModuleProps) {
   const [isCreating, setIsCreating] = useState(false);
   const [title, setTitle] = useState("");
-  const [body, setBody] = useState("");
+  const [content, setContent] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
 
   async function handleCreate() {
     if (!title.trim()) return;
-    await onCreate({ title, body });
+    await onCreate({ title, content });
     setTitle("");
-    setBody("");
+    setContent("");
     setIsCreating(false);
   }
 
@@ -64,8 +64,8 @@ export default function NotesModule({ notes, isLoading, error, onCreate, onUpdat
             className="w-full border p-2 text-sm"
           />
           <textarea
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
             placeholder="Write something..."
             className="w-full border p-2 text-sm"
           />
@@ -93,7 +93,7 @@ export default function NotesModule({ notes, isLoading, error, onCreate, onUpdat
                       <button onClick={() => onDelete(note.id)}>Delete</button>
                     </div>
                   </div>
-                  <p className="text-sm text-zinc-500">{note.body}</p>
+                  <p className="text-sm text-zinc-500">{note.content}</p>
                 </>
               )}
             </li>
@@ -106,18 +106,18 @@ export default function NotesModule({ notes, isLoading, error, onCreate, onUpdat
 
 function EditForm({ note, onSave, onCancel }: EditFormProps) {
   const [title, setTitle] = useState(note.title);
-  const [body, setBody] = useState(note.body);
+  const [content, setContent] = useState(note.content);
 
   async function handleSave() {
     if (!title.trim()) return;
-    await onSave(note.id, { title, body });
+    await onSave(note.id, { title, content });
     onCancel();
   }
 
   return (
     <div className="space-y-2">
       <input value={title} onChange={(e) => setTitle(e.target.value)} className="w-full border p-2 text-sm" />
-      <textarea value={body} onChange={(e) => setBody(e.target.value)} className="w-full border p-2 text-sm" />
+      <textarea value={content} onChange={(e) => setContent(e.target.value)} className="w-full border p-2 text-sm" />
       <div className="flex gap-2 text-xs">
         <button onClick={handleSave}>Save</button>
         <button onClick={onCancel}>Cancel</button>
