@@ -1,6 +1,7 @@
 import { searchBrave, type BraveWebResult } from "@/lib/brave";
 import { getTopics, type NewsTopic } from "@/lib/db/topics";
 import { generateNewsBriefing, type NewsBriefingStory } from "@/lib/deepseek";
+import { getBriefingPreferences } from "@/lib/db/briefingPreferences";
 
 export interface BriefingSource {
   title: string;
@@ -126,13 +127,20 @@ function isLikelyArticleUrl(url: string): boolean {
   }
 }
 
-function scoreResult(result: BraveWebResult, topic: NewsTopic): number {
+function scoreResult(
+  result: BraveWebResult,
+  topic: NewsTopic,
+  prefs: Awaited<ReturnType<typeof getBriefingPreferences>>,
+): number {
   const text = `${result.title} ${result.description} ${result.url}`.toLowerCase();
   const host = getHost(result.url).toLowerCase();
   let score = 0;
 
   if (isLikelyArticleUrl(result.url)) score += 8;
-  score += sourceRegionScore(host, topic);
+
+  if (prefs.prefer_global_source_mix) {
+    score += sourceRegionScore(host, topic);
+  }
 
   for (const keyword of topic.requiredKeywords) {
     if (text.includes(keyword.toLowerCase())) score += 4;
@@ -142,12 +150,28 @@ function scoreResult(result: BraveWebResult, topic: NewsTopic): number {
     if (host.includes(source.toLowerCase())) score += 5;
   }
 
+  for (const source of prefs.preferred_sources) {
+    if (host.includes(source.toLowerCase())) score += 3;
+  }
+
+  for (const keyword of prefs.blocked_keywords) {
+    if (text.includes(keyword.toLowerCase())) score -= 10;
+  }
+
+  for (const source of prefs.blocked_sources) {
+    if (host.includes(source.toLowerCase())) score -= 10;
+  }
+
   if (result.age) score += 1;
 
   return score;
 }
 
-function selectSources(results: BraveWebResult[], topic: NewsTopic): BriefingSource[] {
+function selectSources(
+  results: BraveWebResult[],
+  topic: NewsTopic,
+  prefs: Awaited<ReturnType<typeof getBriefingPreferences>>,
+): BriefingSource[] {
   const seenUrls = new Set<string>();
   const seenHosts = new Set<string>();
   const broadGlobalTopic = isBroadGlobalTopic(topic);
@@ -161,13 +185,18 @@ function selectSources(results: BraveWebResult[], topic: NewsTopic): BriefingSou
       const text = `${result.title} ${result.description} ${result.url}`;
 
       if (!isLikelyArticleUrl(result.url)) return false;
+
       if (containsAny(host, topic.blockedSources)) return false;
       if (containsAny(text, topic.blockedKeywords)) return false;
+
+      if (containsAny(text, prefs.blocked_keywords)) return false;
+      if (containsAny(host, prefs.blocked_sources)) return false;
+
       if (topic.requiredKeywords.length > 0 && !containsAny(text, topic.requiredKeywords)) return false;
 
       return true;
     })
-    .sort((a, b) => scoreResult(b, topic) - scoreResult(a, topic));
+    .sort((a, b) => scoreResult(b, topic, prefs) - scoreResult(a, topic, prefs));
 
   const preferredGlobal: BraveWebResult[] = [];
   const diverse: BraveWebResult[] = [];
@@ -175,7 +204,9 @@ function selectSources(results: BraveWebResult[], topic: NewsTopic): BriefingSou
 
   for (const result of ranked) {
     const host = getHost(result.url).toLowerCase();
-    const regionScore = sourceRegionScore(host, topic);
+    const regionScore = prefs.prefer_global_source_mix
+      ? sourceRegionScore(host, topic)
+      : 0;
 
     if (!seenHosts.has(host)) {
       if (broadGlobalTopic && regionScore > 0) {
@@ -204,7 +235,7 @@ function queryForTopic(topic: NewsTopic): string {
   const normalized = query.toLowerCase();
 
   if (normalized.includes("no. 1") || normalized.includes("top news")) {
-    return "top world news today breaking latest international Reuters AP BBC Al Jazeera DW France24";
+    return "top world news today breaking latest international Reuters AP BBC Al Jazeera DW";
   }
 
   if (isBroadGlobalTopic(topic)) {
@@ -215,10 +246,14 @@ function queryForTopic(topic: NewsTopic): string {
 }
 
 export async function buildNewsBriefing(topic: NewsTopic): Promise<NewsBriefing | null> {
+  const prefs = await getBriefingPreferences();
+
   const query = queryForTopic(topic);
   const country = topic.country && topic.country !== "all" ? topic.country : undefined;
+
   const raw = await searchBrave(query, 18, "pd", country);
-  const sources = selectSources(raw.web?.results ?? [], topic);
+
+  const sources = selectSources(raw.web?.results ?? [], topic, prefs);
 
   if (sources.length === 0) return null;
 
@@ -244,6 +279,7 @@ export async function buildNewsBriefing(topic: NewsTopic): Promise<NewsBriefing 
 
 export async function buildNewsBriefings(): Promise<NewsBriefing[]> {
   const topics = (await getTopics()).filter((topic) => topic.enabled).slice(0, 5);
+
   const briefings = await Promise.all(
     topics.map(async (topic) => {
       try {
