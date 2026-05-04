@@ -3,11 +3,11 @@ import { supabaseAdmin } from "@/lib/supabaseServer";
 
 interface NoteRequest {
   title?: string;
-  body?: string;
+  content?: string;
   source_url?: string | null;
 }
 
-const noteSelect = "id,title,body,source_url,created_at,updated_at";
+const noteSelect = "id,title,content,source_url,created_at,updated_at";
 
 export async function GET() {
   const { data, error } = await supabaseAdmin
@@ -40,7 +40,7 @@ export async function POST(req: Request) {
     .from("notes")
     .insert({
       title,
-      body: body.body ?? "",
+      content: body.content ?? "",
       source_url: body.source_url ?? null,
     })
     .select(noteSelect)
