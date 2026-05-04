@@ -173,13 +173,18 @@ export async function generateNewsBriefing(input: {
   topicDescription?: string;
   sources: { title: string; url: string; description?: string }[];
 }): Promise<GeneratedNewsBriefing> {
+  const allowedUrls = input.sources.map((source) => source.url);
+
   const systemPrompt =
-    "You write concise news briefings for a personal browser start page. " +
-    "Use only the provided sources. Do not invent facts, causes, numbers, dates, or implications. " +
-    "Do not force unrelated sources into one causal narrative. " +
-    "If the sources cover multiple distinct stories under the same topic, represent that in the stories array. " +
-    "If sources emphasize different angles, explicitly capture those in the angles array. " +
-    "If evidence is thin or uncertain, say so. Return valid JSON only.";
+    "You create reliability-first news briefings from source snippets. " +
+    "Your job is faithful representation, not narrative writing. " +
+    "Use only the provided source titles, descriptions, and URLs. " +
+    "Do not add facts, causes, dates, numbers, motives, or implications unless directly supported by the provided source text. " +
+    "Do not connect unrelated stories causally or thematically unless the sources themselves do. " +
+    "If the sources cover multiple unrelated stories, keep them separated in stories and make the top-level summary a neutral overview. " +
+    "If the source snippets are thin, explicitly state that the briefing is based on limited source snippets. " +
+    "If sources disagree or frame the story differently, describe that in angles without deciding who is right. " +
+    "Return valid JSON only.";
 
   const sourceText = input.sources
     .map(
@@ -191,18 +196,22 @@ export async function generateNewsBriefing(input: {
   const userPrompt =
     `Topic: ${input.topicName}\n` +
     `${input.topicDescription ?? ""}\n\n` +
+    `Allowed source URLs:\n${allowedUrls.map((url) => `- ${url}`).join("\n")}\n\n` +
     `Sources:\n${sourceText}\n\n` +
-    "Return JSON with this shape exactly:\n" +
-    '{"title":"...","summary":"...","whyItMatters":"...","angles":["..."],"stories":[{"title":"...","summary":"...","sourceUrls":["..."]}]}\n' +
-    "Rules:\n" +
-    "- summary should be 3-5 sentences.\n" +
-    "- whyItMatters should be 1-3 sentences.\n" +
-    "- angles should mention meaningful differences in source framing or emphasis.\n" +
-    "- stories should contain 1 item for a narrow coherent topic, or 2-3 items if sources clearly cover multiple distinct stories.\n" +
-    "- sourceUrls must only contain URLs from the provided sources.";
+    "Return JSON with this exact shape:\n" +
+    '{"title":"...","summary":"...","whyItMatters":"...","angles":["..."],"stories":[{"title":"...","summary":"...","sourceUrls":["..."]}]}\n\n' +
+    "Reliability rules:\n" +
+    "- Prefer factual separation over elegant synthesis.\n" +
+    "- If sources cover unrelated stories, stories must contain separate items and the title must not imply one combined event.\n" +
+    "- Each story must be supported by at least one sourceUrl from the allowed list.\n" +
+    "- sourceUrls must exactly match allowed source URLs; do not invent or alter URLs.\n" +
+    "- The top-level summary should be 2-4 sentences and should only summarize what the provided sources cover.\n" +
+    "- whyItMatters should be cautious and limited to direct implications supported by the source descriptions; otherwise say implications are unclear from the snippets.\n" +
+    "- angles should describe source framing or emphasis, not add new analysis.\n" +
+    "- Use cautious language when only one source supports a story.";
 
   const content = await callDeepSeek(systemPrompt, userPrompt, {
-    maxTokens: 800,
+    maxTokens: 850,
     temperature: 0.3,
   });
 
@@ -223,6 +232,26 @@ export async function generateNewsBriefing(input: {
     !Array.isArray(parsed.angles)
   ) {
     throw new DeepSeekError("generateNewsBriefing: response missing required fields");
+  }
+
+  if (parsed.stories !== undefined && !Array.isArray(parsed.stories)) {
+    throw new DeepSeekError("generateNewsBriefing: stories must be an array");
+  }
+
+  if (parsed.stories) {
+    const allowedUrlSet = new Set(allowedUrls);
+    parsed.stories = parsed.stories
+      .filter(
+        (story) =>
+          typeof story.title === "string" &&
+          typeof story.summary === "string" &&
+          Array.isArray(story.sourceUrls),
+      )
+      .map((story) => ({
+        ...story,
+        sourceUrls: story.sourceUrls.filter((url) => allowedUrlSet.has(url)),
+      }))
+      .filter((story) => story.sourceUrls.length > 0);
   }
 
   return parsed;
