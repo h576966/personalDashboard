@@ -13,10 +13,10 @@ export async function PATCH(req: Request, context: RouteContext) {
     .from("notes")
     .update({
       title: body.title,
-      body: body.body,
+      content: body.content,
     })
     .eq("id", id)
-    .select("id,title,body,source_url,created_at,updated_at")
+    .select("id,title,content,source_url,created_at,updated_at")
     .single();
 
   if (error) {
