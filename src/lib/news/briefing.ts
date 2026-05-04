@@ -37,6 +37,36 @@ const SECTION_PATHS = new Set([
   "breaking-news",
 ]);
 
+const GLOBAL_SOURCE_HINTS = [
+  "reuters.com",
+  "apnews.com",
+  "bbc.",
+  "aljazeera.com",
+  "dw.com",
+  "france24.com",
+  "lemonde.fr",
+  "theguardian.com",
+  "ft.com",
+  "nikkei.com",
+  "scmp.com",
+  "straitstimes.com",
+  "thehindu.com",
+  "elpais.com",
+  "africanews.com",
+];
+
+const US_SOURCE_HINTS = [
+  "nytimes.com",
+  "washingtonpost.com",
+  "wsj.com",
+  "cnn.com",
+  "nbcnews.com",
+  "cbsnews.com",
+  "abcnews.go.com",
+  "foxnews.com",
+  "politico.com",
+];
+
 function getHost(url: string): string {
   try {
     return new URL(url).hostname.replace(/^www\./, "");
@@ -48,6 +78,28 @@ function getHost(url: string): string {
 function containsAny(text: string, terms: string[]): boolean {
   const normalized = text.toLowerCase();
   return terms.some((term) => normalized.includes(term.toLowerCase()));
+}
+
+function isBroadGlobalTopic(topic: NewsTopic): boolean {
+  const text = `${topic.name} ${topic.description} ${topic.queries.join(" ")}`.toLowerCase();
+  return ["global", "world", "international", "top news", "no. 1", "breaking"].some((term) =>
+    text.includes(term),
+  );
+}
+
+function sourceRegionScore(host: string, topic: NewsTopic): number {
+  if (!isBroadGlobalTopic(topic)) return 0;
+
+  const normalizedHost = host.toLowerCase();
+
+  if (GLOBAL_SOURCE_HINTS.some((hint) => normalizedHost.includes(hint))) return 4;
+  if (US_SOURCE_HINTS.some((hint) => normalizedHost.includes(hint))) return -1;
+
+  if (/\.(uk|de|fr|es|it|nl|se|no|dk|fi|jp|kr|in|sg|za|br|mx|au|nz)$/.test(normalizedHost)) {
+    return 3;
+  }
+
+  return 0;
 }
 
 function isLikelyArticleUrl(url: string): boolean {
@@ -80,6 +132,7 @@ function scoreResult(result: BraveWebResult, topic: NewsTopic): number {
   let score = 0;
 
   if (isLikelyArticleUrl(result.url)) score += 8;
+  score += sourceRegionScore(host, topic);
 
   for (const keyword of topic.requiredKeywords) {
     if (text.includes(keyword.toLowerCase())) score += 4;
@@ -97,6 +150,7 @@ function scoreResult(result: BraveWebResult, topic: NewsTopic): number {
 function selectSources(results: BraveWebResult[], topic: NewsTopic): BriefingSource[] {
   const seenUrls = new Set<string>();
   const seenHosts = new Set<string>();
+  const broadGlobalTopic = isBroadGlobalTopic(topic);
 
   const ranked = results
     .filter((result) => {
@@ -115,20 +169,27 @@ function selectSources(results: BraveWebResult[], topic: NewsTopic): BriefingSou
     })
     .sort((a, b) => scoreResult(b, topic) - scoreResult(a, topic));
 
+  const preferredGlobal: BraveWebResult[] = [];
   const diverse: BraveWebResult[] = [];
   const overflow: BraveWebResult[] = [];
 
   for (const result of ranked) {
     const host = getHost(result.url).toLowerCase();
+    const regionScore = sourceRegionScore(host, topic);
+
     if (!seenHosts.has(host)) {
-      diverse.push(result);
+      if (broadGlobalTopic && regionScore > 0) {
+        preferredGlobal.push(result);
+      } else {
+        diverse.push(result);
+      }
       seenHosts.add(host);
     } else {
       overflow.push(result);
     }
   }
 
-  return [...diverse, ...overflow]
+  return [...preferredGlobal, ...diverse, ...overflow]
     .slice(0, 5)
     .map((result) => ({
       title: result.title,
@@ -143,7 +204,11 @@ function queryForTopic(topic: NewsTopic): string {
   const normalized = query.toLowerCase();
 
   if (normalized.includes("no. 1") || normalized.includes("top news")) {
-    return "top world news today breaking latest";
+    return "top world news today breaking latest international Reuters AP BBC Al Jazeera DW France24";
+  }
+
+  if (isBroadGlobalTopic(topic)) {
+    return `${query} latest international news today Reuters AP BBC Al Jazeera`;
   }
 
   return `${query} latest news today`;
@@ -152,7 +217,7 @@ function queryForTopic(topic: NewsTopic): string {
 export async function buildNewsBriefing(topic: NewsTopic): Promise<NewsBriefing | null> {
   const query = queryForTopic(topic);
   const country = topic.country && topic.country !== "all" ? topic.country : undefined;
-  const raw = await searchBrave(query, 15, "pd", country);
+  const raw = await searchBrave(query, 18, "pd", country);
   const sources = selectSources(raw.web?.results ?? [], topic);
 
   if (sources.length === 0) return null;
