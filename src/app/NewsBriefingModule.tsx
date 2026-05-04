@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import BriefingPreferencesPanel from "./BriefingPreferencesPanel";
 
 interface BriefingSource {
   title: string;
@@ -55,6 +56,7 @@ export default function NewsBriefingModule() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasLoaded, setHasLoaded] = useState(false);
+  const [showPreferences, setShowPreferences] = useState(false);
 
   async function loadBriefings() {
     setIsLoading(true);
@@ -97,15 +99,34 @@ export default function NewsBriefingModule() {
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={loadBriefings}
-          disabled={isLoading}
-          className="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 transition-colors hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
-        >
-          {isLoading ? "Refreshing..." : "Refresh"}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowPreferences((prev) => !prev)}
+            className="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 hover:border-primary hover:text-primary dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+          >
+            Preferences
+          </button>
+
+          <button
+            type="button"
+            onClick={loadBriefings}
+            disabled={isLoading}
+            className="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 transition-colors hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+          >
+            {isLoading ? "Refreshing..." : "Refresh"}
+          </button>
+        </div>
       </div>
+
+      {showPreferences && (
+        <BriefingPreferencesPanel
+          onClose={() => setShowPreferences(false)}
+          onSaved={() => {
+            void loadBriefings();
+          }}
+        />
+      )}
 
       {error && (
         <div className="rounded-md border border-red-300 bg-red-50 p-4 text-sm text-red-700 dark:border-red-700 dark:bg-red-900/20 dark:text-red-400">
