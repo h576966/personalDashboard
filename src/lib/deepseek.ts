@@ -33,6 +33,20 @@ interface SummaryResponse {
   suggestions: string[];
 }
 
+export interface NewsBriefingStory {
+  title: string;
+  summary: string;
+  sourceUrls: string[];
+}
+
+export interface GeneratedNewsBriefing {
+  title: string;
+  summary: string;
+  whyItMatters: string;
+  angles: string[];
+  stories?: NewsBriefingStory[];
+}
+
 async function callDeepSeek(
   systemPrompt: string,
   userPrompt: string,
@@ -46,6 +60,8 @@ async function callDeepSeek(
     );
   }
 
+  const model = process.env.DEEPSEEK_MODEL ?? "deepseek-chat";
+
   const response = await fetch(
     "https://api.deepseek.com/chat/completions",
     {
@@ -55,7 +71,7 @@ async function callDeepSeek(
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "deepseek-chat",
+        model,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
@@ -156,34 +172,58 @@ export async function generateNewsBriefing(input: {
   topicName: string;
   topicDescription?: string;
   sources: { title: string; url: string; description?: string }[];
-}): Promise<{
-  title: string;
-  summary: string;
-  whyItMatters: string;
-}> {
+}): Promise<GeneratedNewsBriefing> {
   const systemPrompt =
-    "You are a news briefing writer. Use only the provided sources. Do not invent facts. " +
-    "If information is limited, say so. Return JSON only.";
+    "You write concise news briefings for a personal browser start page. " +
+    "Use only the provided sources. Do not invent facts, causes, numbers, dates, or implications. " +
+    "Do not force unrelated sources into one causal narrative. " +
+    "If the sources cover multiple distinct stories under the same topic, represent that in the stories array. " +
+    "If sources emphasize different angles, explicitly capture those in the angles array. " +
+    "If evidence is thin or uncertain, say so. Return valid JSON only.";
 
   const sourceText = input.sources
     .map(
       (s, i) =>
-        `${i + 1}. ${s.title}\nURL: ${s.url}\n${s.description ?? ""}`,
+        `${i + 1}. ${s.title}\nURL: ${s.url}\nDescription: ${s.description ?? ""}`,
     )
     .join("\n\n");
 
-  const userPrompt = `Topic: ${input.topicName}\n${input.topicDescription ?? ""}\n\nSources:\n${sourceText}\n\nReturn JSON: {"title":"...","summary":"...","whyItMatters":"..."}`;
+  const userPrompt =
+    `Topic: ${input.topicName}\n` +
+    `${input.topicDescription ?? ""}\n\n` +
+    `Sources:\n${sourceText}\n\n` +
+    "Return JSON with this shape exactly:\n" +
+    '{"title":"...","summary":"...","whyItMatters":"...","angles":["..."],"stories":[{"title":"...","summary":"...","sourceUrls":["..."]}]}\n' +
+    "Rules:\n" +
+    "- summary should be 3-5 sentences.\n" +
+    "- whyItMatters should be 1-3 sentences.\n" +
+    "- angles should mention meaningful differences in source framing or emphasis.\n" +
+    "- stories should contain 1 item for a narrow coherent topic, or 2-3 items if sources clearly cover multiple distinct stories.\n" +
+    "- sourceUrls must only contain URLs from the provided sources.";
 
   const content = await callDeepSeek(systemPrompt, userPrompt, {
-    maxTokens: 500,
-    temperature: 0.4,
+    maxTokens: 800,
+    temperature: 0.3,
   });
+
+  let parsed: GeneratedNewsBriefing;
 
   try {
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     const jsonStr = jsonMatch ? jsonMatch[0] : content;
-    return JSON.parse(jsonStr);
+    parsed = JSON.parse(jsonStr);
   } catch {
     throw new DeepSeekError("generateNewsBriefing: failed to parse JSON");
   }
+
+  if (
+    typeof parsed.title !== "string" ||
+    typeof parsed.summary !== "string" ||
+    typeof parsed.whyItMatters !== "string" ||
+    !Array.isArray(parsed.angles)
+  ) {
+    throw new DeepSeekError("generateNewsBriefing: response missing required fields");
+  }
+
+  return parsed;
 }
