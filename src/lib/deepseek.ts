@@ -130,7 +130,6 @@ export async function summarizeResults(
   let parsed: SummaryResponse;
 
   try {
-    // Try to extract JSON from the response (handle optional markdown fences)
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     const jsonStr = jsonMatch ? jsonMatch[0] : content;
     parsed = JSON.parse(jsonStr);
@@ -151,4 +150,40 @@ export async function summarizeResults(
   }
 
   return parsed;
+}
+
+export async function generateNewsBriefing(input: {
+  topicName: string;
+  topicDescription?: string;
+  sources: { title: string; url: string; description?: string }[];
+}): Promise<{
+  title: string;
+  summary: string;
+  whyItMatters: string;
+}> {
+  const systemPrompt =
+    "You are a news briefing writer. Use only the provided sources. Do not invent facts. " +
+    "If information is limited, say so. Return JSON only.";
+
+  const sourceText = input.sources
+    .map(
+      (s, i) =>
+        `${i + 1}. ${s.title}\nURL: ${s.url}\n${s.description ?? ""}`,
+    )
+    .join("\n\n");
+
+  const userPrompt = `Topic: ${input.topicName}\n${input.topicDescription ?? ""}\n\nSources:\n${sourceText}\n\nReturn JSON: {"title":"...","summary":"...","whyItMatters":"..."}`;
+
+  const content = await callDeepSeek(systemPrompt, userPrompt, {
+    maxTokens: 500,
+    temperature: 0.4,
+  });
+
+  try {
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    const jsonStr = jsonMatch ? jsonMatch[0] : content;
+    return JSON.parse(jsonStr);
+  } catch {
+    throw new DeepSeekError("generateNewsBriefing: failed to parse JSON");
+  }
 }
