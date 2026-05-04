@@ -20,6 +20,21 @@ export interface NewsBriefing {
   generatedAt: string;
 }
 
+const SECTION_PATHS = new Set([
+  "",
+  "news",
+  "world",
+  "technology",
+  "tech",
+  "business",
+  "markets",
+  "science",
+  "sports",
+  "politics",
+  "latest",
+  "breaking-news",
+]);
+
 function getHost(url: string): string {
   try {
     return new URL(url).hostname.replace(/^www\./, "");
@@ -33,10 +48,36 @@ function containsAny(text: string, terms: string[]): boolean {
   return terms.some((term) => normalized.includes(term.toLowerCase()));
 }
 
+function isLikelyArticleUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    const segments = parsed.pathname
+      .replace(/\/$/, "")
+      .split("/")
+      .filter(Boolean);
+
+    if (segments.length === 0) return false;
+    if (segments.length === 1 && SECTION_PATHS.has(segments[0].toLowerCase())) return false;
+
+    const path = parsed.pathname.toLowerCase();
+    const last = segments.at(-1)?.toLowerCase() ?? "";
+    const hasLongSlug = last.length >= 18 && last.includes("-");
+    const hasArticleMarker = /\/articles?\/|\/story\/|\/news\/articles?\//.test(path);
+    const hasDatePath = /\/20\d{2}\/(0?[1-9]|1[0-2])\//.test(path);
+    const hasNumericId = /\d{5,}/.test(path);
+
+    return hasLongSlug || hasArticleMarker || hasDatePath || hasNumericId;
+  } catch {
+    return false;
+  }
+}
+
 function scoreResult(result: BraveWebResult, topic: NewsTopic): number {
   const text = `${result.title} ${result.description} ${result.url}`.toLowerCase();
   const host = getHost(result.url).toLowerCase();
   let score = 0;
+
+  if (isLikelyArticleUrl(result.url)) score += 8;
 
   for (const keyword of topic.requiredKeywords) {
     if (text.includes(keyword.toLowerCase())) score += 4;
@@ -52,23 +93,40 @@ function scoreResult(result: BraveWebResult, topic: NewsTopic): number {
 }
 
 function selectSources(results: BraveWebResult[], topic: NewsTopic): BriefingSource[] {
-  const seen = new Set<string>();
+  const seenUrls = new Set<string>();
+  const seenHosts = new Set<string>();
 
-  return results
+  const ranked = results
     .filter((result) => {
-      if (!result.url || seen.has(result.url)) return false;
-      seen.add(result.url);
+      if (!result.url || seenUrls.has(result.url)) return false;
+      seenUrls.add(result.url);
 
       const host = getHost(result.url).toLowerCase();
       const text = `${result.title} ${result.description} ${result.url}`;
 
+      if (!isLikelyArticleUrl(result.url)) return false;
       if (containsAny(host, topic.blockedSources)) return false;
       if (containsAny(text, topic.blockedKeywords)) return false;
       if (topic.requiredKeywords.length > 0 && !containsAny(text, topic.requiredKeywords)) return false;
 
       return true;
     })
-    .sort((a, b) => scoreResult(b, topic) - scoreResult(a, topic))
+    .sort((a, b) => scoreResult(b, topic) - scoreResult(a, topic));
+
+  const diverse: BraveWebResult[] = [];
+  const overflow: BraveWebResult[] = [];
+
+  for (const result of ranked) {
+    const host = getHost(result.url).toLowerCase();
+    if (!seenHosts.has(host)) {
+      diverse.push(result);
+      seenHosts.add(host);
+    } else {
+      overflow.push(result);
+    }
+  }
+
+  return [...diverse, ...overflow]
     .slice(0, 5)
     .map((result) => ({
       title: result.title,
@@ -80,13 +138,19 @@ function selectSources(results: BraveWebResult[], topic: NewsTopic): BriefingSou
 
 function queryForTopic(topic: NewsTopic): string {
   const query = topic.queries[0] || topic.name;
-  return `${query} latest news`;
+  const normalized = query.toLowerCase();
+
+  if (normalized.includes("no. 1") || normalized.includes("top news")) {
+    return "top world news today breaking latest";
+  }
+
+  return `${query} latest news today`;
 }
 
 export async function buildNewsBriefing(topic: NewsTopic): Promise<NewsBriefing | null> {
   const query = queryForTopic(topic);
   const country = topic.country && topic.country !== "all" ? topic.country : undefined;
-  const raw = await searchBrave(query, 10, "pd", country);
+  const raw = await searchBrave(query, 15, "pd", country);
   const sources = selectSources(raw.web?.results ?? [], topic);
 
   if (sources.length === 0) return null;
