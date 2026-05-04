@@ -1,6 +1,6 @@
 import { searchBrave, type BraveWebResult } from "@/lib/brave";
 import { getTopics, type NewsTopic } from "@/lib/db/topics";
-import { generateNewsBriefing } from "@/lib/deepseek";
+import { generateNewsBriefing, type NewsBriefingStory } from "@/lib/deepseek";
 
 export interface BriefingSource {
   title: string;
@@ -15,6 +15,8 @@ export interface NewsBriefing {
   title: string;
   summary: string;
   whyItMatters: string;
+  angles: string[];
+  stories: NewsBriefingStory[];
   imageUrl?: string | null;
   sources: BriefingSource[];
   generatedAt: string;
@@ -167,6 +169,8 @@ export async function buildNewsBriefing(topic: NewsTopic): Promise<NewsBriefing 
     title: generated.title,
     summary: generated.summary,
     whyItMatters: generated.whyItMatters,
+    angles: generated.angles,
+    stories: generated.stories ?? [],
     imageUrl: null,
     sources,
     generatedAt: new Date().toISOString(),
