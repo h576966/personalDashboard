@@ -24,7 +24,7 @@ interface SavedItem extends SearchResult {
 interface Note {
   id: string;
   title: string;
-  body: string;
+  content: string;
   source_url?: string | null;
   created_at: string;
   updated_at: string;
@@ -147,7 +147,7 @@ export default function DashboardShell() {
     setSavedItems((prev) => prev.filter((item) => item.id !== id));
   }
 
-  async function createNote(note: { title: string; body: string }) {
+  async function createNote(note: { title: string; content: string }) {
     const res = await fetch("/api/notes", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -164,7 +164,7 @@ export default function DashboardShell() {
     setHasLoadedNotes(true);
   }
 
-  async function updateNote(id: string, note: { title: string; body: string }) {
+  async function updateNote(id: string, note: { title: string; content: string }) {
     const res = await fetch(`/api/notes/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
