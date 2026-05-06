@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import BriefingPreferencesPanel from "./BriefingPreferencesPanel";
+import TopicsPanel from "./TopicsPanel";
 
 interface BriefingSource {
   title: string;
@@ -58,7 +59,7 @@ export default function NewsBriefingModule() {
   const [hasLoaded, setHasLoaded] = useState(false);
   const [showPreferences, setShowPreferences] = useState(false);
 
-  async function loadBriefings() {
+  const loadBriefings = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
@@ -78,11 +79,17 @@ export default function NewsBriefingModule() {
     } finally {
       setIsLoading(false);
     }
-  }
+  }, []);
 
-  if (!hasLoaded && !isLoading) {
-    void loadBriefings();
-  }
+  useEffect(() => {
+    if (!hasLoaded && !isLoading) {
+      const timer = window.setTimeout(() => {
+        void loadBriefings();
+      }, 0);
+
+      return () => window.clearTimeout(timer);
+    }
+  }, [hasLoaded, isLoading, loadBriefings]);
 
   return (
     <section className="space-y-4">
@@ -120,12 +127,15 @@ export default function NewsBriefingModule() {
       </div>
 
       {showPreferences && (
-        <BriefingPreferencesPanel
-          onClose={() => setShowPreferences(false)}
-          onSaved={() => {
-            void loadBriefings();
-          }}
-        />
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(260px,1fr)]">
+          <BriefingPreferencesPanel
+            onClose={() => setShowPreferences(false)}
+            onSaved={() => {
+              void loadBriefings();
+            }}
+          />
+          <TopicsPanel />
+        </div>
       )}
 
       {error && (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 interface Topic {
   id: string;
@@ -13,7 +13,7 @@ export default function TopicsPanel() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function loadTopics() {
+  const loadTopics = useCallback(async () => {
     try {
       const res = await fetch("/api/topics");
       const data = await res.json();
@@ -21,7 +21,7 @@ export default function TopicsPanel() {
     } catch {
       setError("Failed to load topics");
     }
-  }
+  }, []);
 
   async function addTopic() {
     if (!newTopic.trim()) return;
@@ -48,8 +48,12 @@ export default function TopicsPanel() {
   }
 
   useEffect(() => {
-    void loadTopics();
-  }, []);
+    const timer = window.setTimeout(() => {
+      void loadTopics();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [loadTopics]);
 
   return (
     <div className="rounded-md border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-800">

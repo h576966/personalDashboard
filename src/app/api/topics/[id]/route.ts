@@ -1,12 +1,17 @@
 import { NextResponse } from "next/server";
 import { deleteTopic } from "@/lib/db/topics";
 
+interface RouteContext {
+  params: Promise<{ id: string }>;
+}
+
 export async function DELETE(
   _req: Request,
-  { params }: { params: { id: string } },
+  context: RouteContext,
 ) {
   try {
-    await deleteTopic(params.id);
+    const { id } = await context.params;
+    await deleteTopic(id);
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("DELETE topic failed", error);

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import NewsSourcesPanel from "./NewsSourcesPanel";
 
 interface BriefingPreferences {
   id: string;
@@ -123,6 +124,8 @@ export default function BriefingPreferencesPanel({ onClose, onSaved }: BriefingP
         <p className="mt-4 text-sm text-zinc-500 dark:text-zinc-400">Loading preferences...</p>
       ) : (
         <div className="mt-4 space-y-4">
+          <NewsSourcesPanel onChanged={onSaved} />
+
           <label className="block">
             <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
               Blocked keywords

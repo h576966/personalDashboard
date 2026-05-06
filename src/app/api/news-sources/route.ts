@@ -16,8 +16,7 @@ export async function GET() {
 
 export async function POST() {
   try {
-    await seedDefaultNewsSources();
-    const sources = await getNewsSources();
+    const sources = await seedDefaultNewsSources();
     return NextResponse.json({ sources });
   } catch (error) {
     console.error("POST news-sources failed", error);

@@ -1,7 +1,25 @@
-import { getSupabase } from "./supabase";
+import { supabaseAdmin } from "@/lib/supabaseServer";
 
 export interface NewsSource {
   id: string;
+  name: string;
+  domain: string;
+  url: string;
+  category: string;
+  region: string;
+  language: string;
+  tags: string[];
+  priority: number;
+  enabled: boolean;
+  isDefault: boolean;
+  qualityScore: number;
+  defaultEnabled: boolean;
+  userEnabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface NewsSourceSeed {
   name: string;
   domain: string;
   region: string;
@@ -9,18 +27,14 @@ export interface NewsSource {
   tags: string[];
   qualityScore: number;
   defaultEnabled: boolean;
-  userEnabled: boolean;
-  createdAt?: string;
-  updatedAt?: string;
 }
 
 export interface UpdateNewsSourceData {
-  userEnabled?: boolean;
-  qualityScore?: number;
-  tags?: string[];
+  enabled?: boolean;
+  priority?: number;
 }
 
-const DEFAULT_SOURCES: Array<Omit<NewsSource, "id" | "createdAt" | "updatedAt">> = [
+export const DEFAULT_SOURCES: NewsSourceSeed[] = [
   {
     name: "Reuters",
     domain: "reuters.com",
@@ -29,7 +43,6 @@ const DEFAULT_SOURCES: Array<Omit<NewsSource, "id" | "createdAt" | "updatedAt">>
     tags: ["global", "general", "politics", "finance", "technology", "markets"],
     qualityScore: 0.96,
     defaultEnabled: true,
-    userEnabled: true,
   },
   {
     name: "Associated Press",
@@ -39,7 +52,6 @@ const DEFAULT_SOURCES: Array<Omit<NewsSource, "id" | "createdAt" | "updatedAt">>
     tags: ["global", "general", "politics", "world"],
     qualityScore: 0.95,
     defaultEnabled: true,
-    userEnabled: true,
   },
   {
     name: "BBC News",
@@ -49,7 +61,6 @@ const DEFAULT_SOURCES: Array<Omit<NewsSource, "id" | "createdAt" | "updatedAt">>
     tags: ["global", "general", "world", "politics", "technology"],
     qualityScore: 0.92,
     defaultEnabled: true,
-    userEnabled: true,
   },
   {
     name: "Al Jazeera",
@@ -59,7 +70,6 @@ const DEFAULT_SOURCES: Array<Omit<NewsSource, "id" | "createdAt" | "updatedAt">>
     tags: ["global", "world", "politics", "middle-east"],
     qualityScore: 0.86,
     defaultEnabled: true,
-    userEnabled: true,
   },
   {
     name: "DW",
@@ -69,7 +79,6 @@ const DEFAULT_SOURCES: Array<Omit<NewsSource, "id" | "createdAt" | "updatedAt">>
     tags: ["global", "world", "europe", "politics"],
     qualityScore: 0.86,
     defaultEnabled: true,
-    userEnabled: true,
   },
   {
     name: "France 24",
@@ -79,7 +88,6 @@ const DEFAULT_SOURCES: Array<Omit<NewsSource, "id" | "createdAt" | "updatedAt">>
     tags: ["global", "world", "europe", "politics"],
     qualityScore: 0.84,
     defaultEnabled: true,
-    userEnabled: true,
   },
   {
     name: "Financial Times",
@@ -89,7 +97,6 @@ const DEFAULT_SOURCES: Array<Omit<NewsSource, "id" | "createdAt" | "updatedAt">>
     tags: ["finance", "markets", "business", "technology", "global"],
     qualityScore: 0.93,
     defaultEnabled: true,
-    userEnabled: true,
   },
   {
     name: "Bloomberg",
@@ -99,7 +106,6 @@ const DEFAULT_SOURCES: Array<Omit<NewsSource, "id" | "createdAt" | "updatedAt">>
     tags: ["finance", "markets", "business", "technology", "global"],
     qualityScore: 0.9,
     defaultEnabled: true,
-    userEnabled: true,
   },
   {
     name: "The Economist",
@@ -109,7 +115,6 @@ const DEFAULT_SOURCES: Array<Omit<NewsSource, "id" | "createdAt" | "updatedAt">>
     tags: ["global", "politics", "finance", "business", "science"],
     qualityScore: 0.9,
     defaultEnabled: true,
-    userEnabled: true,
   },
   {
     name: "The Guardian",
@@ -119,7 +124,6 @@ const DEFAULT_SOURCES: Array<Omit<NewsSource, "id" | "createdAt" | "updatedAt">>
     tags: ["global", "world", "politics", "technology", "science"],
     qualityScore: 0.84,
     defaultEnabled: true,
-    userEnabled: true,
   },
   {
     name: "Nikkei Asia",
@@ -129,7 +133,6 @@ const DEFAULT_SOURCES: Array<Omit<NewsSource, "id" | "createdAt" | "updatedAt">>
     tags: ["asia", "finance", "business", "technology", "global"],
     qualityScore: 0.88,
     defaultEnabled: true,
-    userEnabled: true,
   },
   {
     name: "South China Morning Post",
@@ -139,7 +142,6 @@ const DEFAULT_SOURCES: Array<Omit<NewsSource, "id" | "createdAt" | "updatedAt">>
     tags: ["asia", "china", "technology", "world", "global"],
     qualityScore: 0.78,
     defaultEnabled: true,
-    userEnabled: true,
   },
   {
     name: "The Hindu",
@@ -149,7 +151,6 @@ const DEFAULT_SOURCES: Array<Omit<NewsSource, "id" | "createdAt" | "updatedAt">>
     tags: ["india", "asia", "world", "politics", "technology"],
     qualityScore: 0.82,
     defaultEnabled: true,
-    userEnabled: true,
   },
   {
     name: "Politico",
@@ -159,7 +160,6 @@ const DEFAULT_SOURCES: Array<Omit<NewsSource, "id" | "createdAt" | "updatedAt">>
     tags: ["politics", "us", "europe", "policy"],
     qualityScore: 0.82,
     defaultEnabled: true,
-    userEnabled: true,
   },
   {
     name: "Ars Technica",
@@ -169,7 +169,6 @@ const DEFAULT_SOURCES: Array<Omit<NewsSource, "id" | "createdAt" | "updatedAt">>
     tags: ["technology", "science", "ai", "hardware", "software"],
     qualityScore: 0.88,
     defaultEnabled: true,
-    userEnabled: true,
   },
   {
     name: "MIT Technology Review",
@@ -179,7 +178,6 @@ const DEFAULT_SOURCES: Array<Omit<NewsSource, "id" | "createdAt" | "updatedAt">>
     tags: ["technology", "ai", "science", "research"],
     qualityScore: 0.89,
     defaultEnabled: true,
-    userEnabled: true,
   },
   {
     name: "Wired",
@@ -189,7 +187,6 @@ const DEFAULT_SOURCES: Array<Omit<NewsSource, "id" | "createdAt" | "updatedAt">>
     tags: ["technology", "ai", "science", "culture"],
     qualityScore: 0.8,
     defaultEnabled: true,
-    userEnabled: true,
   },
   {
     name: "The Verge",
@@ -199,7 +196,6 @@ const DEFAULT_SOURCES: Array<Omit<NewsSource, "id" | "createdAt" | "updatedAt">>
     tags: ["technology", "ai", "hardware", "apple", "software"],
     qualityScore: 0.78,
     defaultEnabled: true,
-    userEnabled: true,
   },
   {
     name: "Nature",
@@ -209,7 +205,6 @@ const DEFAULT_SOURCES: Array<Omit<NewsSource, "id" | "createdAt" | "updatedAt">>
     tags: ["science", "research", "health", "ai"],
     qualityScore: 0.94,
     defaultEnabled: true,
-    userEnabled: true,
   },
   {
     name: "Science",
@@ -219,7 +214,60 @@ const DEFAULT_SOURCES: Array<Omit<NewsSource, "id" | "createdAt" | "updatedAt">>
     tags: ["science", "research", "health", "space"],
     qualityScore: 0.93,
     defaultEnabled: true,
-    userEnabled: true,
+  },
+  {
+    name: "Google DeepMind Blog",
+    domain: "deepmind.google",
+    region: "global",
+    language: "en",
+    tags: ["ai", "research"],
+    qualityScore: 0.9,
+    defaultEnabled: true,
+  },
+  {
+    name: "OpenAI Blog",
+    domain: "openai.com",
+    region: "global",
+    language: "en",
+    tags: ["ai", "research", "product"],
+    qualityScore: 0.88,
+    defaultEnabled: true,
+  },
+  {
+    name: "Anthropic News",
+    domain: "anthropic.com",
+    region: "us",
+    language: "en",
+    tags: ["ai", "research", "product"],
+    qualityScore: 0.86,
+    defaultEnabled: true,
+  },
+  {
+    name: "Microsoft Research",
+    domain: "microsoft.com",
+    region: "global",
+    language: "en",
+    tags: ["ai", "research", "technology"],
+    qualityScore: 0.82,
+    defaultEnabled: true,
+  },
+  {
+    name: "Apple Newsroom",
+    domain: "apple.com",
+    region: "global",
+    language: "en",
+    tags: ["technology", "apple", "hardware"],
+    qualityScore: 0.78,
+    defaultEnabled: true,
+  },
+  {
+    name: "Hugging Face Blog",
+    domain: "huggingface.co",
+    region: "global",
+    language: "en",
+    tags: ["ai", "open-source", "models"],
+    qualityScore: 0.76,
+    defaultEnabled: true,
   },
   {
     name: "NRK",
@@ -229,7 +277,6 @@ const DEFAULT_SOURCES: Array<Omit<NewsSource, "id" | "createdAt" | "updatedAt">>
     tags: ["norway", "nordic", "general", "politics", "technology"],
     qualityScore: 0.88,
     defaultEnabled: true,
-    userEnabled: true,
   },
   {
     name: "E24",
@@ -239,7 +286,6 @@ const DEFAULT_SOURCES: Array<Omit<NewsSource, "id" | "createdAt" | "updatedAt">>
     tags: ["norway", "finance", "business", "markets", "technology"],
     qualityScore: 0.8,
     defaultEnabled: true,
-    userEnabled: true,
   },
   {
     name: "SVT Nyheter",
@@ -249,7 +295,6 @@ const DEFAULT_SOURCES: Array<Omit<NewsSource, "id" | "createdAt" | "updatedAt">>
     tags: ["sweden", "nordic", "general", "politics", "technology"],
     qualityScore: 0.87,
     defaultEnabled: true,
-    userEnabled: true,
   },
   {
     name: "Dagens Nyheter",
@@ -259,7 +304,6 @@ const DEFAULT_SOURCES: Array<Omit<NewsSource, "id" | "createdAt" | "updatedAt">>
     tags: ["sweden", "nordic", "general", "politics", "culture"],
     qualityScore: 0.82,
     defaultEnabled: true,
-    userEnabled: true,
   },
 ];
 
@@ -269,82 +313,120 @@ function asStringArray(value: unknown): string[] {
     : [];
 }
 
-function rowToSource(row: Record<string, unknown>): NewsSource {
+function sourceUrl(domain: string): string {
+  return `https://${domain}`;
+}
+
+function rowToNewsSource(row: Record<string, unknown>): NewsSource {
+  const domain = String(row.domain ?? "");
+  const tags = asStringArray(row.tags);
+  const qualityScore = Number(row.quality_score ?? 0);
+  const userEnabled = Boolean(row.user_enabled);
+  const defaultEnabled = Boolean(row.default_enabled);
+
   return {
     id: String(row.id),
-    name: String(row.name),
-    domain: String(row.domain),
-    region: String(row.region),
-    language: String(row.language),
-    tags: asStringArray(row.tags),
-    qualityScore: Number(row.quality_score ?? 0.8),
-    defaultEnabled: Boolean(row.default_enabled),
-    userEnabled: Boolean(row.user_enabled),
-    createdAt: typeof row.created_at === "string" ? row.created_at : undefined,
-    updatedAt: typeof row.updated_at === "string" ? row.updated_at : undefined,
+    name: String(row.name ?? ""),
+    domain,
+    url: sourceUrl(domain),
+    category: tags[0] ?? "general",
+    region: String(row.region ?? ""),
+    language: String(row.language ?? ""),
+    tags,
+    priority: Math.round(qualityScore * 100),
+    enabled: defaultEnabled && userEnabled,
+    isDefault: defaultEnabled,
+    qualityScore,
+    defaultEnabled,
+    userEnabled,
+    createdAt: String(row.created_at ?? ""),
+    updatedAt: String(row.updated_at ?? ""),
   };
-}
-
-function sourceToRow(source: Omit<NewsSource, "id" | "createdAt" | "updatedAt">) {
-  return {
-    name: source.name,
-    domain: source.domain,
-    region: source.region,
-    language: source.language,
-    tags: source.tags,
-    quality_score: source.qualityScore,
-    default_enabled: source.defaultEnabled,
-    user_enabled: source.userEnabled,
-  };
-}
-
-export async function seedDefaultNewsSources(): Promise<void> {
-  const supabase = getSupabase();
-
-  const { error } = await supabase
-    .from("news_sources")
-    .upsert(DEFAULT_SOURCES.map(sourceToRow), { onConflict: "domain" });
-
-  if (error) throw error;
 }
 
 export async function getNewsSources(): Promise<NewsSource[]> {
-  const supabase = getSupabase();
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from("news_sources")
     .select("*")
     .order("region", { ascending: true })
     .order("quality_score", { ascending: false });
 
   if (error) throw error;
-
-  if (!data || data.length === 0) {
-    await seedDefaultNewsSources();
-    return getNewsSources();
-  }
-
-  return data.map((row) => rowToSource(row as Record<string, unknown>));
+  return (data ?? []).map((row) => rowToNewsSource(row as Record<string, unknown>));
 }
 
 export async function getEnabledNewsSources(): Promise<NewsSource[]> {
-  const sources = await getNewsSources();
-  return sources.filter((source) => source.defaultEnabled && source.userEnabled);
+  const { data, error } = await supabaseAdmin
+    .from("news_sources")
+    .select("*")
+    .eq("default_enabled", true)
+    .eq("user_enabled", true)
+    .order("region", { ascending: true })
+    .order("quality_score", { ascending: false });
+
+  if (error) throw error;
+  return (data ?? []).map((row) => rowToNewsSource(row as Record<string, unknown>));
+}
+
+export async function seedDefaultNewsSources(): Promise<NewsSource[]> {
+  const existing = await getNewsSources();
+  const byDomain = new Map(existing.map((source) => [source.domain, source]));
+
+  for (const source of DEFAULT_SOURCES) {
+    const current = byDomain.get(source.domain);
+
+    if (!current) {
+      const { error } = await supabaseAdmin.from("news_sources").insert({
+        name: source.name,
+        domain: source.domain,
+        region: source.region,
+        language: source.language,
+        tags: source.tags,
+        quality_score: source.qualityScore,
+        default_enabled: source.defaultEnabled,
+        user_enabled: source.defaultEnabled,
+      });
+      if (error) throw error;
+      continue;
+    }
+
+    const { error } = await supabaseAdmin
+      .from("news_sources")
+      .update({
+        name: source.name,
+        region: source.region,
+        language: source.language,
+        tags: source.tags,
+        quality_score: source.qualityScore,
+        default_enabled: source.defaultEnabled,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", current.id);
+
+    if (error) throw error;
+  }
+
+  return getNewsSources();
 }
 
 export async function updateNewsSource(
   id: string,
   data: UpdateNewsSourceData,
 ): Promise<NewsSource> {
-  const update: Record<string, unknown> = {
-    updated_at: new Date().toISOString(),
-  };
+  const update: Record<string, unknown> = {};
 
-  if (data.userEnabled !== undefined) update.user_enabled = data.userEnabled;
-  if (data.qualityScore !== undefined) update.quality_score = data.qualityScore;
-  if (data.tags !== undefined) update.tags = data.tags;
+  if (data.enabled !== undefined) update.user_enabled = data.enabled;
+  if (data.priority !== undefined) update.quality_score = data.priority / 100;
 
-  const supabase = getSupabase();
-  const { data: updated, error } = await supabase
+  if (Object.keys(update).length === 0) {
+    const source = (await getNewsSources()).find((item) => item.id === id);
+    if (!source) throw new Error(`News source with id ${id} not found`);
+    return source;
+  }
+
+  update.updated_at = new Date().toISOString();
+
+  const { data: updated, error } = await supabaseAdmin
     .from("news_sources")
     .update(update)
     .eq("id", id)
@@ -352,5 +434,5 @@ export async function updateNewsSource(
     .single();
 
   if (error) throw error;
-  return rowToSource(updated as Record<string, unknown>);
+  return rowToNewsSource(updated as Record<string, unknown>);
 }
