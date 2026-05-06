@@ -1,8 +1,20 @@
 import { searchBrave, type BraveWebResult } from "@/lib/brave";
 import { getTopics, type NewsTopic } from "@/lib/db/topics";
-import { generateNewsBriefing, type NewsBriefingStory } from "@/lib/deepseek";
+import {
+  classifyWatchUpdate,
+  generateNewsBriefing,
+  type NewsBriefingStory,
+} from "@/lib/deepseek";
 import { getBriefingPreferences } from "@/lib/db/briefingPreferences";
-import { getNewsSources, type NewsSource } from "@/lib/db/newsSources";
+import {
+  getNewsSources,
+  seedDefaultNewsSources,
+  type NewsSource,
+} from "@/lib/db/newsSources";
+import { getEnabledBlockedKeywords } from "@/lib/db/blockedTopics";
+import { getEnabledWatchTopics, updateWatchTopicLastSeen } from "@/lib/db/watchTopics";
+import { upsertStoryCards } from "@/lib/db/storyClusters";
+import { stripHtml } from "@/lib/search/filter";
 
 export interface BriefingSource {
   title: string;
@@ -24,6 +36,52 @@ export interface NewsBriefing {
   generatedAt: string;
 }
 
+export interface StoryCard {
+  id: string;
+  title: string;
+  summary: string;
+  whyItMatters: string;
+  score: number;
+  sources: BriefingSource[];
+  angles: string[];
+  matchedInterests: string[];
+  isWatchUpdate: boolean;
+  generatedAt: string;
+}
+
+export interface DailyNewsBriefing {
+  storyCards: StoryCard[];
+  generatedAt: string;
+}
+
+interface FeedInterest {
+  id: string;
+  name: string;
+  description: string;
+  queries: string[];
+  country?: string;
+}
+
+interface CandidateArticle extends BriefingSource {
+  id: string;
+  source: string;
+  description: string;
+  sourceQuality: number;
+  freshness: number;
+  matchedInterests: string[];
+  isWatchUpdate: boolean;
+  watchConfidence: number;
+  watchReason?: string;
+}
+
+interface StoryCluster {
+  id: string;
+  articles: CandidateArticle[];
+  score: number;
+  matchedInterests: string[];
+  isWatchUpdate: boolean;
+}
+
 const SECTION_PATHS = new Set([
   "",
   "news",
@@ -38,6 +96,33 @@ const SECTION_PATHS = new Set([
   "latest",
   "breaking-news",
 ]);
+
+const DEFAULT_INTERESTS: FeedInterest[] = [
+  {
+    id: "default-ai",
+    name: "AI",
+    description: "Artificial intelligence, models, products, and research",
+    queries: ["AI news", "local LLM models", "AI research"],
+  },
+  {
+    id: "default-technology",
+    name: "Technology",
+    description: "High-signal technology and hardware updates",
+    queries: ["technology news", "Apple hardware news"],
+  },
+  {
+    id: "default-science",
+    name: "Science",
+    description: "Science and research discoveries",
+    queries: ["science research news"],
+  },
+  {
+    id: "default-geopolitics",
+    name: "Geopolitics",
+    description: "World affairs and geopolitics",
+    queries: ["geopolitics world news"],
+  },
+];
 
 const GLOBAL_SOURCE_HINTS = [
   "reuters.com",
@@ -96,6 +181,61 @@ function hostMatchesDomain(host: string, domain: string): boolean {
 
 function hostMatchesAnySource(host: string, sources: NewsSource[]): boolean {
   return sources.some((source) => hostMatchesDomain(host, source.domain));
+}
+
+function hashText(value: string): string {
+  let hash = 0;
+  for (let i = 0; i < value.length; i++) {
+    hash = ((hash << 5) - hash) + value.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash).toString(36);
+}
+
+function normalizeText(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/https?:\/\/\S+/g, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function textSimilarity(a: string, b: string): number {
+  const aTokens = new Set(normalizeText(a).split(" ").filter((token) => token.length > 2));
+  const bTokens = new Set(normalizeText(b).split(" ").filter((token) => token.length > 2));
+  if (aTokens.size === 0 || bTokens.size === 0) return 0;
+
+  let intersection = 0;
+  for (const token of aTokens) {
+    if (bTokens.has(token)) intersection++;
+  }
+
+  return intersection / Math.max(aTokens.size, bTokens.size);
+}
+
+function freshnessScore(age?: string): number {
+  if (!age) return 0.65;
+  const normalized = age.toLowerCase();
+
+  if (normalized.includes("minute") || normalized.includes("hour")) return 1;
+  if (normalized.includes("day")) {
+    const days = Number.parseInt(normalized, 10);
+    if (Number.isFinite(days)) return Math.max(0.2, 1 - days / 7);
+    return 0.75;
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(age)) {
+    const diffDays = (Date.now() - new Date(age).getTime()) / (1000 * 60 * 60 * 24);
+    return Math.max(0.1, Math.min(1, 1 - diffDays / 7));
+  }
+
+  return 0.65;
+}
+
+function containsBlockedSignal(candidate: BriefingSource, blockedKeywords: string[]): boolean {
+  const text = `${candidate.title} ${candidate.description ?? ""} ${candidate.url}`;
+  return containsAny(text, blockedKeywords);
 }
 
 function isBroadGlobalTopic(topic: NewsTopic): boolean {
@@ -299,7 +439,11 @@ function queryForTopic(topic: NewsTopic, sources: NewsSource[]): string {
 
 async function getSourcePolicy(): Promise<SourcePolicy> {
   try {
-    const sources = await getNewsSources();
+    let sources = await getNewsSources();
+    if (sources.length === 0) {
+      sources = await seedDefaultNewsSources();
+    }
+
     return {
       hasCuratedSources: sources.length > 0,
       enabledSources: sources.filter((source) => source.enabled),
@@ -313,6 +457,364 @@ async function getSourcePolicy(): Promise<SourcePolicy> {
       disabledSources: [],
     };
   }
+}
+
+function interestsFromTopics(topics: NewsTopic[]): FeedInterest[] {
+  const enabled = topics.filter((topic) => topic.enabled);
+  if (enabled.length === 0) return DEFAULT_INTERESTS;
+
+  return enabled.map((topic) => ({
+    id: topic.id,
+    name: topic.name,
+    description: topic.description,
+    queries: topic.queries.length > 0 ? topic.queries : [topic.name],
+    country: topic.country && topic.country !== "all" ? topic.country : undefined,
+  }));
+}
+
+function sourceForHost(host: string, sources: NewsSource[]): NewsSource | null {
+  return sources.find((source) => hostMatchesDomain(host, source.domain)) ?? null;
+}
+
+function candidateFromResult(input: {
+  result: BraveWebResult;
+  interestName: string;
+  policy: SourcePolicy;
+  blockedKeywords: string[];
+  isWatchUpdate?: boolean;
+  watchConfidence?: number;
+  watchReason?: string;
+}): CandidateArticle | null {
+  const title = input.result.title?.trim();
+  const url = input.result.url?.trim();
+  if (!title || !url || !isLikelyArticleUrl(url)) return null;
+
+  const host = getHost(url).toLowerCase();
+  if (!host) return null;
+
+  if (input.policy.hasCuratedSources && hostMatchesAnySource(host, input.policy.disabledSources)) {
+    return null;
+  }
+
+  if (
+    input.policy.hasCuratedSources &&
+    input.policy.enabledSources.length > 0 &&
+    !hostMatchesAnySource(host, input.policy.enabledSources)
+  ) {
+    return null;
+  }
+
+  const description = stripHtml(input.result.description ?? "");
+  const candidate = {
+    title,
+    url,
+    description,
+    source: host,
+  };
+
+  if (containsBlockedSignal(candidate, input.blockedKeywords)) return null;
+
+  const source = sourceForHost(host, input.policy.enabledSources);
+
+  return {
+    ...candidate,
+    id: hashText(`${title}|${url}`),
+    sourceQuality: source?.qualityScore ?? 0.55,
+    freshness: freshnessScore(input.result.age),
+    matchedInterests: [input.interestName],
+    isWatchUpdate: input.isWatchUpdate ?? false,
+    watchConfidence: input.watchConfidence ?? 0,
+    watchReason: input.watchReason,
+  };
+}
+
+async function collectInterestCandidates(input: {
+  interests: FeedInterest[];
+  policy: SourcePolicy;
+  blockedKeywords: string[];
+}): Promise<CandidateArticle[]> {
+  const candidates: CandidateArticle[] = [];
+  const seenUrls = new Set<string>();
+
+  for (const interest of input.interests.slice(0, 6)) {
+    const queries = interest.queries.length > 0 ? interest.queries : [interest.name];
+
+    for (const rawQuery of queries.slice(0, 2)) {
+      const query = `${rawQuery} latest news today ${sourceHintsForTopic(
+        {
+          id: interest.id,
+          name: interest.name,
+          description: interest.description,
+          queries: interest.queries,
+          country: interest.country ?? "",
+          region: "",
+          language: "",
+          preferredSources: [],
+          blockedSources: [],
+          requiredKeywords: [],
+          blockedKeywords: [],
+          maxItemsPerDay: 5,
+          minScore: 0,
+          enabled: true,
+          createdAt: "",
+          updatedAt: "",
+        },
+        input.policy.enabledSources,
+      )}`.trim();
+
+      try {
+        const raw = await searchBrave(query, 12, "pd", interest.country);
+        for (const result of raw.web?.results ?? []) {
+          if (!result.url || seenUrls.has(result.url.toLowerCase())) continue;
+
+          const candidate = candidateFromResult({
+            result,
+            interestName: interest.name,
+            policy: input.policy,
+            blockedKeywords: input.blockedKeywords,
+          });
+
+          if (!candidate) continue;
+          seenUrls.add(candidate.url.toLowerCase());
+          candidates.push(candidate);
+        }
+      } catch (err) {
+        console.warn(`Failed to collect candidates for "${interest.name}":`, err);
+      }
+    }
+  }
+
+  return candidates;
+}
+
+async function collectWatchCandidates(input: {
+  policy: SourcePolicy;
+  blockedKeywords: string[];
+}): Promise<CandidateArticle[]> {
+  const watchTopics = await getEnabledWatchTopics();
+  const candidates: CandidateArticle[] = [];
+
+  for (const topic of watchTopics) {
+    const results: CandidateArticle[] = [];
+    const domains = topic.sourceDomains.map((domain) => domain.toLowerCase());
+
+    for (const query of (topic.queries.length > 0 ? topic.queries : [topic.name]).slice(0, 2)) {
+      try {
+        const raw = await searchBrave(`${query} latest update`, 8, "pw");
+
+        for (const result of raw.web?.results ?? []) {
+          const host = result.url ? getHost(result.url).toLowerCase() : "";
+          if (domains.length > 0 && !domains.some((domain) => hostMatchesDomain(host, domain))) {
+            continue;
+          }
+
+          const candidate = candidateFromResult({
+            result,
+            interestName: topic.name,
+            policy: input.policy,
+            blockedKeywords: input.blockedKeywords,
+            isWatchUpdate: true,
+          });
+
+          if (candidate) results.push(candidate);
+        }
+      } catch (err) {
+        console.warn(`Failed to scan watch topic "${topic.name}":`, err);
+      }
+    }
+
+    const uniqueSources = new Set(results.map((result) => result.source));
+    const officialSource = domains.length > 0 &&
+      results.some((result) => domains.some((domain) => hostMatchesDomain(result.source, domain)));
+    const hash = hashText(results.map((result) => `${result.title}|${result.url}`).join("\n"));
+
+    if (results.length === 0 || hash === topic.lastSeenHash) continue;
+
+    try {
+      const classification = await classifyWatchUpdate({
+        watchTopic: topic.name,
+        lastSeenHash: topic.lastSeenHash,
+        sources: results.slice(0, 4),
+      });
+
+      const shouldShow = classification.confidence >= 0.75 ||
+        uniqueSources.size >= 2 ||
+        officialSource;
+
+      if (classification.isMeaningfulUpdate && shouldShow) {
+        candidates.push(
+          ...results.slice(0, 4).map((result) => ({
+            ...result,
+            watchConfidence: classification.confidence,
+            watchReason: classification.reason,
+          })),
+        );
+        await updateWatchTopicLastSeen(topic.id, hash);
+      }
+    } catch (err) {
+      if (uniqueSources.size >= 2 || officialSource) {
+        candidates.push(...results.slice(0, 4));
+      } else {
+        console.warn(`Watch topic classification failed for "${topic.name}":`, err);
+      }
+    }
+  }
+
+  return candidates;
+}
+
+function clusterCandidates(candidates: CandidateArticle[]): StoryCluster[] {
+  const clusters: StoryCluster[] = [];
+
+  for (const candidate of candidates) {
+    const match = clusters.find((cluster) => {
+      const representative = cluster.articles[0];
+      return (
+        textSimilarity(candidate.title, representative.title) >= 0.58 ||
+        textSimilarity(candidate.description ?? "", representative.description ?? "") >= 0.62
+      );
+    });
+
+    if (match) {
+      match.articles.push(candidate);
+      match.matchedInterests = [...new Set([
+        ...match.matchedInterests,
+        ...candidate.matchedInterests,
+      ])];
+      match.isWatchUpdate = match.isWatchUpdate || candidate.isWatchUpdate;
+    } else {
+      clusters.push({
+        id: `story_${hashText(normalizeText(candidate.title))}`,
+        articles: [candidate],
+        score: 0,
+        matchedInterests: candidate.matchedInterests,
+        isWatchUpdate: candidate.isWatchUpdate,
+      });
+    }
+  }
+
+  return clusters;
+}
+
+function scoreCluster(
+  cluster: StoryCluster,
+  interests: FeedInterest[],
+  blockedKeywords: string[],
+): StoryCluster {
+  const uniqueSources = new Set(cluster.articles.map((article) => article.source));
+  const sourceQuality = Math.max(...cluster.articles.map((article) => article.sourceQuality));
+  const interestMatch = Math.min(cluster.matchedInterests.length / Math.max(interests.length, 1), 1);
+  const freshness = Math.max(...cluster.articles.map((article) => article.freshness));
+  const feedbackAffinity = 0;
+  const sourceDiversity = Math.min(uniqueSources.size / 3, 1);
+  const watchSignificance = cluster.isWatchUpdate
+    ? Math.max(...cluster.articles.map((article) => article.watchConfidence || 0.8))
+    : 0;
+  const blockedPenalty = cluster.articles.some((article) =>
+    containsBlockedSignal(article, blockedKeywords),
+  ) ? 1 : 0;
+  const duplicatePenalty = cluster.articles.length > uniqueSources.size ? 0.25 : 0;
+
+  return {
+    ...cluster,
+    score:
+      sourceQuality * 25 +
+      interestMatch * 20 +
+      freshness * 15 +
+      feedbackAffinity * 15 +
+      sourceDiversity * 10 +
+      watchSignificance * 30 -
+      blockedPenalty * 100 -
+      duplicatePenalty * 50,
+  };
+}
+
+async function summarizeCluster(cluster: StoryCluster): Promise<StoryCard> {
+  const sources = cluster.articles.slice(0, 5).map((article) => ({
+    title: article.title,
+    url: article.url,
+    source: article.source,
+    description: article.description,
+  }));
+
+  try {
+    const generated = await generateNewsBriefing({
+      topicName: cluster.isWatchUpdate ? "Watch topic update" : "Top daily story",
+      topicDescription: cluster.matchedInterests.join(", "),
+      sources,
+    });
+
+    return {
+      id: cluster.id,
+      title: generated.title,
+      summary: generated.summary,
+      whyItMatters: generated.whyItMatters,
+      score: Math.round(cluster.score),
+      sources,
+      angles: generated.angles,
+      matchedInterests: cluster.matchedInterests,
+      isWatchUpdate: cluster.isWatchUpdate,
+      generatedAt: new Date().toISOString(),
+    };
+  } catch (err) {
+    console.warn(`Failed to summarize story cluster ${cluster.id}:`, err);
+    const representative = cluster.articles[0];
+
+    return {
+      id: cluster.id,
+      title: representative.title,
+      summary: representative.description || "Summary unavailable from the available snippets.",
+      whyItMatters: cluster.isWatchUpdate
+        ? representative.watchReason ?? "This matched a watch topic."
+        : "This story ranked highly across trusted sources and configured interests.",
+      score: Math.round(cluster.score),
+      sources,
+      angles: [],
+      matchedInterests: cluster.matchedInterests,
+      isWatchUpdate: cluster.isWatchUpdate,
+      generatedAt: new Date().toISOString(),
+    };
+  }
+}
+
+export async function buildDailyNewsBriefing(): Promise<DailyNewsBriefing> {
+  const [topics, prefs, policy, blockedTopicKeywords] = await Promise.all([
+    getTopics(),
+    getBriefingPreferences(),
+    getSourcePolicy(),
+    getEnabledBlockedKeywords(),
+  ]);
+  const interests = interestsFromTopics(topics);
+  const blockedKeywords = [
+    ...new Set([
+      ...blockedTopicKeywords,
+      ...prefs.blocked_keywords,
+    ]),
+  ];
+
+  const [interestCandidates, watchCandidates] = await Promise.all([
+    collectInterestCandidates({ interests, policy, blockedKeywords }),
+    collectWatchCandidates({ policy, blockedKeywords }),
+  ]);
+
+  const rankedClusters = clusterCandidates([...watchCandidates, ...interestCandidates])
+    .map((cluster) => scoreCluster(cluster, interests, blockedKeywords))
+    .filter((cluster) => cluster.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 5);
+
+  const storyCards = await Promise.all(rankedClusters.map((cluster) => summarizeCluster(cluster)));
+
+  try {
+    await upsertStoryCards(storyCards);
+  } catch (err) {
+    console.warn("Failed to persist story cards:", err);
+  }
+
+  return {
+    storyCards,
+    generatedAt: new Date().toISOString(),
+  };
 }
 
 export async function buildNewsBriefing(topic: NewsTopic): Promise<NewsBriefing | null> {

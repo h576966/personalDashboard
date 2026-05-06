@@ -57,13 +57,13 @@ export default function TopicsPanel() {
 
   return (
     <div className="rounded-md border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-800">
-      <h2 className="text-sm font-semibold">Topics</h2>
+      <h2 className="text-sm font-semibold">Interests</h2>
 
       <div className="mt-3 flex gap-2">
         <input
           value={newTopic}
           onChange={(e) => setNewTopic(e.target.value)}
-          placeholder="Add topic (e.g. Mac Studio M5)"
+          placeholder="Add interest (e.g. local LLMs)"
           className="flex-1 rounded-md border p-2 text-sm"
         />
         <button onClick={addTopic} disabled={isLoading} className="px-3 text-sm">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { ThumbsDown, ThumbsUp } from "lucide-react";
 import BriefingPreferencesPanel from "./BriefingPreferencesPanel";
 import TopicsPanel from "./TopicsPanel";
 
@@ -11,34 +12,35 @@ interface BriefingSource {
   description?: string;
 }
 
-interface BriefingStory {
-  title: string;
-  summary: string;
-  sourceUrls: string[];
-}
-
-interface NewsBriefing {
-  topicId: string;
-  topicName: string;
+interface StoryCard {
+  id: string;
   title: string;
   summary: string;
   whyItMatters: string;
-  angles: string[];
-  stories: BriefingStory[];
-  imageUrl?: string | null;
+  score: number;
   sources: BriefingSource[];
+  angles: string[];
+  matchedInterests: string[];
+  isWatchUpdate: boolean;
   generatedAt: string;
 }
 
 interface BriefingResponse {
-  briefings?: NewsBriefing[];
+  briefing?: {
+    storyCards?: StoryCard[];
+    generatedAt?: string;
+  };
   error?: {
     message?: string;
   };
 }
 
 function sourceLabel(source: BriefingSource): string {
-  return source.source || new URL(source.url).hostname.replace(/^www\./, "");
+  try {
+    return source.source || new URL(source.url).hostname.replace(/^www\./, "");
+  } catch {
+    return source.source || source.url;
+  }
 }
 
 function formatTime(value: string): string {
@@ -53,11 +55,13 @@ function formatTime(value: string): string {
 }
 
 export default function NewsBriefingModule() {
-  const [briefings, setBriefings] = useState<NewsBriefing[]>([]);
+  const [storyCards, setStoryCards] = useState<StoryCard[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasLoaded, setHasLoaded] = useState(false);
   const [showPreferences, setShowPreferences] = useState(false);
+  const [feedbackByStory, setFeedbackByStory] = useState<Record<string, "up" | "down">>({});
+  const [feedbackError, setFeedbackError] = useState<string | null>(null);
 
   const loadBriefings = useCallback(async () => {
     setIsLoading(true);
@@ -71,15 +75,38 @@ export default function NewsBriefingModule() {
         throw new Error(data.error?.message ?? "Failed to load news briefing");
       }
 
-      setBriefings(data.briefings ?? []);
+      setStoryCards(data.briefing?.storyCards ?? []);
       setHasLoaded(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load news briefing");
-      setBriefings([]);
+      setStoryCards([]);
     } finally {
       setIsLoading(false);
     }
   }, []);
+
+  async function sendFeedback(storyId: string, vote: "up" | "down") {
+    setFeedbackError(null);
+    setFeedbackByStory((prev) => ({ ...prev, [storyId]: vote }));
+
+    try {
+      const res = await fetch("/api/news/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ storyId, vote }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.error ?? "Failed to save feedback");
+    } catch (err) {
+      setFeedbackError(err instanceof Error ? err.message : "Failed to save feedback");
+      setFeedbackByStory((prev) => {
+        const next = { ...prev };
+        delete next[storyId];
+        return next;
+      });
+    }
+  }
 
   useEffect(() => {
     if (!hasLoaded && !isLoading) {
@@ -99,10 +126,10 @@ export default function NewsBriefingModule() {
             Today&apos;s briefing
           </p>
           <h1 className="mt-1 text-2xl font-semibold text-zinc-900 dark:text-zinc-100">
-            AI news briefing
+            Top 5 daily stories
           </h1>
           <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-            Concise summaries from multiple sources, grouped by topic.
+            High-signal updates from trusted sources, ranked before AI summarizes.
           </p>
         </div>
 
@@ -144,80 +171,86 @@ export default function NewsBriefingModule() {
         </div>
       )}
 
-      {isLoading && briefings.length === 0 && (
-        <div className="rounded-md border border-zinc-200 bg-white p-4 text-sm text-zinc-500 shadow-sm dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400">
-          Generating briefing...
+      {feedbackError && (
+        <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
+          {feedbackError}
         </div>
       )}
 
-      {!isLoading && !error && hasLoaded && briefings.length === 0 && (
+      {isLoading && storyCards.length === 0 && (
         <div className="rounded-md border border-zinc-200 bg-white p-4 text-sm text-zinc-500 shadow-sm dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400">
-          No briefing could be generated from the current topics.
+          Building today&apos;s top stories...
+        </div>
+      )}
+
+      {!isLoading && !error && hasLoaded && storyCards.length === 0 && (
+        <div className="rounded-md border border-zinc-200 bg-white p-4 text-sm text-zinc-500 shadow-sm dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400">
+          No high-signal stories could be generated from the current sources and interests.
         </div>
       )}
 
       <div className="space-y-5">
-        {briefings.map((briefing) => (
+        {storyCards.map((story, index) => (
           <article
-            key={briefing.topicId}
+            key={story.id}
             className="rounded-md border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-700 dark:bg-zinc-800"
           >
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wider text-primary dark:text-secondary">
-                  {briefing.topicName}
+                  {story.isWatchUpdate ? "Watch update" : `Story ${index + 1}`}
                 </p>
                 <h2 className="mt-1 text-xl font-semibold leading-snug text-zinc-900 dark:text-zinc-100">
-                  {briefing.title}
+                  {story.title}
                 </h2>
               </div>
-              {briefing.generatedAt && (
-                <span className="shrink-0 text-xs text-zinc-400">
-                  {formatTime(briefing.generatedAt)}
+              <div className="flex shrink-0 items-center gap-2">
+                <span className="rounded-md bg-zinc-100 px-2 py-1 text-xs font-medium text-zinc-500 dark:bg-zinc-700 dark:text-zinc-300">
+                  {story.score}
                 </span>
-              )}
+                {story.generatedAt && (
+                  <span className="text-xs text-zinc-400">
+                    {formatTime(story.generatedAt)}
+                  </span>
+                )}
+              </div>
             </div>
 
             <p className="mt-3 text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">
-              {briefing.summary}
+              {story.summary}
             </p>
 
-            {briefing.whyItMatters && (
+            {story.whyItMatters && (
               <div className="mt-4 rounded-md border border-muted bg-muted/60 p-3 dark:border-primary-hover dark:bg-primary-hover/20">
                 <p className="text-xs font-semibold uppercase tracking-wider text-primary-hover dark:text-secondary">
                   Why it matters
                 </p>
                 <p className="mt-1 text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">
-                  {briefing.whyItMatters}
+                  {story.whyItMatters}
                 </p>
               </div>
             )}
 
-            {briefing.stories.length > 0 && (
-              <div className="mt-5 space-y-3">
-                <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                  Key stories
-                </p>
-                {briefing.stories.map((story) => (
-                  <div key={story.title} className="rounded-md border border-zinc-200 p-3 dark:border-zinc-700">
-                    <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                      {story.title}
-                    </h3>
-                    <p className="mt-1 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
-                      {story.summary}
-                    </p>
-                  </div>
+            {story.matchedInterests.length > 0 && (
+              <div className="mt-4 flex flex-wrap gap-2">
+                {story.matchedInterests.map((interest) => (
+                  <span
+                    key={interest}
+                    className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-500 dark:bg-zinc-700 dark:text-zinc-300"
+                  >
+                    {interest}
+                  </span>
                 ))}
               </div>
             )}
 
-            {briefing.angles.length > 0 && (
+            {story.angles.length > 0 && (
               <div className="mt-5">
                 <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
                   Source angles
                 </p>
                 <ul className="mt-2 space-y-1.5">
-                  {briefing.angles.map((angle) => (
+                  {story.angles.map((angle) => (
                     <li key={angle} className="text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
                       {angle}
                     </li>
@@ -226,9 +259,10 @@ export default function NewsBriefingModule() {
               </div>
             )}
 
-            {briefing.sources.length > 0 && (
-              <div className="mt-5 flex flex-wrap gap-2 border-t border-zinc-100 pt-4 dark:border-zinc-700">
-                {briefing.sources.map((source) => (
+            <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-zinc-100 pt-4 dark:border-zinc-700">
+              {story.sources.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {story.sources.map((source) => (
                   <a
                     key={source.url}
                     href={source.url}
@@ -238,9 +272,39 @@ export default function NewsBriefingModule() {
                   >
                     {sourceLabel(source)}
                   </a>
-                ))}
+                  ))}
+                </div>
+              )}
+
+              <div className="ml-auto flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => sendFeedback(story.id, "up")}
+                  aria-label="Thumbs up"
+                  className={
+                    "rounded-md border p-1.5 transition-colors " +
+                    (feedbackByStory[story.id] === "up"
+                      ? "border-primary bg-muted text-primary"
+                      : "border-zinc-300 text-zinc-500 hover:border-primary hover:text-primary dark:border-zinc-600")
+                  }
+                >
+                  <ThumbsUp className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => sendFeedback(story.id, "down")}
+                  aria-label="Thumbs down"
+                  className={
+                    "rounded-md border p-1.5 transition-colors " +
+                    (feedbackByStory[story.id] === "down"
+                      ? "border-primary bg-muted text-primary"
+                      : "border-zinc-300 text-zinc-500 hover:border-primary hover:text-primary dark:border-zinc-600")
+                  }
+                >
+                  <ThumbsDown className="h-4 w-4" />
+                </button>
               </div>
-            )}
+            </div>
           </article>
         ))}
       </div>

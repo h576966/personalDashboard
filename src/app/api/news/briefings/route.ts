@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { buildNewsBriefings } from "@/lib/news/briefing";
+import { buildDailyNewsBriefing } from "@/lib/news/briefing";
 
 export async function GET() {
   try {
-    const briefings = await buildNewsBriefings();
-    return NextResponse.json({ briefings });
+    const briefing = await buildDailyNewsBriefing();
+    return NextResponse.json({ briefing });
   } catch (err) {
     console.error("Failed to build news briefings:", err);
     return NextResponse.json(

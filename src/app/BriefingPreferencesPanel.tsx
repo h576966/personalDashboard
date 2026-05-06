@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import NewsSourcesPanel from "./NewsSourcesPanel";
+import MutedTopicsPanel from "./MutedTopicsPanel";
 
 interface BriefingPreferences {
   id: string;
@@ -125,6 +126,7 @@ export default function BriefingPreferencesPanel({ onClose, onSaved }: BriefingP
       ) : (
         <div className="mt-4 space-y-4">
           <NewsSourcesPanel onChanged={onSaved} />
+          <MutedTopicsPanel onChanged={onSaved} />
 
           <label className="block">
             <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
