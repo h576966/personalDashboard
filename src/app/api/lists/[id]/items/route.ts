@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
+import { authErrorResponse, requireCurrentHousehold } from "@/lib/auth/household";
 import { errorResponse } from "@/lib/api/errors";
-import { getDefaultHouseholdId } from "@/lib/db/households";
 import { createListItem } from "@/lib/db/lists";
 import { supabaseAdmin } from "@/lib/supabaseServer";
 
@@ -26,7 +26,7 @@ export async function POST(req: Request, context: RouteContext) {
   }
 
   try {
-    const householdId = await getDefaultHouseholdId();
+    const { householdId } = await requireCurrentHousehold();
     const { data: list, error: listError } = await supabaseAdmin
       .from("lists")
       .select("id")
@@ -45,6 +45,9 @@ export async function POST(req: Request, context: RouteContext) {
     const item = await createListItem(id, label);
     return NextResponse.json({ item });
   } catch (err) {
+    const authResponse = authErrorResponse(err);
+    if (authResponse) return authResponse;
+
     const message = err instanceof Error ? err.message : "Failed to create list item";
     return errorResponse(message, "INTERNAL_ERROR", 500);
   }

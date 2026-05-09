@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
+import { authErrorResponse, requireCurrentHousehold } from "@/lib/auth/household";
 import { errorResponse } from "@/lib/api/errors";
-import { getDefaultHouseholdId } from "@/lib/db/households";
 import { deleteListItem, updateListItem } from "@/lib/db/lists";
 import { supabaseAdmin } from "@/lib/supabaseServer";
 
@@ -13,7 +13,7 @@ interface UpdateListItemRequest {
   is_completed?: boolean;
 }
 
-async function listItemBelongsToDefaultHousehold(id: string): Promise<boolean> {
+async function listItemBelongsToHousehold(id: string, householdId: string): Promise<boolean> {
   const { data: item, error: itemError } = await supabaseAdmin
     .from("list_items")
     .select("list_id")
@@ -23,7 +23,6 @@ async function listItemBelongsToDefaultHousehold(id: string): Promise<boolean> {
   if (itemError) throw itemError;
   if (!item?.list_id) return false;
 
-  const householdId = await getDefaultHouseholdId();
   const { data: list, error: listError } = await supabaseAdmin
     .from("lists")
     .select("id")
@@ -48,7 +47,8 @@ export async function PATCH(req: Request, context: RouteContext) {
   }
 
   try {
-    const isScopedItem = await listItemBelongsToDefaultHousehold(id);
+    const { householdId } = await requireCurrentHousehold();
+    const isScopedItem = await listItemBelongsToHousehold(id, householdId);
     if (!isScopedItem) {
       return errorResponse("List item not found", "NOT_FOUND", 404);
     }
@@ -60,6 +60,9 @@ export async function PATCH(req: Request, context: RouteContext) {
 
     return NextResponse.json({ item });
   } catch (err) {
+    const authResponse = authErrorResponse(err);
+    if (authResponse) return authResponse;
+
     const message = err instanceof Error ? err.message : "Failed to update list item";
     return errorResponse(message, "INTERNAL_ERROR", 500);
   }
@@ -73,7 +76,8 @@ export async function DELETE(_req: Request, context: RouteContext) {
   }
 
   try {
-    const isScopedItem = await listItemBelongsToDefaultHousehold(id);
+    const { householdId } = await requireCurrentHousehold();
+    const isScopedItem = await listItemBelongsToHousehold(id, householdId);
     if (!isScopedItem) {
       return errorResponse("List item not found", "NOT_FOUND", 404);
     }
@@ -81,6 +85,9 @@ export async function DELETE(_req: Request, context: RouteContext) {
     await deleteListItem(id);
     return NextResponse.json({ ok: true });
   } catch (err) {
+    const authResponse = authErrorResponse(err);
+    if (authResponse) return authResponse;
+
     const message = err instanceof Error ? err.message : "Failed to delete list item";
     return errorResponse(message, "INTERNAL_ERROR", 500);
   }

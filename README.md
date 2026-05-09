@@ -13,6 +13,20 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 
+## Auth Setup
+
+The dashboard uses Supabase Magic Links for a small allowlisted household. Configure:
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `HOUSEHOLD_ALLOWED_EMAILS`
+
+In Supabase Auth redirect URLs, add:
+
+- `http://localhost:3000/auth/callback`
+- `https://<your-domain>/auth/callback`
+
 ## Current Features
 
 **Clean Search:** Web search powered by the Brave Search API, re-ranked by relevance scoring.

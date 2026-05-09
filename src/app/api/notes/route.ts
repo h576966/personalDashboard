@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseServer";
+import { authErrorResponse, requireCurrentHousehold } from "@/lib/auth/household";
 import { errorResponse } from "@/lib/api/errors";
-import { getDefaultHouseholdId } from "@/lib/db/households";
 
 interface NoteRequest {
   title?: string;
@@ -13,7 +13,7 @@ const noteSelect = "id,title,content,source_url,household_id,created_at,updated_
 
 export async function GET() {
   try {
-    const householdId = await getDefaultHouseholdId();
+    const { householdId } = await requireCurrentHousehold();
     const { data, error } = await supabaseAdmin
       .from("notes")
       .select(noteSelect)
@@ -26,6 +26,9 @@ export async function GET() {
 
     return NextResponse.json({ notes: data ?? [] });
   } catch (err) {
+    const authResponse = authErrorResponse(err);
+    if (authResponse) return authResponse;
+
     const message = err instanceof Error ? err.message : "Failed to load notes";
     return errorResponse(message, "INTERNAL_ERROR", 500);
   }
@@ -40,7 +43,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const householdId = await getDefaultHouseholdId();
+    const { householdId } = await requireCurrentHousehold();
     const { data, error } = await supabaseAdmin
       .from("notes")
       .insert({
@@ -58,6 +61,9 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ note: data });
   } catch (err) {
+    const authResponse = authErrorResponse(err);
+    if (authResponse) return authResponse;
+
     const message = err instanceof Error ? err.message : "Failed to create note";
     return errorResponse(message, "INTERNAL_ERROR", 500);
   }

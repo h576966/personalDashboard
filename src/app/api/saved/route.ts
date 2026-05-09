@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseServer";
+import { authErrorResponse, requireCurrentHousehold } from "@/lib/auth/household";
 import { errorResponse } from "@/lib/api/errors";
-import { getDefaultHouseholdId } from "@/lib/db/households";
 
 interface SaveItemRequest {
   title?: string;
@@ -14,7 +14,7 @@ const savedItemSelect = "id,title,url,description,score,source,status,household_
 
 export async function GET() {
   try {
-    const householdId = await getDefaultHouseholdId();
+    const { householdId } = await requireCurrentHousehold();
     const { data, error } = await supabaseAdmin
       .from("saved_items")
       .select(savedItemSelect)
@@ -28,6 +28,9 @@ export async function GET() {
 
     return NextResponse.json({ items: data ?? [] });
   } catch (err) {
+    const authResponse = authErrorResponse(err);
+    if (authResponse) return authResponse;
+
     const message = err instanceof Error ? err.message : "Failed to load saved items";
     return errorResponse(message, "INTERNAL_ERROR", 500);
   }
@@ -41,7 +44,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const householdId = await getDefaultHouseholdId();
+    const { householdId } = await requireCurrentHousehold();
     const { data, error } = await supabaseAdmin
       .from("saved_items")
       .upsert(
@@ -65,6 +68,9 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ item: data });
   } catch (err) {
+    const authResponse = authErrorResponse(err);
+    if (authResponse) return authResponse;
+
     const message = err instanceof Error ? err.message : "Failed to save item";
     return errorResponse(message, "INTERNAL_ERROR", 500);
   }
