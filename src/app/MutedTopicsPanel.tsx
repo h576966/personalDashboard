@@ -12,7 +12,9 @@ interface MutedTopic {
 interface MutedTopicsResponse {
   topics?: MutedTopic[];
   topic?: MutedTopic;
-  error?: string;
+  error?: string | {
+    message?: string;
+  };
 }
 
 interface MutedTopicsPanelProps {
@@ -26,6 +28,12 @@ export default function MutedTopicsPanel({ onChanged }: MutedTopicsPanelProps) {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  function errorMessage(data: MutedTopicsResponse, fallback: string): string {
+    return typeof data.error === "string"
+      ? data.error
+      : data.error?.message ?? fallback;
+  }
+
   const loadTopics = useCallback(async () => {
     setIsLoading(true);
     setError(null);
@@ -34,7 +42,7 @@ export default function MutedTopicsPanel({ onChanged }: MutedTopicsPanelProps) {
       const res = await fetch("/api/news-blocked-topics");
       const data = (await res.json()) as MutedTopicsResponse;
 
-      if (!res.ok) throw new Error(data.error ?? "Failed to load muted topics");
+      if (!res.ok) throw new Error(errorMessage(data, "Failed to load muted topics"));
       setTopics(data.topics ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load muted topics");
@@ -58,7 +66,7 @@ export default function MutedTopicsPanel({ onChanged }: MutedTopicsPanelProps) {
       });
       const data = (await res.json()) as MutedTopicsResponse;
 
-      if (!res.ok) throw new Error(data.error ?? "Failed to save muted topic");
+      if (!res.ok) throw new Error(errorMessage(data, "Failed to save muted topic"));
       if (data.topic) setTopics((prev) => [...prev, data.topic!].sort((a, b) => a.label.localeCompare(b.label)));
       setNewLabel("");
       onChanged?.();
@@ -81,7 +89,7 @@ export default function MutedTopicsPanel({ onChanged }: MutedTopicsPanelProps) {
       });
       const data = (await res.json()) as MutedTopicsResponse;
 
-      if (!res.ok) throw new Error(data.error ?? "Failed to update muted topic");
+      if (!res.ok) throw new Error(errorMessage(data, "Failed to update muted topic"));
       if (data.topic) {
         setTopics((prev) => prev.map((item) => (item.id === data.topic!.id ? data.topic! : item)));
       }
@@ -137,6 +145,10 @@ export default function MutedTopicsPanel({ onChanged }: MutedTopicsPanelProps) {
 
       {isLoading ? (
         <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">Loading muted topics...</p>
+      ) : topics.length === 0 ? (
+        <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">
+          Add topics you want kept out of the daily briefing.
+        </p>
       ) : (
         <div className="mt-3 space-y-2">
           {topics.map((topic) => (

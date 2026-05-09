@@ -16,7 +16,9 @@ interface NewsSource {
 
 interface NewsSourcesResponse {
   sources?: NewsSource[];
-  error?: string;
+  error?: string | {
+    message?: string;
+  };
 }
 
 interface NewsSourcesPanelProps {
@@ -27,6 +29,12 @@ function groupKey(source: NewsSource): string {
   const category = source.category || "Other";
   const region = source.region || "Global";
   return `${category} / ${region}`;
+}
+
+function errorMessage(data: NewsSourcesResponse, fallback: string): string {
+  return typeof data.error === "string"
+    ? data.error
+    : data.error?.message ?? fallback;
 }
 
 export default function NewsSourcesPanel({ onChanged }: NewsSourcesPanelProps) {
@@ -55,7 +63,7 @@ export default function NewsSourcesPanel({ onChanged }: NewsSourcesPanelProps) {
       const res = await fetch("/api/news-sources");
       const data = (await res.json()) as NewsSourcesResponse;
 
-      if (!res.ok) throw new Error(data.error ?? "Failed to load news sources");
+      if (!res.ok) throw new Error(errorMessage(data, "Failed to load news sources"));
       setSources(data.sources ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load news sources");
@@ -73,7 +81,7 @@ export default function NewsSourcesPanel({ onChanged }: NewsSourcesPanelProps) {
       const res = await fetch("/api/news-sources", { method: "POST" });
       const data = (await res.json()) as NewsSourcesResponse;
 
-      if (!res.ok) throw new Error(data.error ?? "Failed to seed news sources");
+      if (!res.ok) throw new Error(errorMessage(data, "Failed to seed news sources"));
       setSources(data.sources ?? []);
       onChanged?.();
     } catch (err) {
@@ -95,7 +103,7 @@ export default function NewsSourcesPanel({ onChanged }: NewsSourcesPanelProps) {
       });
       const data = await res.json();
 
-      if (!res.ok) throw new Error(data.error ?? "Failed to update news source");
+      if (!res.ok) throw new Error(errorMessage(data, "Failed to update news source"));
 
       setSources((prev) =>
         prev.map((item) => (item.id === data.source.id ? data.source : item)),
@@ -150,7 +158,7 @@ export default function NewsSourcesPanel({ onChanged }: NewsSourcesPanelProps) {
         <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">Loading sources...</p>
       ) : sources.length === 0 ? (
         <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">
-          No curated sources have been seeded yet.
+          Seed trusted sources so the briefing can start from a known source list.
         </p>
       ) : (
         <div className="mt-3 max-h-80 space-y-4 overflow-y-auto pr-1">

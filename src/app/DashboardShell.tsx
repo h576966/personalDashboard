@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import FamilyTodayModule from "./FamilyTodayModule";
 import NewsBriefingModule from "./NewsBriefingModule";
 import NotesModule from "./NotesModule";
 import SearchModule from "./SearchModule";
@@ -38,7 +39,7 @@ interface SearchData {
 }
 
 export default function DashboardShell() {
-  const [activeModule, setActiveModule] = useState<ActiveModule>("news");
+  const [activeModule, setActiveModule] = useState<ActiveModule>("family");
 
   const [query, setQuery] = useState("");
   const [freshness, setFreshness] = useState("");
@@ -369,6 +370,10 @@ export default function DashboardShell() {
                 </ul>
               )}
             </div>
+          )}
+
+          {!isSearching && !searchData && !searchError && activeModule === "family" && (
+            <FamilyTodayModule />
           )}
 
           {!isSearching && !searchData && !searchError && activeModule === "news" && (

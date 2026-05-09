@@ -7,6 +7,19 @@ interface Topic {
   name: string;
 }
 
+interface TopicsResponse {
+  topics?: Topic[];
+  error?: string | {
+    message?: string;
+  };
+}
+
+function errorMessage(data: TopicsResponse, fallback: string): string {
+  return typeof data.error === "string"
+    ? data.error
+    : data.error?.message ?? fallback;
+}
+
 export default function TopicsPanel() {
   const [topics, setTopics] = useState<Topic[]>([]);
   const [newTopic, setNewTopic] = useState("");
@@ -16,10 +29,11 @@ export default function TopicsPanel() {
   const loadTopics = useCallback(async () => {
     try {
       const res = await fetch("/api/topics");
-      const data = await res.json();
+      const data = (await res.json()) as TopicsResponse;
+      if (!res.ok) throw new Error(errorMessage(data, "Failed to load interests"));
       setTopics(data.topics ?? []);
-    } catch {
-      setError("Failed to load topics");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load interests");
     }
   }, []);
 
@@ -28,23 +42,31 @@ export default function TopicsPanel() {
 
     setIsLoading(true);
     try {
-      await fetch("/api/topics", {
+      const res = await fetch("/api/topics", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: newTopic }),
       });
+      const data = (await res.json()) as TopicsResponse;
+      if (!res.ok) throw new Error(errorMessage(data, "Failed to add interest"));
       setNewTopic("");
       await loadTopics();
-    } catch {
-      setError("Failed to add topic");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to add interest");
     } finally {
       setIsLoading(false);
     }
   }
 
   async function removeTopic(id: string) {
-    await fetch(`/api/topics/${id}`, { method: "DELETE" });
-    await loadTopics();
+    try {
+      const res = await fetch(`/api/topics/${id}`, { method: "DELETE" });
+      const data = (await res.json()) as TopicsResponse;
+      if (!res.ok) throw new Error(errorMessage(data, "Failed to remove interest"));
+      await loadTopics();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to remove interest");
+    }
   }
 
   useEffect(() => {
@@ -82,6 +104,11 @@ export default function TopicsPanel() {
             </button>
           </div>
         ))}
+        {topics.length === 0 && !error && (
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">
+            Add interests to steer the briefing toward what matters to you.
+          </p>
+        )}
       </div>
     </div>
   );

@@ -7,7 +7,7 @@ with Next.js, TypeScript, and Tailwind CSS.
 
 ```bash
 npm install
-cp .env.example .env   # add your BRAVE_API_KEY and DEEPSEEK_API_KEY
+cp .env.example .env.local   # add Supabase, Brave, and DeepSeek credentials
 npm run dev
 ```
 
@@ -19,9 +19,12 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 Results are filtered for quality, scored by term matching, and optionally summarized by DeepSeek AI
 with follow-up suggestions.
 
-**News Briefing:** Curated news aggregation from configurable topics. Each topic defines queries,
-preferred/blocked sources, keywords, scoring thresholds, and per-topic limits. The UI shows
-a tabbed view with today's briefing and a topic CRUD editor.
+**Family Today:** A shared daily view for schedule items and open tasks, with quick add,
+edit, complete, and delete actions.
+
+**News Briefing:** Curated news aggregation from configurable topics, trusted sources,
+muted topics, watch topics, and feedback. Today's generated story cards are cached in
+Supabase so normal page loads do not rebuild Brave and DeepSeek results.
 
 **Dashboard Layout:** A two-column responsive layout with:
 - **Top Search Bar** for global queries
@@ -39,7 +42,7 @@ control the default content.
 | Language | TypeScript 5 |
 | Styling | Tailwind CSS 4, shadcn/ui (Button, Input, Select), Geist font |
 | Component Lib | shadcn/ui with ColorHunt 5-color palette (`--primary: 186 46% 38%`) |
-| Database | SQLite via better-sqlite3 |
+| Database | Supabase Postgres |
 | Search API | Brave Search API |
 | AI API | DeepSeek Chat API |
 
@@ -52,8 +55,19 @@ control the default content.
 - **Precision over recall** — Quality filters and scoring prioritize useful results over volume.
 - **Deterministic before AI** — Core functionality works without AI. AI enhances results
   (summaries, suggestions) but is never required.
-- **Local-first persistence** — SQLite for local storage.
+- **Local-first workflow** — Schema and app code live in the repo; data persists in Supabase Postgres.
 - **Developer-friendly config** — Topics, sources, and thresholds editable via the UI.
+
+## Database Migrations
+
+SQL migrations live in `src/lib/db/migrations/`. Apply pending migration files in Supabase
+SQL Editor, then record them in `schema_migrations`:
+
+```sql
+INSERT INTO public.schema_migrations (version)
+VALUES ('004_app_schema_backfill')
+ON CONFLICT (version) DO NOTHING;
+```
 
 ## Directory Structure
 

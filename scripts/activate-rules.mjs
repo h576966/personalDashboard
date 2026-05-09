@@ -90,7 +90,6 @@ function listRules() {
   console.log('');
 
   const configContent = readText(join(ROOT, 'kilo.jsonc'));
-  const rulesInConfig = rules.filter(r => configContent.includes(`.kilo/rules/${r.file}`));
   const rulesMissing = rules.filter(r => !configContent.includes(`.kilo/rules/${r.file}`));
 
   if (rulesMissing.length > 0) {

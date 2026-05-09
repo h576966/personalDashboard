@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { updateNewsSource, type UpdateNewsSourceData } from "@/lib/db/newsSources";
+import { errorResponse } from "@/lib/api/errors";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -13,20 +14,14 @@ export async function PATCH(req: Request, context: RouteContext) {
 
     if (body.enabled !== undefined) {
       if (typeof body.enabled !== "boolean") {
-        return NextResponse.json(
-          { error: "enabled must be a boolean" },
-          { status: 400 },
-        );
+        return errorResponse("enabled must be a boolean", "INVALID_INPUT", 400);
       }
       update.enabled = body.enabled;
     }
 
     if (body.priority !== undefined) {
       if (typeof body.priority !== "number" || !Number.isInteger(body.priority)) {
-        return NextResponse.json(
-          { error: "priority must be an integer" },
-          { status: 400 },
-        );
+        return errorResponse("priority must be an integer", "INVALID_INPUT", 400);
       }
       update.priority = body.priority;
     }
@@ -35,9 +30,6 @@ export async function PATCH(req: Request, context: RouteContext) {
     return NextResponse.json({ source });
   } catch (error) {
     console.error("PATCH news-source failed", error);
-    return NextResponse.json(
-      { error: "Failed to update news source" },
-      { status: 500 },
-    );
+    return errorResponse("Failed to update news source", "INTERNAL_ERROR", 500);
   }
 }

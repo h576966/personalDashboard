@@ -4,6 +4,7 @@ import {
   NewsFeedbackStorageNotReadyError,
   type NewsFeedbackVote,
 } from "@/lib/db/newsFeedback";
+import { errorResponse } from "@/lib/api/errors";
 
 const VALID_VOTES = new Set<NewsFeedbackVote>(["up", "down"]);
 
@@ -14,17 +15,11 @@ export async function POST(req: Request) {
     const vote = body.vote as NewsFeedbackVote;
 
     if (!storyId) {
-      return NextResponse.json(
-        { error: "storyId is required" },
-        { status: 400 },
-      );
+      return errorResponse("storyId is required", "INVALID_INPUT", 400);
     }
 
     if (!VALID_VOTES.has(vote)) {
-      return NextResponse.json(
-        { error: "vote must be up or down" },
-        { status: 400 },
-      );
+      return errorResponse("vote must be up or down", "INVALID_INPUT", 400);
     }
 
     const feedback = await createNewsFeedback({
@@ -38,16 +33,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ feedback });
   } catch (error) {
     if (error instanceof NewsFeedbackStorageNotReadyError) {
-      return NextResponse.json(
-        { error: error.message, code: "FEEDBACK_STORAGE_NOT_READY" },
-        { status: 503 },
-      );
+      return errorResponse(error.message, "FEEDBACK_STORAGE_NOT_READY", 503);
     }
 
     console.error("POST news feedback failed", error);
-    return NextResponse.json(
-      { error: "Failed to save feedback" },
-      { status: 500 },
-    );
+    return errorResponse("Failed to save feedback", "INTERNAL_ERROR", 500);
   }
 }

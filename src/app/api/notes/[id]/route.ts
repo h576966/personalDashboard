@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseServer";
+import { errorResponse } from "@/lib/api/errors";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -20,10 +21,7 @@ export async function PATCH(req: Request, context: RouteContext) {
     .single();
 
   if (error) {
-    return NextResponse.json(
-      { error: { message: error.message } },
-      { status: 500 },
-    );
+    return errorResponse(error.message, "INTERNAL_ERROR", 500);
   }
 
   return NextResponse.json({ note: data });
@@ -38,10 +36,7 @@ export async function DELETE(_req: Request, context: RouteContext) {
     .eq("id", id);
 
   if (error) {
-    return NextResponse.json(
-      { error: { message: error.message } },
-      { status: 500 },
-    );
+    return errorResponse(error.message, "INTERNAL_ERROR", 500);
   }
 
   return NextResponse.json({ ok: true });

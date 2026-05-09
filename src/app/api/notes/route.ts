@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseServer";
+import { errorResponse } from "@/lib/api/errors";
 
 interface NoteRequest {
   title?: string;
@@ -16,10 +17,7 @@ export async function GET() {
     .order("updated_at", { ascending: false });
 
   if (error) {
-    return NextResponse.json(
-      { error: { message: error.message } },
-      { status: 500 },
-    );
+    return errorResponse(error.message, "INTERNAL_ERROR", 500);
   }
 
   return NextResponse.json({ notes: data ?? [] });
@@ -30,10 +28,7 @@ export async function POST(req: Request) {
   const title = body.title?.trim();
 
   if (!title) {
-    return NextResponse.json(
-      { error: { message: "title is required" } },
-      { status: 400 },
-    );
+    return errorResponse("title is required", "INVALID_INPUT", 400);
   }
 
   const { data, error } = await supabaseAdmin
@@ -47,10 +42,7 @@ export async function POST(req: Request) {
     .single();
 
   if (error) {
-    return NextResponse.json(
-      { error: { message: error.message } },
-      { status: 500 },
-    );
+    return errorResponse(error.message, "INTERNAL_ERROR", 500);
   }
 
   return NextResponse.json({ note: data });

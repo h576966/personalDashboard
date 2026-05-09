@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { updateBlockedTopic } from "@/lib/db/blockedTopics";
+import { errorResponse } from "@/lib/api/errors";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -11,10 +12,7 @@ export async function PATCH(req: Request, context: RouteContext) {
     const body = await req.json();
 
     if (body.enabled !== undefined && typeof body.enabled !== "boolean") {
-      return NextResponse.json(
-        { error: "enabled must be a boolean" },
-        { status: 400 },
-      );
+      return errorResponse("enabled must be a boolean", "INVALID_INPUT", 400);
     }
 
     const topic = await updateBlockedTopic(id, {
@@ -24,9 +22,6 @@ export async function PATCH(req: Request, context: RouteContext) {
     return NextResponse.json({ topic });
   } catch (error) {
     console.error("PATCH news-blocked-topic failed", error);
-    return NextResponse.json(
-      { error: "Failed to update muted topic" },
-      { status: 500 },
-    );
+    return errorResponse("Failed to update muted topic", "INTERNAL_ERROR", 500);
   }
 }

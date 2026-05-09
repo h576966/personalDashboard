@@ -30,7 +30,7 @@ interface BriefingResponse {
     storyCards?: StoryCard[];
     generatedAt?: string;
   };
-  error?: {
+  error?: string | {
     message?: string;
   };
 }
@@ -63,16 +63,22 @@ export default function NewsBriefingModule() {
   const [feedbackByStory, setFeedbackByStory] = useState<Record<string, "up" | "down">>({});
   const [feedbackNotice, setFeedbackNotice] = useState<string | null>(null);
 
-  const loadBriefings = useCallback(async () => {
+  const loadBriefings = useCallback(async (refresh = false) => {
     setIsLoading(true);
     setError(null);
 
     try {
-      const res = await fetch("/api/news/briefings");
+      const res = await fetch("/api/news/briefings", {
+        method: refresh ? "POST" : "GET",
+      });
       const data = (await res.json()) as BriefingResponse;
 
       if (!res.ok) {
-        throw new Error(data.error?.message ?? "Failed to load news briefing");
+        throw new Error(
+          typeof data.error === "string"
+            ? data.error
+            : data.error?.message ?? "Failed to load news briefing",
+        );
       }
 
       setStoryCards(data.briefing?.storyCards ?? []);
@@ -95,9 +101,15 @@ export default function NewsBriefingModule() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ storyId, vote }),
       });
-      const data = await res.json();
+      const data = (await res.json()) as BriefingResponse;
 
-      if (!res.ok) throw new Error(data.error ?? "Failed to save feedback");
+      if (!res.ok) {
+        throw new Error(
+          typeof data.error === "string"
+            ? data.error
+            : data.error?.message ?? "Failed to save feedback",
+        );
+      }
     } catch (err) {
       setFeedbackNotice(
         err instanceof Error
@@ -143,7 +155,7 @@ export default function NewsBriefingModule() {
 
           <button
             type="button"
-            onClick={loadBriefings}
+            onClick={() => loadBriefings(true)}
             disabled={isLoading}
             className="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 transition-colors hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
           >
@@ -157,7 +169,7 @@ export default function NewsBriefingModule() {
           <BriefingPreferencesPanel
             onClose={() => setShowPreferences(false)}
             onSaved={() => {
-              void loadBriefings();
+              void loadBriefings(true);
             }}
           />
           <TopicsPanel />

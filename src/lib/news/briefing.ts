@@ -14,6 +14,7 @@ import {
 import { getEnabledBlockedKeywords } from "@/lib/db/blockedTopics";
 import { getEnabledWatchTopics, updateWatchTopicLastSeen } from "@/lib/db/watchTopics";
 import { upsertStoryCards } from "@/lib/db/storyClusters";
+import { getFeedbackAffinityByStory } from "@/lib/db/newsFeedback";
 import { stripHtml } from "@/lib/search/filter";
 
 export interface BriefingSource {
@@ -700,12 +701,13 @@ function scoreCluster(
   cluster: StoryCluster,
   interests: FeedInterest[],
   blockedKeywords: string[],
+  feedbackAffinityByStory: Map<string, number>,
 ): StoryCluster {
   const uniqueSources = new Set(cluster.articles.map((article) => article.source));
   const sourceQuality = Math.max(...cluster.articles.map((article) => article.sourceQuality));
   const interestMatch = Math.min(cluster.matchedInterests.length / Math.max(interests.length, 1), 1);
   const freshness = Math.max(...cluster.articles.map((article) => article.freshness));
-  const feedbackAffinity = 0;
+  const feedbackAffinity = feedbackAffinityByStory.get(cluster.id) ?? 0;
   const sourceDiversity = Math.min(uniqueSources.size / 3, 1);
   const watchSignificance = cluster.isWatchUpdate
     ? Math.max(...cluster.articles.map((article) => article.watchConfidence || 0.8))
@@ -796,9 +798,10 @@ export async function buildDailyNewsBriefing(): Promise<DailyNewsBriefing> {
     collectInterestCandidates({ interests, policy, blockedKeywords }),
     collectWatchCandidates({ policy, blockedKeywords }),
   ]);
+  const feedbackAffinityByStory = await getFeedbackAffinityByStory();
 
   const rankedClusters = clusterCandidates([...watchCandidates, ...interestCandidates])
-    .map((cluster) => scoreCluster(cluster, interests, blockedKeywords))
+    .map((cluster) => scoreCluster(cluster, interests, blockedKeywords, feedbackAffinityByStory))
     .filter((cluster) => cluster.score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, 5);

@@ -11,6 +11,20 @@ export interface WatchTopic {
   updatedAt: string;
 }
 
+export interface CreateWatchTopicData {
+  name: string;
+  queries: string[];
+  sourceDomains?: string[];
+  enabled?: boolean;
+}
+
+export interface UpdateWatchTopicData {
+  name?: string;
+  queries?: string[];
+  sourceDomains?: string[];
+  enabled?: boolean;
+}
+
 function asStringArray(value: unknown): string[] {
   return Array.isArray(value)
     ? value.filter((item): item is string => typeof item === "string")
@@ -44,6 +58,74 @@ export async function getEnabledWatchTopics(): Promise<WatchTopic[]> {
     console.warn("Failed to load watch topics; skipping watch scan:", err);
     return [];
   }
+}
+
+export async function getWatchTopics(): Promise<WatchTopic[]> {
+  const { data, error } = await supabaseAdmin
+    .from("news_watch_topics")
+    .select("*")
+    .order("created_at", { ascending: true });
+
+  if (error) throw error;
+  return (data ?? []).map((row) => rowToWatchTopic(row as Record<string, unknown>));
+}
+
+export async function createWatchTopic(data: CreateWatchTopicData): Promise<WatchTopic> {
+  const name = data.name.trim();
+  const queries = data.queries.map((query) => query.trim()).filter(Boolean);
+  const sourceDomains = (data.sourceDomains ?? []).map((domain) => domain.trim()).filter(Boolean);
+
+  if (!name) throw new Error("Watch topic name is required");
+  if (queries.length === 0) throw new Error("At least one query is required");
+
+  const { data: inserted, error } = await supabaseAdmin
+    .from("news_watch_topics")
+    .insert({
+      name,
+      queries,
+      source_domains: sourceDomains,
+      enabled: data.enabled !== false,
+    })
+    .select("*")
+    .single();
+
+  if (error) throw error;
+  return rowToWatchTopic(inserted as Record<string, unknown>);
+}
+
+export async function updateWatchTopic(
+  id: string,
+  data: UpdateWatchTopicData,
+): Promise<WatchTopic> {
+  const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
+
+  if (data.name !== undefined) update.name = data.name.trim();
+  if (data.queries !== undefined) {
+    update.queries = data.queries.map((query) => query.trim()).filter(Boolean);
+  }
+  if (data.sourceDomains !== undefined) {
+    update.source_domains = data.sourceDomains.map((domain) => domain.trim()).filter(Boolean);
+  }
+  if (data.enabled !== undefined) update.enabled = data.enabled;
+
+  const { data: updated, error } = await supabaseAdmin
+    .from("news_watch_topics")
+    .update(update)
+    .eq("id", id)
+    .select("*")
+    .single();
+
+  if (error) throw error;
+  return rowToWatchTopic(updated as Record<string, unknown>);
+}
+
+export async function deleteWatchTopic(id: string): Promise<void> {
+  const { error } = await supabaseAdmin
+    .from("news_watch_topics")
+    .delete()
+    .eq("id", id);
+
+  if (error) throw error;
 }
 
 export async function updateWatchTopicLastSeen(id: string, hash: string): Promise<void> {

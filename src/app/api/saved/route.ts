@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseServer";
+import { errorResponse } from "@/lib/api/errors";
 
 interface SaveItemRequest {
   title?: string;
@@ -17,10 +18,7 @@ export async function GET() {
     .order("created_at", { ascending: false });
 
   if (error) {
-    return NextResponse.json(
-      { error: { message: error.message } },
-      { status: 500 },
-    );
+    return errorResponse(error.message, "INTERNAL_ERROR", 500);
   }
 
   return NextResponse.json({ items: data ?? [] });
@@ -30,10 +28,7 @@ export async function POST(req: Request) {
   const body = (await req.json()) as SaveItemRequest;
 
   if (!body.title || !body.url) {
-    return NextResponse.json(
-      { error: { message: "title and url are required" } },
-      { status: 400 },
-    );
+    return errorResponse("title and url are required", "INVALID_INPUT", 400);
   }
 
   const { data, error } = await supabaseAdmin
@@ -52,10 +47,7 @@ export async function POST(req: Request) {
     .single();
 
   if (error) {
-    return NextResponse.json(
-      { error: { message: error.message } },
-      { status: 500 },
-    );
+    return errorResponse(error.message, "INTERNAL_ERROR", 500);
   }
 
   return NextResponse.json({ item: data });

@@ -4,6 +4,7 @@ import {
   getBlockedTopics,
   seedDefaultBlockedTopics,
 } from "@/lib/db/blockedTopics";
+import { errorResponse } from "@/lib/api/errors";
 
 function parseKeywords(value: unknown, label: string): string[] {
   if (Array.isArray(value)) {
@@ -26,10 +27,7 @@ export async function GET() {
     return NextResponse.json({ topics });
   } catch (error) {
     console.error("GET news-blocked-topics failed", error);
-    return NextResponse.json(
-      { error: "Failed to load muted topics" },
-      { status: 500 },
-    );
+    return errorResponse("Failed to load muted topics", "INTERNAL_ERROR", 500);
   }
 }
 
@@ -44,10 +42,7 @@ export async function POST(req: Request) {
 
     const label = typeof body.label === "string" ? body.label.trim() : "";
     if (!label) {
-      return NextResponse.json(
-        { error: "Muted topic label is required" },
-        { status: 400 },
-      );
+      return errorResponse("Muted topic label is required", "INVALID_INPUT", 400);
     }
 
     const topic = await createBlockedTopic({
@@ -59,9 +54,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ topic });
   } catch (error) {
     console.error("POST news-blocked-topics failed", error);
-    return NextResponse.json(
-      { error: "Failed to save muted topic" },
-      { status: 500 },
-    );
+    return errorResponse("Failed to save muted topic", "INTERNAL_ERROR", 500);
   }
 }

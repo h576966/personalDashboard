@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createTopic, getTopics } from "@/lib/db/topics";
+import { errorResponse } from "@/lib/api/errors";
 
 function parseList(value: unknown): string[] {
   if (Array.isArray(value)) return value.filter((item): item is string => typeof item === "string");
@@ -18,10 +19,7 @@ export async function GET() {
     return NextResponse.json({ topics });
   } catch (error) {
     console.error("GET topics failed", error);
-    return NextResponse.json(
-      { error: "Failed to load topics" },
-      { status: 500 },
-    );
+    return errorResponse("Failed to load topics", "INTERNAL_ERROR", 500);
   }
 }
 
@@ -32,10 +30,7 @@ export async function POST(req: Request) {
     const queries = parseList(body.queries).length > 0 ? parseList(body.queries) : [name];
 
     if (!name) {
-      return NextResponse.json(
-        { error: "Topic name is required" },
-        { status: 400 },
-      );
+      return errorResponse("Topic name is required", "INVALID_INPUT", 400);
     }
 
     const topic = await createTopic({
@@ -55,9 +50,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ topic });
   } catch (error) {
     console.error("POST topics failed", error);
-    return NextResponse.json(
-      { error: "Failed to create topic" },
-      { status: 500 },
-    );
+    return errorResponse("Failed to create topic", "INTERNAL_ERROR", 500);
   }
 }

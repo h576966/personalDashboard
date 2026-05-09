@@ -3,6 +3,7 @@ import {
   getBriefingPreferences,
   updateBriefingPreferences,
 } from "@/lib/db/briefingPreferences";
+import { errorResponse } from "@/lib/api/errors";
 
 export async function GET() {
   try {
@@ -10,10 +11,7 @@ export async function GET() {
     return NextResponse.json(prefs);
   } catch (error) {
     console.error("GET briefing-preferences failed", error);
-    return NextResponse.json(
-      { error: "Failed to load preferences" },
-      { status: 500 },
-    );
+    return errorResponse("Failed to load preferences", "INTERNAL_ERROR", 500);
   }
 }
 
@@ -25,9 +23,6 @@ export async function PATCH(req: Request) {
     return NextResponse.json(prefs);
   } catch (error) {
     console.error("PATCH briefing-preferences failed", error);
-    return NextResponse.json(
-      { error: "Failed to update preferences" },
-      { status: 500 },
-    );
+    return errorResponse("Failed to update preferences", "INTERNAL_ERROR", 500);
   }
 }

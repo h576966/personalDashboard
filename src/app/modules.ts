@@ -1,6 +1,6 @@
-import { Bookmark, Newspaper, NotebookPen, type LucideIcon } from "lucide-react";
+import { Bookmark, CalendarCheck, Newspaper, NotebookPen, type LucideIcon } from "lucide-react";
 
-export type ActiveModule = "notes" | "news" | "saved";
+export type ActiveModule = "family" | "notes" | "news" | "saved";
 
 export interface DashboardModule {
   id: ActiveModule;
@@ -10,6 +10,12 @@ export interface DashboardModule {
 }
 
 export const dashboardModules: DashboardModule[] = [
+  {
+    id: "family",
+    title: "Family Today",
+    description: "Schedule and tasks",
+    icon: CalendarCheck,
+  },
   {
     id: "notes",
     title: "Notes",

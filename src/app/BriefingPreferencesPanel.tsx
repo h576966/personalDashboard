@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import NewsSourcesPanel from "./NewsSourcesPanel";
 import MutedTopicsPanel from "./MutedTopicsPanel";
+import WatchTopicsPanel from "./WatchTopicsPanel";
 
 interface BriefingPreferences {
   id: string;
@@ -12,6 +13,12 @@ interface BriefingPreferences {
   preferred_sources: string[];
   blocked_sources: string[];
   prefer_global_source_mix: boolean;
+}
+
+interface ApiErrorBody {
+  error?: string | {
+    message?: string;
+  };
 }
 
 interface BriefingPreferencesPanelProps {
@@ -28,6 +35,12 @@ function parseList(value: string): string[] {
 
 function listToText(value: string[]): string {
   return value.join(", ");
+}
+
+function errorMessage(data: ApiErrorBody, fallback: string): string {
+  return typeof data.error === "string"
+    ? data.error
+    : data.error?.message ?? fallback;
 }
 
 export default function BriefingPreferencesPanel({ onClose, onSaved }: BriefingPreferencesPanelProps) {
@@ -49,7 +62,7 @@ export default function BriefingPreferencesPanel({ onClose, onSaved }: BriefingP
         const res = await fetch("/api/briefing-preferences");
         const data = await res.json();
 
-        if (!res.ok) throw new Error(data.error ?? "Failed to load preferences");
+        if (!res.ok) throw new Error(errorMessage(data, "Failed to load preferences"));
 
         setPrefs(data);
         setBlockedKeywords(listToText(data.blocked_keywords ?? []));
@@ -83,7 +96,7 @@ export default function BriefingPreferencesPanel({ onClose, onSaved }: BriefingP
       });
       const data = await res.json();
 
-      if (!res.ok) throw new Error(data.error ?? "Failed to save preferences");
+      if (!res.ok) throw new Error(errorMessage(data, "Failed to save preferences"));
 
       setPrefs(data);
       onSaved?.();
@@ -127,6 +140,7 @@ export default function BriefingPreferencesPanel({ onClose, onSaved }: BriefingP
         <div className="mt-4 space-y-4">
           <NewsSourcesPanel onChanged={onSaved} />
           <MutedTopicsPanel onChanged={onSaved} />
+          <WatchTopicsPanel onChanged={onSaved} />
 
           <label className="block">
             <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">

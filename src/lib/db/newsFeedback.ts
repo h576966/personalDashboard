@@ -71,3 +71,34 @@ export async function createNewsFeedback(input: {
 
   return rowToFeedback(data as Record<string, unknown>);
 }
+
+export async function getFeedbackAffinityByStory(): Promise<Map<string, number>> {
+  const { data, error } = await supabaseAdmin
+    .from("news_feedback")
+    .select("story_id,vote");
+
+  if (error) throw error;
+
+  const totals = new Map<string, { up: number; down: number }>();
+
+  for (const row of (data ?? []) as Array<Record<string, unknown>>) {
+    const storyId = String(row.story_id ?? "");
+    if (!storyId) continue;
+
+    const current = totals.get(storyId) ?? { up: 0, down: 0 };
+    if (row.vote === "down") {
+      current.down += 1;
+    } else {
+      current.up += 1;
+    }
+    totals.set(storyId, current);
+  }
+
+  return new Map(
+    [...totals.entries()].map(([storyId, total]) => {
+      const votes = total.up + total.down;
+      const raw = votes === 0 ? 0 : (total.up - total.down) / votes;
+      return [storyId, Math.max(-1, Math.min(1, raw))];
+    }),
+  );
+}

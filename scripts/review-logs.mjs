@@ -46,7 +46,6 @@ function main() {
   }
 
   const fingerprints = {};
-  const agentFingerprints = {};
   for (const e of events) {
     if (!fingerprints[e.hash]) {
       fingerprints[e.hash] = { count: 0, reason: e.short_reason, agents: new Set() };
