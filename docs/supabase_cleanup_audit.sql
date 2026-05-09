@@ -1,5 +1,12 @@
 -- Read-only Supabase cleanup audit.
 -- Run this in the Supabase SQL Editor before dropping any table or index.
+-- Current expected legacy cleanup:
+-- - events and tasks were replaced by household-scoped lists in migration 005.
+-- - migration 006 drops events/tasks only after row counts are confirmed empty.
+-- - migration 007 is additive for Nordic news preferences and source defaults.
+-- - news_items, news_runs, and news_topic_items are legacy news-fetch tables from
+--   the pre-story-card pipeline. They remain in historical migrations; do not drop
+--   them unless this audit confirms no rows, dependencies, or backups are needed.
 
 SELECT
   schemaname,

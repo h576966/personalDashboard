@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { BookMarked, ListChecks, Newspaper, NotebookPen } from "lucide-react";
 import ListsModule from "./ListsModule";
 import NewsBriefingModule from "./NewsBriefingModule";
 import NotesModule from "./NotesModule";
@@ -46,7 +47,7 @@ interface DashboardShellProps {
 }
 
 export default function DashboardShell({ userEmail }: DashboardShellProps) {
-  const [activeModule, setActiveModule] = useState<ActiveModule>("lists");
+  const [activeModule, setActiveModule] = useState<ActiveModule>("news");
 
   const [query, setQuery] = useState("");
   const [freshness, setFreshness] = useState("");
@@ -66,11 +67,37 @@ export default function DashboardShell({ userEmail }: DashboardShellProps) {
   const [notesError, setNotesError] = useState<string | null>(null);
   const [hasLoadedNotes, setHasLoadedNotes] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [openListCount, setOpenListCount] = useState<number | null>(null);
+  const [storyCount, setStoryCount] = useState<number | null>(null);
 
   const savedUrls = useMemo(
     () => new Set(savedItems.filter((item) => item.status !== "archived").map((item) => item.url)),
     [savedItems],
   );
+  const unreadSavedCount = useMemo(
+    () => savedItems.filter((item) => item.status === "unread").length,
+    [savedItems],
+  );
+  const notesCount = hasLoadedNotes ? notes.length : null;
+
+  const loadListOverview = useCallback(async () => {
+    try {
+      const res = await fetch("/api/lists");
+      const data = await res.json();
+
+      if (!res.ok) return;
+
+      const lists = Array.isArray(data.lists) ? data.lists : [];
+      const count = lists.reduce((total: number, list: { items?: Array<{ is_completed?: boolean }> }) => {
+        const items = Array.isArray(list.items) ? list.items : [];
+        return total + items.filter((item) => !item.is_completed).length;
+      }, 0);
+
+      setOpenListCount(count);
+    } catch {
+      setOpenListCount(null);
+    }
+  }, []);
 
   const loadSavedItems = useCallback(async (force = false) => {
     if (!force && (hasLoadedSaved || isLoadingSaved)) return;
@@ -121,6 +148,16 @@ export default function DashboardShell({ userEmail }: DashboardShellProps) {
       setIsLoadingNotes(false);
     }
   }, [hasLoadedNotes, isLoadingNotes]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void loadSavedItems();
+      void loadNotes();
+      void loadListOverview();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [loadListOverview, loadNotes, loadSavedItems]);
 
   function showNotice(message: string) {
     setNotice(message);
@@ -316,8 +353,17 @@ export default function DashboardShell({ userEmail }: DashboardShellProps) {
         onSearch={handleSearch}
       />
 
-      <div className="mx-auto grid max-w-7xl gap-6 px-6 py-8 lg:grid-cols-[minmax(0,7fr)_minmax(280px,3fr)]">
+      <div className="mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:grid-cols-[minmax(0,7fr)_minmax(260px,2.6fr)]">
         <main className="order-2 min-w-0 lg:order-1">
+          {!isSearching && !searchData && !searchError && (
+            <MetricRow
+              stories={storyCount}
+              openItems={openListCount}
+              unreadItems={hasLoadedSaved ? unreadSavedCount : null}
+              notes={notesCount}
+            />
+          )}
+
           {isSearching && (
             <div className="rounded-md border border-zinc-200 bg-white p-4 text-sm text-zinc-500 shadow-sm dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400">
               Searching...
@@ -431,12 +477,13 @@ export default function DashboardShell({ userEmail }: DashboardShellProps) {
           )}
 
           {!isSearching && !searchData && !searchError && activeModule === "lists" && (
-            <ListsModule />
+            <ListsModule onOpenCountChange={setOpenListCount} />
           )}
 
           {!isSearching && !searchData && !searchError && activeModule === "news" && (
             <NewsBriefingModule
               savedUrls={savedUrls}
+              onStoryCountChange={setStoryCount}
               onSaveSource={(item) => saveItem({ ...item, source: "news" })}
             />
           )}
@@ -464,11 +511,11 @@ export default function DashboardShell({ userEmail }: DashboardShellProps) {
           )}
         </main>
 
-        <aside className="order-1 lg:order-2 lg:border-l lg:border-zinc-200 lg:pl-6 dark:lg:border-zinc-700">
-          <div className="w-full rounded-md border border-zinc-200 bg-white p-3 shadow-sm dark:border-zinc-700 dark:bg-zinc-800">
+        <aside className="order-1 lg:order-2">
+          <div className="w-full rounded-md border border-zinc-200 bg-white/80 p-3 shadow-sm dark:border-zinc-700 dark:bg-zinc-800/80">
             <div className="mb-3 flex items-center justify-between">
               <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                Modules
+                Sections
               </p>
               {(searchData || searchError) && (
                 <button
@@ -494,8 +541,8 @@ export default function DashboardShell({ userEmail }: DashboardShellProps) {
                     className={
                       "group flex w-full min-w-[180px] items-center gap-3 rounded-md border px-3 py-2 text-left transition-colors lg:min-w-0 " +
                       (isActive
-                        ? "border-primary bg-primary-hover text-white"
-                        : "border-zinc-200 bg-white text-zinc-700 hover:border-primary hover:bg-muted/40 hover:text-primary dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200")
+                        ? "border-primary bg-primary-hover text-white shadow-sm"
+                        : "border-zinc-200 bg-white/70 text-zinc-700 hover:border-primary hover:bg-muted/40 hover:text-primary dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200")
                     }
                   >
                     <span
@@ -508,12 +555,18 @@ export default function DashboardShell({ userEmail }: DashboardShellProps) {
                     >
                       <Icon className="h-4 w-4" />
                     </span>
-                    <span className="min-w-0">
+                    <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-semibold">{module.title}</span>
                       <span className="mt-0.5 block truncate text-xs opacity-75">
                         {module.description}
                       </span>
                     </span>
+                    <ModuleCount value={moduleCount(module.id, {
+                      openListCount,
+                      notesCount,
+                      storyCount,
+                      unreadSavedCount: hasLoadedSaved ? unreadSavedCount : null,
+                    })} active={isActive} />
                   </button>
                 );
               })}
@@ -523,4 +576,74 @@ export default function DashboardShell({ userEmail }: DashboardShellProps) {
       </div>
     </div>
   );
+}
+
+function MetricRow({
+  stories,
+  openItems,
+  unreadItems,
+  notes,
+}: {
+  stories: number | null;
+  openItems: number | null;
+  unreadItems: number | null;
+  notes: number | null;
+}) {
+  const metrics = [
+    { label: "Stories", value: stories, icon: Newspaper },
+    { label: "Open", value: openItems, icon: ListChecks },
+    { label: "Unread", value: unreadItems, icon: BookMarked },
+    { label: "Notes", value: notes, icon: NotebookPen },
+  ];
+
+  return (
+    <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+      {metrics.map(({ label, value, icon: Icon }) => (
+        <div
+          key={label}
+          className="flex min-h-12 items-center justify-between gap-3 rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm shadow-sm dark:border-zinc-700 dark:bg-zinc-800"
+        >
+          <span className="flex min-w-0 items-center gap-2 text-zinc-500 dark:text-zinc-400">
+            <Icon className="h-4 w-4 shrink-0 text-primary" />
+            <span className="truncate text-xs font-medium">{label}</span>
+          </span>
+          <span className="text-sm font-semibold tabular-nums text-zinc-900 dark:text-zinc-100">
+            {value ?? "—"}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ModuleCount({ value, active }: { value: number | null; active: boolean }) {
+  if (value === null) return null;
+
+  return (
+    <span
+      className={
+        "shrink-0 rounded-md px-2 py-1 text-xs font-semibold tabular-nums " +
+        (active
+          ? "bg-white/15 text-white"
+          : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300")
+      }
+    >
+      {value}
+    </span>
+  );
+}
+
+function moduleCount(
+  module: ActiveModule,
+  counts: {
+    openListCount: number | null;
+    notesCount: number | null;
+    storyCount: number | null;
+    unreadSavedCount: number | null;
+  },
+): number | null {
+  if (module === "lists") return counts.openListCount;
+  if (module === "notes") return counts.notesCount;
+  if (module === "news") return counts.storyCount;
+  return counts.unreadSavedCount;
 }

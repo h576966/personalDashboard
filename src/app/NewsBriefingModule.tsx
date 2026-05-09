@@ -38,6 +38,7 @@ interface BriefingResponse {
 
 interface NewsBriefingModuleProps {
   savedUrls: Set<string>;
+  onStoryCountChange?: (count: number) => void;
   onSaveSource: (item: {
     title: string;
     url: string;
@@ -65,7 +66,11 @@ function formatTime(value: string): string {
   }
 }
 
-export default function NewsBriefingModule({ savedUrls, onSaveSource }: NewsBriefingModuleProps) {
+export default function NewsBriefingModule({
+  savedUrls,
+  onStoryCountChange,
+  onSaveSource,
+}: NewsBriefingModuleProps) {
   const [storyCards, setStoryCards] = useState<StoryCard[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -156,9 +161,13 @@ export default function NewsBriefingModule({ savedUrls, onSaveSource }: NewsBrie
     }
   }, [hasLoaded, isLoading, loadBriefings]);
 
+  useEffect(() => {
+    if (hasLoaded) onStoryCountChange?.(storyCards.length);
+  }, [hasLoaded, onStoryCountChange, storyCards.length]);
+
   return (
     <section className="space-y-4">
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col gap-3 rounded-md border border-zinc-200 bg-white px-4 py-3 shadow-sm dark:border-zinc-700 dark:bg-zinc-800 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wider text-primary-hover dark:text-secondary">
             Today&apos;s briefing
@@ -171,11 +180,11 @@ export default function NewsBriefingModule({ savedUrls, onSaveSource }: NewsBrie
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           <button
             type="button"
             onClick={() => setShowPreferences((prev) => !prev)}
-            className="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 hover:border-primary hover:text-primary dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+            className="rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-600 hover:border-primary hover:text-primary dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
           >
             Preferences
           </button>
@@ -184,7 +193,7 @@ export default function NewsBriefingModule({ savedUrls, onSaveSource }: NewsBrie
             type="button"
             onClick={() => loadBriefings(true)}
             disabled={isLoading}
-            className="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 transition-colors hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+            className="rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-600 transition-colors hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
           >
             {isLoading ? "Refreshing..." : "Refresh"}
           </button>
@@ -243,11 +252,11 @@ export default function NewsBriefingModule({ savedUrls, onSaveSource }: NewsBrie
                 </h2>
               </div>
               <div className="flex shrink-0 items-center gap-2">
-                <span className="rounded-md bg-zinc-100 px-2 py-1 text-xs font-medium text-zinc-500 dark:bg-zinc-700 dark:text-zinc-300">
+                <span className="rounded-md bg-zinc-50 px-2 py-1 text-[11px] font-medium text-zinc-400 dark:bg-zinc-700 dark:text-zinc-400">
                   {story.score}
                 </span>
                 {story.generatedAt && (
-                  <span className="text-xs text-zinc-400">
+                  <span className="text-[11px] text-zinc-400">
                     {formatTime(story.generatedAt)}
                   </span>
                 )}

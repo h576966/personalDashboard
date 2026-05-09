@@ -3,49 +3,10 @@ import { assertField } from "./assert";
 
 // ── UI Constants ────────────────────────────────────────────────
 
-export interface LanguageOption {
-  value: string;
-  label: string;
-}
-
 export interface CountryOption {
   value: string;
   label: string;
 }
-
-export interface TopicPreset {
-  label: string;
-  queries: string;
-}
-
-export const LANGUAGE_OPTIONS: LanguageOption[] = [
-  { value: "all", label: "Any" },
-  { value: "en", label: "English" },
-  { value: "de", label: "German" },
-  { value: "fr", label: "French" },
-  { value: "es", label: "Spanish" },
-  { value: "it", label: "Italian" },
-  { value: "pt", label: "Portuguese" },
-  { value: "nl", label: "Dutch" },
-  { value: "ru", label: "Russian" },
-  { value: "ja", label: "Japanese" },
-  { value: "zh", label: "Chinese" },
-  { value: "ko", label: "Korean" },
-  { value: "ar", label: "Arabic" },
-  { value: "sv", label: "Swedish" },
-  { value: "no", label: "Norwegian" },
-  { value: "da", label: "Danish" },
-  { value: "fi", label: "Finnish" },
-  { value: "pl", label: "Polish" },
-  { value: "cs", label: "Czech" },
-  { value: "hu", label: "Hungarian" },
-  { value: "ro", label: "Romanian" },
-  { value: "el", label: "Greek" },
-  { value: "tr", label: "Turkish" },
-  { value: "th", label: "Thai" },
-  { value: "vi", label: "Vietnamese" },
-  { value: "hi", label: "Hindi" },
-];
 
 export const COUNTRY_OPTIONS: CountryOption[] = [
   { value: "all", label: "Any" },
@@ -97,15 +58,6 @@ export const COUNTRY_OPTIONS: CountryOption[] = [
 export const COUNTRY_VALUES: ReadonlySet<string> = new Set(
   COUNTRY_OPTIONS.map((o) => o.value).filter((v) => v !== "all"),
 );
-
-export const TOPIC_PRESETS: TopicPreset[] = [
-  { label: "Custom", queries: "" },
-  { label: "Technology", queries: "technology news\nAI\ncybersecurity" },
-  { label: "World News", queries: "world news\ninternational affairs\nglobal politics" },
-  { label: "Sports", queries: "sports news\nscores\nathletics" },
-  { label: "Science", queries: "science news\nresearch discoveries\nspace" },
-  { label: "Business", queries: "business news\nfinancial markets\neconomy" },
-];
 
 // ── Types ───────────────────────────────────────────────────────
 

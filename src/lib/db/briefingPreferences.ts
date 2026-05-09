@@ -10,7 +10,6 @@ export interface BriefingPreferences {
   preferred_categories: string[];
   preferred_sources: string[];
   blocked_sources: string[];
-  prefer_global_source_mix: boolean;
   regional_focus: RegionalFocus;
   summary_language: SummaryLanguage;
   created_at?: string;
@@ -34,7 +33,6 @@ const DEFAULT_PREFERENCES: Omit<BriefingPreferences, "id" | "created_at" | "upda
   preferred_categories: ["technology", "ai", "science", "geopolitics"],
   preferred_sources: [],
   blocked_sources: [],
-  prefer_global_source_mix: true,
   regional_focus: "nordic",
   summary_language: "en",
 };
@@ -61,7 +59,6 @@ function normalizePreferences(value: Record<string, unknown>): BriefingPreferenc
     preferred_categories: asStringArray(value.preferred_categories),
     preferred_sources: asStringArray(value.preferred_sources),
     blocked_sources: asStringArray(value.blocked_sources),
-    prefer_global_source_mix: Boolean(value.prefer_global_source_mix),
     regional_focus: regionalFocus(value.regional_focus),
     summary_language: summaryLanguage(value.summary_language),
     created_at: typeof value.created_at === "string" ? value.created_at : undefined,

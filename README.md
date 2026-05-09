@@ -38,17 +38,24 @@ migrated into a default `To-do` list by migration `005`.
 
 **Notes:** Freeform shared notes for drafts, reminders, and household reference material.
 
-**Read Later:** Search results can be saved into a household reading queue, then marked read
-or archived.
+**Read Later:** Search results and news sources can be saved into a household reading queue,
+then marked read, archived, or restored from the Archived view.
 
 **News Briefing:** Curated news aggregation from configurable topics, trusted sources,
 muted topics, watch topics, and feedback. Today's generated story cards are cached in
-Supabase so normal page loads do not rebuild Brave and DeepSeek results.
+Supabase so normal page loads do not rebuild Brave and DeepSeek results. Feedback, saved
+news links, and archived news links provide lightweight implicit personalization on refresh.
+The active news path is the story-card briefing at `/api/news/briefings`.
+
+**Nordic-First News:** News preferences include regional focus (`Norway + Sweden`, `Norway`,
+`Sweden`, or `Global`) and generated summary language (`English`, `Norwegian`, or `Swedish`).
+Trusted sources include a reproducible Nordic source pack that can be synced from the UI.
 
 **Dashboard Layout:** A two-column responsive layout with:
-- **Top Search Bar** for global queries
-- **Main Workspace (≈70%)** where active content is rendered
-- **Module Sidebar (≈30%)** for navigation between modules
+- **Persistent Top Search** for news, notes, saved links, and web queries
+- **News-First Main Workspace** where the daily briefing is the default landing view
+- **Compact Dashboard Metrics** for stories, open list items, unread saved items, and notes
+- **Section Rail** for navigation and lightweight module counters
 
 Search results temporarily override the main workspace, while modules (e.g. News, Read Later)
 control the default content.
@@ -68,7 +75,10 @@ control the default content.
 ## Product Principles
 
 - **Single dashboard shell** — One layout with a persistent module sidebar instead of page navigation.
+- **News-first landing** — The dashboard opens on the daily briefing while keeping household
+  lists, notes, and read-later one click away.
 - **Workspace-driven UI** — The main area adapts based on user actions (search vs module selection).
+- **Useful data over decorative copy** — Counters and labels are preferred over ornamental status text.
 - **Minimal but extensible modules** — Modules are compact in the sidebar and expand into the main area.
 - **Shared household first** — One default household is used today, ready for login/member mapping later.
 - **Mobile-aware** — Sidebar collapses into a horizontal module rail on smaller screens.
@@ -85,7 +95,7 @@ SQL Editor, then record them in `schema_migrations`:
 
 ```sql
 INSERT INTO public.schema_migrations (version)
-VALUES ('006_drop_legacy_schedule_tasks')
+VALUES ('007_nordic_news_preferences')
 ON CONFLICT (version) DO NOTHING;
 ```
 
@@ -93,6 +103,10 @@ Legacy schedule/task tables were replaced by household-scoped lists in migration
 in migration `006`. Prefer hiding or removing unused code first, then only drop tables after a
 read-only audit confirms row counts, dependencies, and backup status. Use
 `docs/supabase_cleanup_audit.sql` for the read-only database audit.
+
+Migration `007` adds Nordic news preferences and expands the default trusted source pack. Existing
+projects should run the migration, record it in `schema_migrations`, then use **News > Preferences >
+Trusted sources > Sync defaults** to ensure the UI and database source list are aligned.
 
 ## Directory Structure
 
@@ -105,10 +119,11 @@ read-only audit confirms row counts, dependencies, and backup status. Use
 │   ├── app/
 │   │   ├── api/
 │   │   ├── components/
-│   │   │   └── ui/          # shadcn/ui primitives (Button, Input, Select)
 │   │   ├── DashboardShell.tsx  # Layout + state orchestration
 │   │   ├── SearchModule.tsx    # Controlled search input
 │   │   └── ...
+│   ├── components/
+│   │   └── ui/              # shadcn/ui primitives (Button, Input, Select)
 │   └── lib/
 │       └── utils.ts
 ├── scripts/

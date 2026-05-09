@@ -26,7 +26,11 @@ interface HouseholdList {
   items: ListItem[];
 }
 
-export default function ListsModule() {
+interface ListsModuleProps {
+  onOpenCountChange?: (count: number) => void;
+}
+
+export default function ListsModule({ onOpenCountChange }: ListsModuleProps) {
   const [lists, setLists] = useState<HouseholdList[]>([]);
   const [activeListId, setActiveListId] = useState<string | null>(null);
   const [newListName, setNewListName] = useState("");
@@ -46,6 +50,15 @@ export default function ListsModule() {
   );
   const openItems = activeList?.items.filter((item) => !item.is_completed) ?? [];
   const completedItems = activeList?.items.filter((item) => item.is_completed) ?? [];
+
+  useEffect(() => {
+    onOpenCountChange?.(
+      lists.reduce(
+        (count, list) => count + list.items.filter((item) => !item.is_completed).length,
+        0,
+      ),
+    );
+  }, [lists, onOpenCountChange]);
 
   useEffect(() => {
     let isMounted = true;

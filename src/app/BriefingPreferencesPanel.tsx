@@ -12,7 +12,6 @@ interface BriefingPreferences {
   preferred_categories: string[];
   preferred_sources: string[];
   blocked_sources: string[];
-  prefer_global_source_mix: boolean;
   regional_focus: "nordic" | "norway" | "sweden" | "global";
   summary_language: "en" | "no" | "sv";
 }
@@ -50,7 +49,6 @@ export default function BriefingPreferencesPanel({ onClose, onSaved }: BriefingP
   const [blockedKeywords, setBlockedKeywords] = useState("");
   const [preferredSources, setPreferredSources] = useState("");
   const [blockedSources, setBlockedSources] = useState("");
-  const [preferGlobalSourceMix, setPreferGlobalSourceMix] = useState(true);
   const [regionalFocus, setRegionalFocus] = useState<BriefingPreferences["regional_focus"]>("nordic");
   const [summaryLanguage, setSummaryLanguage] = useState<BriefingPreferences["summary_language"]>("en");
   const [isLoading, setIsLoading] = useState(true);
@@ -72,7 +70,6 @@ export default function BriefingPreferencesPanel({ onClose, onSaved }: BriefingP
         setBlockedKeywords(listToText(data.blocked_keywords ?? []));
         setPreferredSources(listToText(data.preferred_sources ?? []));
         setBlockedSources(listToText(data.blocked_sources ?? []));
-        setPreferGlobalSourceMix(Boolean(data.prefer_global_source_mix));
         setRegionalFocus(data.regional_focus ?? "nordic");
         setSummaryLanguage(data.summary_language ?? "en");
       } catch (err) {
@@ -97,7 +94,6 @@ export default function BriefingPreferencesPanel({ onClose, onSaved }: BriefingP
           blocked_keywords: parseList(blockedKeywords),
           preferred_sources: parseList(preferredSources),
           blocked_sources: parseList(blockedSources),
-          prefer_global_source_mix: preferGlobalSourceMix,
           regional_focus: regionalFocus,
           summary_language: summaryLanguage,
         }),
@@ -222,15 +218,6 @@ export default function BriefingPreferencesPanel({ onClose, onSaved }: BriefingP
               className="mt-1 w-full rounded-md border border-zinc-300 bg-white p-2 text-sm text-zinc-900 outline-none focus:border-primary dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
               placeholder="example.com"
             />
-          </label>
-
-          <label className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
-            <input
-              type="checkbox"
-              checked={preferGlobalSourceMix}
-              onChange={(event) => setPreferGlobalSourceMix(event.target.checked)}
-            />
-            Prefer global source mix for broad news topics
           </label>
 
           <div className="flex items-center justify-end gap-2 border-t border-zinc-100 pt-4 dark:border-zinc-700">

@@ -1,10 +1,6 @@
 import { searchBrave, type BraveWebResult } from "@/lib/brave";
 import { getTopics, type NewsTopic } from "@/lib/db/topics";
-import {
-  classifyWatchUpdate,
-  generateNewsBriefing,
-  type NewsBriefingStory,
-} from "@/lib/deepseek";
+import { classifyWatchUpdate, generateNewsBriefing } from "@/lib/deepseek";
 import {
   getBriefingPreferences,
   type BriefingPreferences,
@@ -30,19 +26,6 @@ export interface BriefingSource {
   url: string;
   source?: string;
   description?: string;
-}
-
-export interface NewsBriefing {
-  topicId: string;
-  topicName: string;
-  title: string;
-  summary: string;
-  whyItMatters: string;
-  angles: string[];
-  stories: NewsBriefingStory[];
-  imageUrl?: string | null;
-  sources: BriefingSource[];
-  generatedAt: string;
 }
 
 export interface StoryCard {
@@ -140,36 +123,6 @@ const DEFAULT_INTERESTS: FeedInterest[] = [
   },
 ];
 
-const GLOBAL_SOURCE_HINTS = [
-  "reuters.com",
-  "apnews.com",
-  "bbc.",
-  "aljazeera.com",
-  "dw.com",
-  "france24.com",
-  "lemonde.fr",
-  "theguardian.com",
-  "ft.com",
-  "nikkei.com",
-  "scmp.com",
-  "straitstimes.com",
-  "thehindu.com",
-  "elpais.com",
-  "africanews.com",
-];
-
-const US_SOURCE_HINTS = [
-  "nytimes.com",
-  "washingtonpost.com",
-  "wsj.com",
-  "cnn.com",
-  "nbcnews.com",
-  "cbsnews.com",
-  "abcnews.go.com",
-  "foxnews.com",
-  "politico.com",
-];
-
 interface SourcePolicy {
   hasCuratedSources: boolean;
   enabledSources: NewsSource[];
@@ -261,21 +214,6 @@ function isBroadGlobalTopic(topic: NewsTopic): boolean {
   );
 }
 
-function sourceRegionScore(host: string, topic: NewsTopic): number {
-  if (!isBroadGlobalTopic(topic)) return 0;
-
-  const normalizedHost = host.toLowerCase();
-
-  if (GLOBAL_SOURCE_HINTS.some((hint) => normalizedHost.includes(hint))) return 4;
-  if (US_SOURCE_HINTS.some((hint) => normalizedHost.includes(hint))) return -1;
-
-  if (/\.(uk|de|fr|es|it|nl|se|no|dk|fi|jp|kr|in|sg|za|br|mx|au|nz)$/.test(normalizedHost)) {
-    return 3;
-  }
-
-  return 0;
-}
-
 function sourceRegion(source: NewsSource | null, host: string): string {
   if (source?.region) return source.region.toLowerCase();
   if (host.endsWith(".no")) return "norway";
@@ -339,132 +277,6 @@ function isLikelyArticleUrl(url: string): boolean {
   } catch {
     return false;
   }
-}
-
-function scoreResult(
-  result: BraveWebResult,
-  topic: NewsTopic,
-  prefs: Awaited<ReturnType<typeof getBriefingPreferences>>,
-  policy: SourcePolicy,
-): number {
-  const text = `${result.title} ${result.description} ${result.url}`.toLowerCase();
-  const host = getHost(result.url).toLowerCase();
-  let score = 0;
-
-  if (isLikelyArticleUrl(result.url)) score += 8;
-
-  if (prefs.prefer_global_source_mix) {
-    score += sourceRegionScore(host, topic);
-  }
-
-  const curatedMatch = policy.enabledSources.find((source) =>
-    hostMatchesDomain(host, source.domain),
-  );
-  if (curatedMatch) {
-    score += 6 + Math.min(Math.max(curatedMatch.priority, 0), 100) / 25;
-  }
-
-  score += regionalRelevanceForHost(host, policy.enabledSources, prefs.regional_focus) * 8;
-
-  for (const keyword of topic.requiredKeywords) {
-    if (text.includes(keyword.toLowerCase())) score += 4;
-  }
-
-  for (const source of topic.preferredSources) {
-    if (host.includes(source.toLowerCase())) score += 5;
-  }
-
-  for (const source of prefs.preferred_sources) {
-    if (host.includes(source.toLowerCase())) score += 3;
-  }
-
-  for (const keyword of prefs.blocked_keywords) {
-    if (text.includes(keyword.toLowerCase())) score -= 10;
-  }
-
-  for (const source of prefs.blocked_sources) {
-    if (host.includes(source.toLowerCase())) score -= 10;
-  }
-
-  if (result.age) score += 1;
-
-  return score;
-}
-
-function selectSources(
-  results: BraveWebResult[],
-  topic: NewsTopic,
-  prefs: Awaited<ReturnType<typeof getBriefingPreferences>>,
-  policy: SourcePolicy,
-): BriefingSource[] {
-  const seenUrls = new Set<string>();
-  const seenHosts = new Set<string>();
-  const broadGlobalTopic = isBroadGlobalTopic(topic);
-
-  const ranked = results
-    .filter((result) => {
-      if (!result.url || seenUrls.has(result.url)) return false;
-      seenUrls.add(result.url);
-
-      const host = getHost(result.url).toLowerCase();
-      const text = `${result.title} ${result.description} ${result.url}`;
-
-      if (!isLikelyArticleUrl(result.url)) return false;
-
-      if (containsAny(host, topic.blockedSources)) return false;
-      if (containsAny(text, topic.blockedKeywords)) return false;
-
-      if (containsAny(text, prefs.blocked_keywords)) return false;
-      if (containsAny(host, prefs.blocked_sources)) return false;
-
-      if (policy.hasCuratedSources && hostMatchesAnySource(host, policy.disabledSources)) {
-        return false;
-      }
-
-      if (
-        policy.hasCuratedSources &&
-        policy.enabledSources.length > 0 &&
-        !hostMatchesAnySource(host, policy.enabledSources)
-      ) {
-        return false;
-      }
-
-      if (topic.requiredKeywords.length > 0 && !containsAny(text, topic.requiredKeywords)) return false;
-
-      return true;
-    })
-    .sort((a, b) => scoreResult(b, topic, prefs, policy) - scoreResult(a, topic, prefs, policy));
-
-  const preferredGlobal: BraveWebResult[] = [];
-  const diverse: BraveWebResult[] = [];
-  const overflow: BraveWebResult[] = [];
-
-  for (const result of ranked) {
-    const host = getHost(result.url).toLowerCase();
-    const regionScore = prefs.prefer_global_source_mix
-      ? sourceRegionScore(host, topic)
-      : 0;
-
-    if (!seenHosts.has(host)) {
-      if (broadGlobalTopic && regionScore > 0) {
-        preferredGlobal.push(result);
-      } else {
-        diverse.push(result);
-      }
-      seenHosts.add(host);
-    } else {
-      overflow.push(result);
-    }
-  }
-
-  return [...preferredGlobal, ...diverse, ...overflow]
-    .slice(0, 5)
-    .map((result) => ({
-      title: result.title,
-      url: result.url,
-      source: getHost(result.url),
-      description: result.description,
-    }));
 }
 
 function sourceHintsForTopic(
@@ -935,55 +747,4 @@ export async function buildDailyNewsBriefing(householdId: string): Promise<Daily
     storyCards,
     generatedAt: new Date().toISOString(),
   };
-}
-
-export async function buildNewsBriefing(topic: NewsTopic): Promise<NewsBriefing | null> {
-  const prefs = await getBriefingPreferences();
-  const policy = await getSourcePolicy();
-
-  const query = queryForTopic(topic, policy.enabledSources, prefs.regional_focus);
-  const country = topic.country && topic.country !== "all" ? topic.country : undefined;
-
-  const raw = await searchBrave(query, 18, "pd", country);
-
-  const sources = selectSources(raw.web?.results ?? [], topic, prefs, policy);
-
-  if (sources.length === 0) return null;
-
-  const generated = await generateNewsBriefing({
-    topicName: topic.name,
-    topicDescription: topic.description,
-    sources,
-    language: prefs.summary_language,
-  });
-
-  return {
-    topicId: topic.id,
-    topicName: topic.name,
-    title: generated.title,
-    summary: generated.summary,
-    whyItMatters: generated.whyItMatters,
-    angles: generated.angles,
-    stories: generated.stories ?? [],
-    imageUrl: null,
-    sources,
-    generatedAt: new Date().toISOString(),
-  };
-}
-
-export async function buildNewsBriefings(): Promise<NewsBriefing[]> {
-  const topics = (await getTopics()).filter((topic) => topic.enabled).slice(0, 5);
-
-  const briefings = await Promise.all(
-    topics.map(async (topic) => {
-      try {
-        return await buildNewsBriefing(topic);
-      } catch (err) {
-        console.warn(`Failed to build briefing for topic ${topic.name}:`, err);
-        return null;
-      }
-    }),
-  );
-
-  return briefings.filter((briefing): briefing is NewsBriefing => briefing !== null);
 }

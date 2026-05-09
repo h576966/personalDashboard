@@ -41,15 +41,15 @@ export default function SearchModule({
   }
 
   return (
-    <div className="bg-primary-hover border-b border-primary-hover/70 dark:border-primary-hover/80">
+    <div className="border-b border-primary-hover/60 bg-primary-hover dark:border-primary-hover/80">
       <div className="mx-auto grid max-w-7xl grid-cols-1 gap-2 px-4 py-2 md:grid-cols-[minmax(320px,1fr)_auto_auto_auto] md:items-center">
         <Input
           type="text"
           value={query}
           onChange={(e) => onQueryChange(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Search..."
-          className="h-11 min-w-0 border-primary bg-white dark:bg-zinc-800 dark:text-zinc-100"
+          placeholder="Search news, notes, and saved links..."
+          className="h-10 min-w-0 border-primary/40 bg-white text-sm dark:bg-zinc-800 dark:text-zinc-100"
           disabled={isLoading}
         />
         <Button
@@ -57,7 +57,7 @@ export default function SearchModule({
           onClick={() => onSearch(query)}
           disabled={!query.trim() || isLoading}
           size="sm"
-          className="h-11 bg-muted px-5 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+          className="h-10 bg-muted px-4 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
         >
           {isLoading ? "..." : "Go"}
         </Button>
@@ -66,7 +66,7 @@ export default function SearchModule({
             <Clock className="w-3.5 h-3.5" />
           </span>
           <Select value={freshness} onValueChange={onFreshnessChange} disabled={isLoading}>
-            <SelectTrigger className="h-9 w-[130px] rounded-md border border-primary bg-primary-hover px-2 py-1 text-xs text-white focus:ring-primary [&>span]:text-white [&>svg]:text-white">
+            <SelectTrigger className="h-9 w-[130px] rounded-md border border-white/20 bg-white/5 px-2 py-1 text-xs text-white focus:ring-primary [&>span]:text-white [&>svg]:text-white">
               <SelectValue placeholder="Any time" />
             </SelectTrigger>
             <SelectContent className="w-[130px] min-w-[130px] bg-primary border-primary text-white">
@@ -83,7 +83,7 @@ export default function SearchModule({
             <Globe className="w-3.5 h-3.5" />
           </span>
           <Select value={country} onValueChange={onCountryChange} disabled={isLoading}>
-            <SelectTrigger className="h-9 w-[150px] rounded-md border border-primary bg-primary-hover px-2 py-1 text-xs text-white focus:ring-primary [&>span]:text-white [&>svg]:text-white">
+            <SelectTrigger className="h-9 w-[150px] rounded-md border border-white/20 bg-white/5 px-2 py-1 text-xs text-white focus:ring-primary [&>span]:text-white [&>svg]:text-white">
               <SelectValue placeholder="All regions" />
             </SelectTrigger>
             <SelectContent className="w-[150px] min-w-[150px] bg-primary border-primary text-white max-h-[200px]">
