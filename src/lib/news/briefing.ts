@@ -5,7 +5,12 @@ import {
   generateNewsBriefing,
   type NewsBriefingStory,
 } from "@/lib/deepseek";
-import { getBriefingPreferences } from "@/lib/db/briefingPreferences";
+import {
+  getBriefingPreferences,
+  type BriefingPreferences,
+  type RegionalFocus,
+  type SummaryLanguage,
+} from "@/lib/db/briefingPreferences";
 import {
   getNewsSources,
   seedDefaultNewsSources,
@@ -14,7 +19,10 @@ import {
 import { getEnabledBlockedKeywords } from "@/lib/db/blockedTopics";
 import { getEnabledWatchTopics, updateWatchTopicLastSeen } from "@/lib/db/watchTopics";
 import { upsertStoryCards } from "@/lib/db/storyClusters";
-import { getFeedbackAffinityByStory } from "@/lib/db/newsFeedback";
+import {
+  getNewsPersonalizationSignals,
+  type NewsPersonalizationSignals,
+} from "@/lib/db/newsPersonalization";
 import { stripHtml } from "@/lib/search/filter";
 
 export interface BriefingSource {
@@ -68,6 +76,7 @@ interface CandidateArticle extends BriefingSource {
   source: string;
   description: string;
   sourceQuality: number;
+  regionalRelevance: number;
   freshness: number;
   matchedInterests: string[];
   isWatchUpdate: boolean;
@@ -100,16 +109,22 @@ const SECTION_PATHS = new Set([
 
 const DEFAULT_INTERESTS: FeedInterest[] = [
   {
-    id: "default-ai",
-    name: "AI",
-    description: "Artificial intelligence, models, products, and research",
-    queries: ["AI news", "local LLM models", "AI research"],
+    id: "default-nordic-headlines",
+    name: "Nordic headlines",
+    description: "High-signal Norway and Sweden news with global context",
+    queries: ["Norway Sweden top news", "Nordic news"],
   },
   {
-    id: "default-technology",
-    name: "Technology",
-    description: "High-signal technology and hardware updates",
-    queries: ["technology news", "Apple hardware news"],
+    id: "default-nordic-economy",
+    name: "Nordic economy and society",
+    description: "Norwegian and Swedish economy, society, energy, and policy",
+    queries: ["Norway Sweden economy society", "Nordic energy housing interest rates"],
+  },
+  {
+    id: "default-nordic-tech",
+    name: "Nordic technology and AI",
+    description: "Technology, AI, software, and industry with Nordic relevance",
+    queries: ["Nordic technology AI news", "Norway Sweden technology"],
   },
   {
     id: "default-science",
@@ -120,8 +135,8 @@ const DEFAULT_INTERESTS: FeedInterest[] = [
   {
     id: "default-geopolitics",
     name: "Geopolitics",
-    description: "World affairs and geopolitics",
-    queries: ["geopolitics world news"],
+    description: "World affairs and geopolitics relevant to Europe and the Nordics",
+    queries: ["Europe Nordic geopolitics NATO security"],
   },
 ];
 
@@ -261,6 +276,47 @@ function sourceRegionScore(host: string, topic: NewsTopic): number {
   return 0;
 }
 
+function sourceRegion(source: NewsSource | null, host: string): string {
+  if (source?.region) return source.region.toLowerCase();
+  if (host.endsWith(".no")) return "norway";
+  if (host.endsWith(".se")) return "sweden";
+  if (host.endsWith(".fi") || host.endsWith(".dk")) return "nordic";
+  return "";
+}
+
+function regionalRelevanceForHost(
+  host: string,
+  sources: NewsSource[],
+  focus: RegionalFocus,
+): number {
+  if (focus === "global") return 0;
+
+  const region = sourceRegion(sourceForHost(host, sources), host);
+
+  if (focus === "nordic") {
+    if (region === "norway" || region === "sweden") return 1;
+    if (region === "nordic") return 0.75;
+    if (region === "europe" || region === "us-europe" || region === "global") return 0.25;
+    return 0;
+  }
+
+  if (region === focus) return 1;
+  if (region === "nordic") return 0.45;
+  if ((focus === "norway" && region === "sweden") || (focus === "sweden" && region === "norway")) {
+    return 0.25;
+  }
+
+  return 0;
+}
+
+function searchCountriesForFocus(focus: RegionalFocus, explicitCountry?: string): Array<string | undefined> {
+  if (explicitCountry) return [explicitCountry];
+  if (focus === "norway") return ["NO"];
+  if (focus === "sweden") return ["SE"];
+  if (focus === "nordic") return ["NO", "SE", undefined];
+  return [undefined];
+}
+
 function isLikelyArticleUrl(url: string): boolean {
   try {
     const parsed = new URL(url);
@@ -307,6 +363,8 @@ function scoreResult(
   if (curatedMatch) {
     score += 6 + Math.min(Math.max(curatedMatch.priority, 0), 100) / 25;
   }
+
+  score += regionalRelevanceForHost(host, policy.enabledSources, prefs.regional_focus) * 8;
 
   for (const keyword of topic.requiredKeywords) {
     if (text.includes(keyword.toLowerCase())) score += 4;
@@ -409,33 +467,58 @@ function selectSources(
     }));
 }
 
-function sourceHintsForTopic(topic: NewsTopic, sources: NewsSource[]): string {
+function sourceHintsForTopic(
+  topic: NewsTopic,
+  sources: NewsSource[],
+  regionalFocus: RegionalFocus = "global",
+): string {
   if (sources.length === 0) return "";
 
   const topicText = `${topic.name} ${topic.description} ${topic.queries.join(" ")}`.toLowerCase();
-  const matchingSources = sources.filter((source) => {
+  const regionalSources = sources.filter((source) => {
+    if (regionalFocus === "norway") return source.region === "norway";
+    if (regionalFocus === "sweden") return source.region === "sweden";
+    if (regionalFocus === "nordic") {
+      return ["norway", "sweden", "nordic"].includes(source.region);
+    }
+    return false;
+  });
+  const sourcePool = regionalSources.length > 0 ? regionalSources : sources;
+  const matchingSources = sourcePool.filter((source) => {
     const category = source.category.toLowerCase();
     return category && topicText.includes(category);
   });
-  const selected = (matchingSources.length > 0 ? matchingSources : sources).slice(0, 6);
+  const selected = (matchingSources.length > 0 ? matchingSources : sourcePool).slice(0, 6);
 
   return selected.map((source) => source.name).join(" ");
 }
 
-function queryForTopic(topic: NewsTopic, sources: NewsSource[]): string {
+function queryForTopic(
+  topic: NewsTopic,
+  sources: NewsSource[],
+  regionalFocus: RegionalFocus = "global",
+): string {
   const query = topic.queries[0] || topic.name;
   const normalized = query.toLowerCase();
-  const sourceHints = sourceHintsForTopic(topic, sources);
+  const sourceHints = sourceHintsForTopic(topic, sources, regionalFocus);
+  const regionalPrefix =
+    regionalFocus === "norway"
+      ? "Norway Norwegian"
+      : regionalFocus === "sweden"
+        ? "Sweden Swedish"
+        : regionalFocus === "nordic"
+          ? "Norway Sweden Nordic"
+          : "";
 
   if (normalized.includes("no. 1") || normalized.includes("top news")) {
-    return `top world news today breaking latest international ${sourceHints || "Reuters AP BBC Al Jazeera DW"}`;
+    return `${regionalPrefix} top news today breaking latest international ${sourceHints || "Reuters AP BBC Al Jazeera DW"}`.trim();
   }
 
   if (isBroadGlobalTopic(topic)) {
-    return `${query} latest international news today ${sourceHints || "Reuters AP BBC Al Jazeera"}`;
+    return `${regionalPrefix} ${query} latest international news today ${sourceHints || "Reuters AP BBC Al Jazeera"}`.trim();
   }
 
-  return `${query} latest news today ${sourceHints}`.trim();
+  return `${regionalPrefix} ${query} latest news today ${sourceHints}`.trim();
 }
 
 async function getSourcePolicy(): Promise<SourcePolicy> {
@@ -482,6 +565,7 @@ function candidateFromResult(input: {
   interestName: string;
   policy: SourcePolicy;
   blockedKeywords: string[];
+  regionalFocus: RegionalFocus;
   isWatchUpdate?: boolean;
   watchConfidence?: number;
   watchReason?: string;
@@ -521,6 +605,7 @@ function candidateFromResult(input: {
     ...candidate,
     id: hashText(`${title}|${url}`),
     sourceQuality: source?.qualityScore ?? 0.55,
+    regionalRelevance: regionalRelevanceForHost(host, input.policy.enabledSources, input.regionalFocus),
     freshness: freshnessScore(input.result.age),
     matchedInterests: [input.interestName],
     isWatchUpdate: input.isWatchUpdate ?? false,
@@ -533,54 +618,62 @@ async function collectInterestCandidates(input: {
   interests: FeedInterest[];
   policy: SourcePolicy;
   blockedKeywords: string[];
+  prefs: BriefingPreferences;
 }): Promise<CandidateArticle[]> {
   const candidates: CandidateArticle[] = [];
   const seenUrls = new Set<string>();
+  const queryLimit = input.prefs.regional_focus === "global" ? 2 : 1;
 
   for (const interest of input.interests.slice(0, 6)) {
     const queries = interest.queries.length > 0 ? interest.queries : [interest.name];
 
-    for (const rawQuery of queries.slice(0, 2)) {
-      const query = `${rawQuery} latest news today ${sourceHintsForTopic(
-        {
-          id: interest.id,
-          name: interest.name,
-          description: interest.description,
-          queries: interest.queries,
-          country: interest.country ?? "",
-          region: "",
-          language: "",
-          preferredSources: [],
-          blockedSources: [],
-          requiredKeywords: [],
-          blockedKeywords: [],
-          maxItemsPerDay: 5,
-          minScore: 0,
-          enabled: true,
-          createdAt: "",
-          updatedAt: "",
-        },
+    for (const rawQuery of queries.slice(0, queryLimit)) {
+      const topicForQuery = {
+        id: interest.id,
+        name: interest.name,
+        description: interest.description,
+        queries: [rawQuery],
+        country: interest.country ?? "",
+        region: "",
+        language: "",
+        preferredSources: [],
+        blockedSources: [],
+        requiredKeywords: [],
+        blockedKeywords: [],
+        maxItemsPerDay: 5,
+        minScore: 0,
+        enabled: true,
+        createdAt: "",
+        updatedAt: "",
+      };
+      const query = queryForTopic(
+        topicForQuery,
         input.policy.enabledSources,
-      )}`.trim();
+        input.prefs.regional_focus,
+      );
+      const countries = searchCountriesForFocus(input.prefs.regional_focus, interest.country);
 
-      try {
-        const raw = await searchBrave(query, 12, "pd", interest.country);
-        for (const result of raw.web?.results ?? []) {
-          if (!result.url || seenUrls.has(result.url.toLowerCase())) continue;
+      for (const country of countries) {
+        try {
+          const raw = await searchBrave(query, 12, "pd", country);
+          for (const result of raw.web?.results ?? []) {
+            if (!result.url || seenUrls.has(result.url.toLowerCase())) continue;
 
-          const candidate = candidateFromResult({
-            result,
-            interestName: interest.name,
-            policy: input.policy,
-            blockedKeywords: input.blockedKeywords,
-          });
+            const candidate = candidateFromResult({
+              result,
+              interestName: interest.name,
+              policy: input.policy,
+              blockedKeywords: input.blockedKeywords,
+              regionalFocus: input.prefs.regional_focus,
+            });
 
-          if (!candidate) continue;
-          seenUrls.add(candidate.url.toLowerCase());
-          candidates.push(candidate);
+            if (!candidate) continue;
+            seenUrls.add(candidate.url.toLowerCase());
+            candidates.push(candidate);
+          }
+        } catch (err) {
+          console.warn(`Failed to collect candidates for "${interest.name}":`, err);
         }
-      } catch (err) {
-        console.warn(`Failed to collect candidates for "${interest.name}":`, err);
       }
     }
   }
@@ -591,6 +684,7 @@ async function collectInterestCandidates(input: {
 async function collectWatchCandidates(input: {
   policy: SourcePolicy;
   blockedKeywords: string[];
+  regionalFocus: RegionalFocus;
 }): Promise<CandidateArticle[]> {
   const watchTopics = await getEnabledWatchTopics();
   const candidates: CandidateArticle[] = [];
@@ -614,6 +708,7 @@ async function collectWatchCandidates(input: {
             interestName: topic.name,
             policy: input.policy,
             blockedKeywords: input.blockedKeywords,
+            regionalFocus: input.regionalFocus,
             isWatchUpdate: true,
           });
 
@@ -701,13 +796,26 @@ function scoreCluster(
   cluster: StoryCluster,
   interests: FeedInterest[],
   blockedKeywords: string[],
-  feedbackAffinityByStory: Map<string, number>,
+  personalization: NewsPersonalizationSignals,
 ): StoryCluster {
   const uniqueSources = new Set(cluster.articles.map((article) => article.source));
   const sourceQuality = Math.max(...cluster.articles.map((article) => article.sourceQuality));
   const interestMatch = Math.min(cluster.matchedInterests.length / Math.max(interests.length, 1), 1);
   const freshness = Math.max(...cluster.articles.map((article) => article.freshness));
-  const feedbackAffinity = feedbackAffinityByStory.get(cluster.id) ?? 0;
+  const regionalRelevance = Math.max(...cluster.articles.map((article) => article.regionalRelevance));
+  const feedbackAffinity = personalization.feedbackAffinityByStory.get(cluster.id) ?? 0;
+  const savedArticleAffinity = Math.max(
+    ...cluster.articles.map((article) => {
+      const status = personalization.savedUrlStatusByUrl.get(article.url);
+      if (!status) return 0;
+      return status === "archived" ? -1 : 1;
+    }),
+  );
+  const savedHostAffinity = Math.max(
+    ...cluster.articles.map((article) =>
+      personalization.savedHostAffinityByHost.get(getHost(article.url).toLowerCase()) ?? 0,
+    ),
+  );
   const sourceDiversity = Math.min(uniqueSources.size / 3, 1);
   const watchSignificance = cluster.isWatchUpdate
     ? Math.max(...cluster.articles.map((article) => article.watchConfidence || 0.8))
@@ -723,7 +831,10 @@ function scoreCluster(
       sourceQuality * 25 +
       interestMatch * 20 +
       freshness * 15 +
+      regionalRelevance * 12 +
       feedbackAffinity * 15 +
+      savedArticleAffinity * 8 +
+      savedHostAffinity * 6 +
       sourceDiversity * 10 +
       watchSignificance * 30 -
       blockedPenalty * 100 -
@@ -731,7 +842,10 @@ function scoreCluster(
   };
 }
 
-async function summarizeCluster(cluster: StoryCluster): Promise<StoryCard> {
+async function summarizeCluster(
+  cluster: StoryCluster,
+  summaryLanguage: SummaryLanguage,
+): Promise<StoryCard> {
   const sources = cluster.articles.slice(0, 5).map((article) => ({
     title: article.title,
     url: article.url,
@@ -744,6 +858,7 @@ async function summarizeCluster(cluster: StoryCluster): Promise<StoryCard> {
       topicName: cluster.isWatchUpdate ? "Watch topic update" : "Top daily story",
       topicDescription: cluster.matchedInterests.join(", "),
       sources,
+      language: summaryLanguage,
     });
 
     return {
@@ -779,7 +894,7 @@ async function summarizeCluster(cluster: StoryCluster): Promise<StoryCard> {
   }
 }
 
-export async function buildDailyNewsBriefing(): Promise<DailyNewsBriefing> {
+export async function buildDailyNewsBriefing(householdId: string): Promise<DailyNewsBriefing> {
   const [topics, prefs, policy, blockedTopicKeywords] = await Promise.all([
     getTopics(),
     getBriefingPreferences(),
@@ -795,18 +910,20 @@ export async function buildDailyNewsBriefing(): Promise<DailyNewsBriefing> {
   ];
 
   const [interestCandidates, watchCandidates] = await Promise.all([
-    collectInterestCandidates({ interests, policy, blockedKeywords }),
-    collectWatchCandidates({ policy, blockedKeywords }),
+    collectInterestCandidates({ interests, policy, blockedKeywords, prefs }),
+    collectWatchCandidates({ policy, blockedKeywords, regionalFocus: prefs.regional_focus }),
   ]);
-  const feedbackAffinityByStory = await getFeedbackAffinityByStory();
+  const personalization = await getNewsPersonalizationSignals(householdId);
 
   const rankedClusters = clusterCandidates([...watchCandidates, ...interestCandidates])
-    .map((cluster) => scoreCluster(cluster, interests, blockedKeywords, feedbackAffinityByStory))
+    .map((cluster) => scoreCluster(cluster, interests, blockedKeywords, personalization))
     .filter((cluster) => cluster.score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, 5);
 
-  const storyCards = await Promise.all(rankedClusters.map((cluster) => summarizeCluster(cluster)));
+  const storyCards = await Promise.all(
+    rankedClusters.map((cluster) => summarizeCluster(cluster, prefs.summary_language)),
+  );
 
   try {
     await upsertStoryCards(storyCards);
@@ -824,7 +941,7 @@ export async function buildNewsBriefing(topic: NewsTopic): Promise<NewsBriefing 
   const prefs = await getBriefingPreferences();
   const policy = await getSourcePolicy();
 
-  const query = queryForTopic(topic, policy.enabledSources);
+  const query = queryForTopic(topic, policy.enabledSources, prefs.regional_focus);
   const country = topic.country && topic.country !== "all" ? topic.country : undefined;
 
   const raw = await searchBrave(query, 18, "pd", country);
@@ -837,6 +954,7 @@ export async function buildNewsBriefing(topic: NewsTopic): Promise<NewsBriefing 
     topicName: topic.name,
     topicDescription: topic.description,
     sources,
+    language: prefs.summary_language,
   });
 
   return {

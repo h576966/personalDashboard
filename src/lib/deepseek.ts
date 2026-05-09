@@ -53,6 +53,14 @@ export interface WatchUpdateClassification {
   reason: string;
 }
 
+export type BriefingLanguage = "en" | "no" | "sv";
+
+const BRIEFING_LANGUAGE_LABELS: Record<BriefingLanguage, string> = {
+  en: "English",
+  no: "Norwegian",
+  sv: "Swedish",
+};
+
 async function callDeepSeek(
   systemPrompt: string,
   userPrompt: string,
@@ -178,8 +186,10 @@ export async function generateNewsBriefing(input: {
   topicName: string;
   topicDescription?: string;
   sources: { title: string; url: string; description?: string }[];
+  language?: BriefingLanguage;
 }): Promise<GeneratedNewsBriefing> {
   const allowedUrls = input.sources.map((source) => source.url);
+  const language = BRIEFING_LANGUAGE_LABELS[input.language ?? "en"];
 
   const systemPrompt =
     "You create reliability-first news briefings from source snippets. " +
@@ -204,6 +214,7 @@ export async function generateNewsBriefing(input: {
     `${input.topicDescription ?? ""}\n\n` +
     `Allowed source URLs:\n${allowedUrls.map((url) => `- ${url}`).join("\n")}\n\n` +
     `Sources:\n${sourceText}\n\n` +
+    `Write title, summary, whyItMatters, angles, and story text in ${language}. Preserve source names and URLs exactly as provided.\n\n` +
     "Return JSON with this exact shape:\n" +
     '{"title":"...","summary":"...","whyItMatters":"...","angles":["..."],"stories":[{"title":"...","summary":"...","sourceUrls":["..."]}]}\n\n' +
     "Reliability rules:\n" +

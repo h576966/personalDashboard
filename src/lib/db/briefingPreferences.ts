@@ -1,5 +1,8 @@
 import { supabaseAdmin } from "@/lib/supabaseServer";
 
+export type RegionalFocus = "nordic" | "norway" | "sweden" | "global";
+export type SummaryLanguage = "en" | "no" | "sv";
+
 export interface BriefingPreferences {
   id: string;
   blocked_categories: string[];
@@ -8,6 +11,8 @@ export interface BriefingPreferences {
   preferred_sources: string[];
   blocked_sources: string[];
   prefer_global_source_mix: boolean;
+  regional_focus: RegionalFocus;
+  summary_language: SummaryLanguage;
   created_at?: string;
   updated_at?: string;
 }
@@ -30,12 +35,22 @@ const DEFAULT_PREFERENCES: Omit<BriefingPreferences, "id" | "created_at" | "upda
   preferred_sources: [],
   blocked_sources: [],
   prefer_global_source_mix: true,
+  regional_focus: "nordic",
+  summary_language: "en",
 };
 
 function asStringArray(value: unknown): string[] {
   return Array.isArray(value)
     ? value.filter((item): item is string => typeof item === "string")
     : [];
+}
+
+function regionalFocus(value: unknown): RegionalFocus {
+  return value === "norway" || value === "sweden" || value === "global" ? value : "nordic";
+}
+
+function summaryLanguage(value: unknown): SummaryLanguage {
+  return value === "no" || value === "sv" ? value : "en";
 }
 
 function normalizePreferences(value: Record<string, unknown>): BriefingPreferences {
@@ -47,6 +62,8 @@ function normalizePreferences(value: Record<string, unknown>): BriefingPreferenc
     preferred_sources: asStringArray(value.preferred_sources),
     blocked_sources: asStringArray(value.blocked_sources),
     prefer_global_source_mix: Boolean(value.prefer_global_source_mix),
+    regional_focus: regionalFocus(value.regional_focus),
+    summary_language: summaryLanguage(value.summary_language),
     created_at: typeof value.created_at === "string" ? value.created_at : undefined,
     updated_at: typeof value.updated_at === "string" ? value.updated_at : undefined,
   };
@@ -78,13 +95,22 @@ export async function updateBriefingPreferences(
   patch: Partial<Omit<BriefingPreferences, "id" | "created_at" | "updated_at">>,
 ): Promise<BriefingPreferences> {
   const current = await getBriefingPreferences();
+  const update: Record<string, unknown> = {
+    ...patch,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (patch.regional_focus !== undefined) {
+    update.regional_focus = regionalFocus(patch.regional_focus);
+  }
+
+  if (patch.summary_language !== undefined) {
+    update.summary_language = summaryLanguage(patch.summary_language);
+  }
 
   const { data, error } = await supabaseAdmin
     .from("briefing_preferences")
-    .update({
-      ...patch,
-      updated_at: new Date().toISOString(),
-    })
+    .update(update)
     .eq("id", current.id)
     .select("*")
     .single();

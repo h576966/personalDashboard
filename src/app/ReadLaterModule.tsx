@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Archive, CheckCircle2, Circle, ExternalLink } from "lucide-react";
+import { Archive, CheckCircle2, Circle, ExternalLink, RotateCcw } from "lucide-react";
 import {
   ActionButton,
   EmptyState,
@@ -29,9 +29,10 @@ interface ReadLaterModuleProps {
   error?: string | null;
   onMarkRead: (id: string, status: "unread" | "read") => void | Promise<void>;
   onArchive: (id: string) => void | Promise<void>;
+  onRestore: (id: string) => void | Promise<void>;
 }
 
-type ReadLaterTab = "unread" | "read";
+type ReadLaterTab = "unread" | "read" | "archived";
 
 function sourceLabel(item: ReadLaterItem): string {
   if (item.source && item.source !== "search" && item.source !== "news") return item.source;
@@ -62,11 +63,28 @@ export default function ReadLaterModule({
   error,
   onMarkRead,
   onArchive,
+  onRestore,
 }: ReadLaterModuleProps) {
   const [tab, setTab] = useState<ReadLaterTab>("unread");
   const unreadItems = useMemo(() => items.filter((item) => item.status === "unread"), [items]);
   const readItems = useMemo(() => items.filter((item) => item.status === "read"), [items]);
-  const visibleItems = tab === "unread" ? unreadItems : readItems;
+  const archivedItems = useMemo(() => items.filter((item) => item.status === "archived"), [items]);
+  const visibleItems =
+    tab === "unread" ? unreadItems : tab === "read" ? readItems : archivedItems;
+  const emptyCopy = {
+    unread: {
+      title: "No unread items.",
+      description: "Save useful search results or news sources and they will wait here.",
+    },
+    read: {
+      title: "Nothing marked read yet.",
+      description: "Mark items as read when they are done but still worth keeping nearby.",
+    },
+    archived: {
+      title: "Nothing archived.",
+      description: "Archived items stay recoverable here without cluttering the main queue.",
+    },
+  } satisfies Record<ReadLaterTab, { title: string; description: string }>;
 
   return (
     <ModuleCard>
@@ -80,6 +98,7 @@ export default function ReadLaterModule({
             options={[
               { value: "unread", label: "Unread", count: unreadItems.length },
               { value: "read", label: "Read", count: readItems.length },
+              { value: "archived", label: "Archived", count: archivedItems.length },
             ]}
           />
         }
@@ -92,12 +111,8 @@ export default function ReadLaterModule({
           <LoadingRow label="Loading saved items..." />
         ) : visibleItems.length === 0 ? (
           <EmptyState
-            title={tab === "unread" ? "No unread items." : "Nothing marked read yet."}
-            description={
-              tab === "unread"
-                ? "Save useful search results or news sources and they will wait here."
-                : "Mark items as read when they are done but still worth keeping nearby."
-            }
+            title={emptyCopy[tab].title}
+            description={emptyCopy[tab].description}
           />
         ) : (
           <ul className="space-y-3">
@@ -137,26 +152,41 @@ export default function ReadLaterModule({
                 )}
 
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <ActionButton
-                    onClick={() => onMarkRead(item.id, item.status === "read" ? "unread" : "read")}
-                    variant="secondary"
-                    className="min-h-8 px-2.5 py-1.5 text-xs"
-                  >
-                    {item.status === "read" ? (
-                      <Circle className="h-4 w-4" />
-                    ) : (
-                      <CheckCircle2 className="h-4 w-4" />
-                    )}
-                    {item.status === "read" ? "Mark unread" : "Mark read"}
-                  </ActionButton>
-                  <ActionButton
-                    onClick={() => onArchive(item.id)}
-                    variant="danger"
-                    className="min-h-8 px-2.5 py-1.5 text-xs"
-                  >
-                    <Archive className="h-4 w-4" />
-                    Archive
-                  </ActionButton>
+                  {item.status === "archived" ? (
+                    <ActionButton
+                      onClick={() => onRestore(item.id)}
+                      variant="secondary"
+                      className="min-h-8 px-2.5 py-1.5 text-xs"
+                    >
+                      <RotateCcw className="h-4 w-4" />
+                      Restore
+                    </ActionButton>
+                  ) : (
+                    <>
+                      <ActionButton
+                        onClick={() =>
+                          onMarkRead(item.id, item.status === "read" ? "unread" : "read")
+                        }
+                        variant="secondary"
+                        className="min-h-8 px-2.5 py-1.5 text-xs"
+                      >
+                        {item.status === "read" ? (
+                          <Circle className="h-4 w-4" />
+                        ) : (
+                          <CheckCircle2 className="h-4 w-4" />
+                        )}
+                        {item.status === "read" ? "Mark unread" : "Mark read"}
+                      </ActionButton>
+                      <ActionButton
+                        onClick={() => onArchive(item.id)}
+                        variant="danger"
+                        className="min-h-8 px-2.5 py-1.5 text-xs"
+                      >
+                        <Archive className="h-4 w-4" />
+                        Archive
+                      </ActionButton>
+                    </>
+                  )}
                 </div>
               </li>
             ))}

@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseServer";
 import { authErrorResponse, requireCurrentHousehold } from "@/lib/auth/household";
 import { errorResponse } from "@/lib/api/errors";
@@ -12,16 +12,27 @@ interface SaveItemRequest {
 }
 
 const savedItemSelect = "id,title,url,description,score,source,status,household_id,created_at";
+const savedStatuses = new Set(["unread", "read", "archived"]);
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const { householdId } = await requireCurrentHousehold();
-    const { data, error } = await supabaseAdmin
+    const status = request.nextUrl.searchParams.get("status");
+    let query = supabaseAdmin
       .from("saved_items")
       .select(savedItemSelect)
       .eq("household_id", householdId)
-      .neq("status", "archived")
       .order("created_at", { ascending: false });
+
+    if (status && status !== "all" && savedStatuses.has(status)) {
+      query = query.eq("status", status);
+    } else if (status && status !== "all") {
+      return errorResponse("Invalid saved item status", "INVALID_INPUT", 400);
+    } else if (!status) {
+      query = query.neq("status", "archived");
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       return errorResponse(error.message, "INTERNAL_ERROR", 500);

@@ -5,11 +5,13 @@ import {
   type NewsFeedbackVote,
 } from "@/lib/db/newsFeedback";
 import { errorResponse } from "@/lib/api/errors";
+import { authErrorResponse, requireCurrentHousehold } from "@/lib/auth/household";
 
 const VALID_VOTES = new Set<NewsFeedbackVote>(["up", "down"]);
 
 export async function POST(req: Request) {
   try {
+    await requireCurrentHousehold();
     const body = await req.json();
     const storyId = typeof body.storyId === "string" ? body.storyId.trim() : "";
     const vote = body.vote as NewsFeedbackVote;
@@ -32,6 +34,9 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ feedback });
   } catch (error) {
+    const authResponse = authErrorResponse(error);
+    if (authResponse) return authResponse;
+
     if (error instanceof NewsFeedbackStorageNotReadyError) {
       return errorResponse(error.message, "FEEDBACK_STORAGE_NOT_READY", 503);
     }

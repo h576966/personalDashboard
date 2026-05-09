@@ -136,14 +136,14 @@ export default function NewsSourcesPanel({ onChanged }: NewsSourcesPanelProps) {
           </p>
         </div>
 
-        {sources.length === 0 && !isLoading && (
+        {!isLoading && (
           <button
             type="button"
             onClick={seedSources}
             disabled={isSeeding}
             className="shrink-0 rounded-md border border-primary bg-white px-3 py-1.5 text-xs font-medium text-primary hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60 dark:bg-zinc-800"
           >
-            {isSeeding ? "Seeding..." : "Seed defaults"}
+            {isSeeding ? "Syncing..." : sources.length === 0 ? "Seed defaults" : "Sync defaults"}
           </button>
         )}
       </div>

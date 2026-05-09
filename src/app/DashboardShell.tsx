@@ -68,7 +68,7 @@ export default function DashboardShell({ userEmail }: DashboardShellProps) {
   const [notice, setNotice] = useState<string | null>(null);
 
   const savedUrls = useMemo(
-    () => new Set(savedItems.map((item) => item.url)),
+    () => new Set(savedItems.filter((item) => item.status !== "archived").map((item) => item.url)),
     [savedItems],
   );
 
@@ -79,7 +79,7 @@ export default function DashboardShell({ userEmail }: DashboardShellProps) {
     setSavedError(null);
 
     try {
-      const res = await fetch("/api/saved");
+      const res = await fetch("/api/saved?status=all");
       const data = await res.json();
 
       if (!res.ok) {
@@ -128,7 +128,15 @@ export default function DashboardShell({ userEmail }: DashboardShellProps) {
   }
 
   async function saveItem(item: SearchResult): Promise<boolean> {
-    if (savedUrls.has(item.url)) {
+    const existing = savedItems.find((saved) => saved.url === item.url);
+
+    if (existing?.status === "archived") {
+      await updateSavedStatus(existing.id, "unread");
+      showNotice("Restored to Read Later");
+      return true;
+    }
+
+    if (existing || savedUrls.has(item.url)) {
       showNotice("Already in Read Later");
       return true;
     }
@@ -167,13 +175,7 @@ export default function DashboardShell({ userEmail }: DashboardShellProps) {
       return;
     }
 
-    setSavedItems((prev) => {
-      if (status === "archived") {
-        return prev.filter((item) => item.id !== id);
-      }
-
-      return prev.map((item) => (item.id === id ? data.item : item));
-    });
+    setSavedItems((prev) => prev.map((item) => (item.id === id ? data.item : item)));
   }
 
   async function createNote(note: { title: string; content: string }) {
@@ -457,6 +459,7 @@ export default function DashboardShell({ userEmail }: DashboardShellProps) {
               error={savedError}
               onMarkRead={(id, status) => updateSavedStatus(id, status)}
               onArchive={(id) => updateSavedStatus(id, "archived")}
+              onRestore={(id) => updateSavedStatus(id, "unread")}
             />
           )}
         </main>

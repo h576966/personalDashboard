@@ -13,6 +13,8 @@ interface BriefingPreferences {
   preferred_sources: string[];
   blocked_sources: string[];
   prefer_global_source_mix: boolean;
+  regional_focus: "nordic" | "norway" | "sweden" | "global";
+  summary_language: "en" | "no" | "sv";
 }
 
 interface ApiErrorBody {
@@ -49,6 +51,8 @@ export default function BriefingPreferencesPanel({ onClose, onSaved }: BriefingP
   const [preferredSources, setPreferredSources] = useState("");
   const [blockedSources, setBlockedSources] = useState("");
   const [preferGlobalSourceMix, setPreferGlobalSourceMix] = useState(true);
+  const [regionalFocus, setRegionalFocus] = useState<BriefingPreferences["regional_focus"]>("nordic");
+  const [summaryLanguage, setSummaryLanguage] = useState<BriefingPreferences["summary_language"]>("en");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -69,6 +73,8 @@ export default function BriefingPreferencesPanel({ onClose, onSaved }: BriefingP
         setPreferredSources(listToText(data.preferred_sources ?? []));
         setBlockedSources(listToText(data.blocked_sources ?? []));
         setPreferGlobalSourceMix(Boolean(data.prefer_global_source_mix));
+        setRegionalFocus(data.regional_focus ?? "nordic");
+        setSummaryLanguage(data.summary_language ?? "en");
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load preferences");
       } finally {
@@ -92,6 +98,8 @@ export default function BriefingPreferencesPanel({ onClose, onSaved }: BriefingP
           preferred_sources: parseList(preferredSources),
           blocked_sources: parseList(blockedSources),
           prefer_global_source_mix: preferGlobalSourceMix,
+          regional_focus: regionalFocus,
+          summary_language: summaryLanguage,
         }),
       });
       const data = await res.json();
@@ -141,6 +149,43 @@ export default function BriefingPreferencesPanel({ onClose, onSaved }: BriefingP
           <NewsSourcesPanel onChanged={onSaved} />
           <MutedTopicsPanel onChanged={onSaved} />
           <WatchTopicsPanel onChanged={onSaved} />
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block">
+              <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                Regional focus
+              </span>
+              <select
+                value={regionalFocus}
+                onChange={(event) =>
+                  setRegionalFocus(event.target.value as BriefingPreferences["regional_focus"])
+                }
+                className="mt-1 w-full rounded-md border border-zinc-300 bg-white p-2 text-sm text-zinc-900 outline-none focus:border-primary dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+              >
+                <option value="nordic">Norway + Sweden</option>
+                <option value="norway">Norway</option>
+                <option value="sweden">Sweden</option>
+                <option value="global">Global</option>
+              </select>
+            </label>
+
+            <label className="block">
+              <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                Summary language
+              </span>
+              <select
+                value={summaryLanguage}
+                onChange={(event) =>
+                  setSummaryLanguage(event.target.value as BriefingPreferences["summary_language"])
+                }
+                className="mt-1 w-full rounded-md border border-zinc-300 bg-white p-2 text-sm text-zinc-900 outline-none focus:border-primary dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+              >
+                <option value="en">English</option>
+                <option value="no">Norwegian</option>
+                <option value="sv">Swedish</option>
+              </select>
+            </label>
+          </div>
 
           <label className="block">
             <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
