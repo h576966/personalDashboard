@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseServer";
 import { errorResponse } from "@/lib/api/errors";
+import { getDefaultHouseholdId } from "@/lib/db/households";
 
 interface NoteRequest {
   title?: string;
@@ -8,19 +9,26 @@ interface NoteRequest {
   source_url?: string | null;
 }
 
-const noteSelect = "id,title,content,source_url,created_at,updated_at";
+const noteSelect = "id,title,content,source_url,household_id,created_at,updated_at";
 
 export async function GET() {
-  const { data, error } = await supabaseAdmin
-    .from("notes")
-    .select(noteSelect)
-    .order("updated_at", { ascending: false });
+  try {
+    const householdId = await getDefaultHouseholdId();
+    const { data, error } = await supabaseAdmin
+      .from("notes")
+      .select(noteSelect)
+      .eq("household_id", householdId)
+      .order("updated_at", { ascending: false });
 
-  if (error) {
-    return errorResponse(error.message, "INTERNAL_ERROR", 500);
+    if (error) {
+      return errorResponse(error.message, "INTERNAL_ERROR", 500);
+    }
+
+    return NextResponse.json({ notes: data ?? [] });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to load notes";
+    return errorResponse(message, "INTERNAL_ERROR", 500);
   }
-
-  return NextResponse.json({ notes: data ?? [] });
 }
 
 export async function POST(req: Request) {
@@ -31,19 +39,26 @@ export async function POST(req: Request) {
     return errorResponse("title is required", "INVALID_INPUT", 400);
   }
 
-  const { data, error } = await supabaseAdmin
-    .from("notes")
-    .insert({
-      title,
-      content: body.content ?? "",
-      source_url: body.source_url ?? null,
-    })
-    .select(noteSelect)
-    .single();
+  try {
+    const householdId = await getDefaultHouseholdId();
+    const { data, error } = await supabaseAdmin
+      .from("notes")
+      .insert({
+        household_id: householdId,
+        title,
+        content: body.content ?? "",
+        source_url: body.source_url ?? null,
+      })
+      .select(noteSelect)
+      .single();
 
-  if (error) {
-    return errorResponse(error.message, "INTERNAL_ERROR", 500);
+    if (error) {
+      return errorResponse(error.message, "INTERNAL_ERROR", 500);
+    }
+
+    return NextResponse.json({ note: data });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to create note";
+    return errorResponse(message, "INTERNAL_ERROR", 500);
   }
-
-  return NextResponse.json({ note: data });
 }

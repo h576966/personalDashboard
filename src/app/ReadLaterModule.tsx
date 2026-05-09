@@ -1,27 +1,35 @@
 "use client";
 
-interface SavedItem {
+interface ReadLaterItem {
   id: string;
   title: string;
   url: string;
   description: string;
   score?: number;
+  status: "unread" | "read" | "archived";
 }
 
-interface SavedModuleProps {
-  items: SavedItem[];
+interface ReadLaterModuleProps {
+  items: ReadLaterItem[];
   isLoading: boolean;
   error?: string | null;
-  onRemove: (id: string) => void | Promise<void>;
+  onMarkRead: (id: string, status: "unread" | "read") => void | Promise<void>;
+  onArchive: (id: string) => void | Promise<void>;
 }
 
-export default function SavedModule({ items, isLoading, error, onRemove }: SavedModuleProps) {
+export default function ReadLaterModule({
+  items,
+  isLoading,
+  error,
+  onMarkRead,
+  onArchive,
+}: ReadLaterModuleProps) {
   return (
     <div className="rounded-md border border-zinc-200 bg-white shadow-sm dark:border-zinc-700 dark:bg-zinc-800">
       <div className="border-b border-zinc-200 px-4 py-3 dark:border-zinc-700">
-        <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Saved</p>
+        <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Read Later</p>
         <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-          Links saved from search results.
+          Search results saved for later reading.
         </p>
       </div>
 
@@ -36,7 +44,7 @@ export default function SavedModule({ items, isLoading, error, onRemove }: Saved
           <p className="text-sm text-zinc-500">Loading...</p>
         ) : items.length === 0 ? (
           <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            No saved items yet. Save results from search to keep them here.
+            Nothing saved yet. Save useful search results to build a reading queue.
           </p>
         ) : (
           <ul className="space-y-4">
@@ -54,13 +62,9 @@ export default function SavedModule({ items, isLoading, error, onRemove }: Saved
                   >
                     {item.title}
                   </a>
-                  <button
-                    type="button"
-                    onClick={() => onRemove(item.id)}
-                    className="shrink-0 text-xs font-medium text-zinc-400 hover:text-red-600"
-                  >
-                    Remove
-                  </button>
+                  <span className="shrink-0 rounded-md bg-zinc-100 px-2 py-1 text-xs font-medium capitalize text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300">
+                    {item.status}
+                  </span>
                 </div>
                 <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
                   {item.description}
@@ -68,6 +72,22 @@ export default function SavedModule({ items, isLoading, error, onRemove }: Saved
                 <p className="mt-1 truncate text-xs text-zinc-400 dark:text-zinc-500">
                   {item.url}
                 </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onMarkRead(item.id, item.status === "read" ? "unread" : "read")}
+                    className="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium text-zinc-600 transition-colors hover:border-primary hover:text-primary dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+                  >
+                    {item.status === "read" ? "Mark unread" : "Mark read"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onArchive(item.id)}
+                    className="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium text-zinc-600 transition-colors hover:border-red-500 hover:text-red-600 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+                  >
+                    Archive
+                  </button>
+                </div>
               </li>
             ))}
           </ul>

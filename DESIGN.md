@@ -19,8 +19,8 @@
 
 ## Layout Conventions
 
-- Page containers: `max-w-3xl mx-auto px-4 py-12` with `flex flex-col` and `gap-6`/`gap-8`.
-- Nav bar: `h-12`, `border-b`, `max-w-5xl mx-auto px-4`, flex layout with links on the right.
+- Dashboard shell: top search with a `max-w-7xl` two-column workspace and a module sidebar.
+- Main workspace: roughly 70% width on desktop, stacked below the module rail on mobile.
 - Card surfaces: `rounded-md border border-zinc-200 bg-white p-4 shadow-sm
   dark:border-zinc-700 dark:bg-zinc-800`.
 - Section headings: `text-xs font-semibold uppercase tracking-wider text-zinc-500
@@ -37,8 +37,7 @@ the active focus area within the same workspace view.
 
 ### Default State
 
-- Show the most useful **daily overview**.
-- News Briefing is the default focus until a Family Today (combined schedule + tasks + notes) view exists.
+- Show **Lists** first because shared household lists are the highest-frequency workflow.
 - The user should see value immediately without clicking anything.
 
 ### Interaction States
@@ -64,8 +63,8 @@ Assume a non-technical family member is the primary user. They should be able to
 - Read the briefing
 - Add a topic
 - Add a note
-- Check the schedule
-- Add a task
+- Add a list item
+- Save something to read later
 
 **Without understanding:** search operators, APIs, scoring thresholds, AI behavior, or any
 system internals.

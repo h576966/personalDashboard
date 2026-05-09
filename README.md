@@ -19,8 +19,13 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 Results are filtered for quality, scored by term matching, and optionally summarized by DeepSeek AI
 with follow-up suggestions.
 
-**Family Today:** A shared daily view for schedule items and open tasks, with quick add,
-edit, complete, and delete actions.
+**Lists:** Shared household lists for groceries, errands, and to-dos. Existing task rows are
+migrated into a default `To-do` list by migration `005`.
+
+**Notes:** Freeform shared notes for drafts, reminders, and household reference material.
+
+**Read Later:** Search results can be saved into a household reading queue, then marked read
+or archived.
 
 **News Briefing:** Curated news aggregation from configurable topics, trusted sources,
 muted topics, watch topics, and feedback. Today's generated story cards are cached in
@@ -31,7 +36,7 @@ Supabase so normal page loads do not rebuild Brave and DeepSeek results.
 - **Main Workspace (≈70%)** where active content is rendered
 - **Module Sidebar (≈30%)** for navigation between modules
 
-Search results temporarily override the main workspace, while modules (e.g. News, Saved)
+Search results temporarily override the main workspace, while modules (e.g. News, Read Later)
 control the default content.
 
 ## Tech Stack
@@ -51,6 +56,7 @@ control the default content.
 - **Single dashboard shell** — One layout with a persistent module sidebar instead of page navigation.
 - **Workspace-driven UI** — The main area adapts based on user actions (search vs module selection).
 - **Minimal but extensible modules** — Modules are compact in the sidebar and expand into the main area.
+- **Shared household first** — One default household is used today, ready for login/member mapping later.
 - **Mobile-aware** — Sidebar collapses into a horizontal module rail on smaller screens.
 - **Precision over recall** — Quality filters and scoring prioritize useful results over volume.
 - **Deterministic before AI** — Core functionality works without AI. AI enhances results
@@ -65,9 +71,14 @@ SQL Editor, then record them in `schema_migrations`:
 
 ```sql
 INSERT INTO public.schema_migrations (version)
-VALUES ('004_app_schema_backfill')
+VALUES ('006_drop_legacy_schedule_tasks')
 ON CONFLICT (version) DO NOTHING;
 ```
+
+Legacy schedule/task tables were replaced by household-scoped lists in migration `005` and dropped
+in migration `006`. Prefer hiding or removing unused code first, then only drop tables after a
+read-only audit confirms row counts, dependencies, and backup status. Use
+`docs/supabase_cleanup_audit.sql` for the read-only database audit.
 
 ## Directory Structure
 

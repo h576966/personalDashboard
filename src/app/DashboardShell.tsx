@@ -1,11 +1,11 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import FamilyTodayModule from "./FamilyTodayModule";
+import ListsModule from "./ListsModule";
 import NewsBriefingModule from "./NewsBriefingModule";
 import NotesModule from "./NotesModule";
+import ReadLaterModule from "./ReadLaterModule";
 import SearchModule from "./SearchModule";
-import SavedModule from "./SavedModule";
 import { normalizeParam } from "@/lib/utils";
 import { dashboardModules, type ActiveModule } from "./modules";
 
@@ -19,6 +19,7 @@ interface SearchResult {
 interface SavedItem extends SearchResult {
   id: string;
   source?: string;
+  status: "unread" | "read" | "archived";
   created_at?: string;
 }
 
@@ -39,7 +40,7 @@ interface SearchData {
 }
 
 export default function DashboardShell() {
-  const [activeModule, setActiveModule] = useState<ActiveModule>("family");
+  const [activeModule, setActiveModule] = useState<ActiveModule>("lists");
 
   const [query, setQuery] = useState("");
   const [freshness, setFreshness] = useState("");
@@ -136,16 +137,26 @@ export default function DashboardShell() {
     setHasLoadedSaved(true);
   }
 
-  async function removeItem(id: string) {
-    const res = await fetch(`/api/saved/${id}`, { method: "DELETE" });
+  async function updateSavedStatus(id: string, status: "unread" | "read" | "archived") {
+    const res = await fetch(`/api/saved/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
     const data = await res.json();
 
     if (!res.ok) {
-      setSavedError(data.error?.message ?? "Failed to remove item");
+      setSavedError(data.error?.message ?? "Failed to update saved item");
       return;
     }
 
-    setSavedItems((prev) => prev.filter((item) => item.id !== id));
+    setSavedItems((prev) => {
+      if (status === "archived") {
+        return prev.filter((item) => item.id !== id);
+      }
+
+      return prev.map((item) => (item.id === id ? data.item : item));
+    });
   }
 
   async function createNote(note: { title: string; content: string }) {
@@ -236,7 +247,7 @@ export default function DashboardShell() {
     setSearchData(null);
     setSearchError(null);
 
-    if (module === "saved") {
+    if (module === "readLater") {
       loadSavedItems();
     }
 
@@ -354,7 +365,7 @@ export default function DashboardShell() {
                               disabled={alreadySaved}
                               className="rounded-md border border-zinc-300 bg-white px-3 py-1 text-xs font-medium text-zinc-600 transition-colors hover:border-primary hover:text-primary disabled:cursor-default disabled:border-zinc-200 disabled:text-zinc-400 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
                             >
-                              {alreadySaved ? "Saved" : "Save"}
+                              {alreadySaved ? "Read later" : "Save"}
                             </button>
                           </div>
                         </div>
@@ -372,8 +383,8 @@ export default function DashboardShell() {
             </div>
           )}
 
-          {!isSearching && !searchData && !searchError && activeModule === "family" && (
-            <FamilyTodayModule />
+          {!isSearching && !searchData && !searchError && activeModule === "lists" && (
+            <ListsModule />
           )}
 
           {!isSearching && !searchData && !searchError && activeModule === "news" && (
@@ -391,12 +402,13 @@ export default function DashboardShell() {
             />
           )}
 
-          {!isSearching && !searchData && !searchError && activeModule === "saved" && (
-            <SavedModule
+          {!isSearching && !searchData && !searchError && activeModule === "readLater" && (
+            <ReadLaterModule
               items={savedItems}
               isLoading={isLoadingSaved}
               error={savedError}
-              onRemove={removeItem}
+              onMarkRead={(id, status) => updateSavedStatus(id, status)}
+              onArchive={(id) => updateSavedStatus(id, "archived")}
             />
           )}
         </main>

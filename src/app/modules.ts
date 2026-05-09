@@ -1,6 +1,6 @@
-import { Bookmark, CalendarCheck, Newspaper, NotebookPen, type LucideIcon } from "lucide-react";
+import { BookMarked, ListChecks, Newspaper, NotebookPen, type LucideIcon } from "lucide-react";
 
-export type ActiveModule = "family" | "notes" | "news" | "saved";
+export type ActiveModule = "lists" | "notes" | "news" | "readLater";
 
 export interface DashboardModule {
   id: ActiveModule;
@@ -11,10 +11,10 @@ export interface DashboardModule {
 
 export const dashboardModules: DashboardModule[] = [
   {
-    id: "family",
-    title: "Family Today",
-    description: "Schedule and tasks",
-    icon: CalendarCheck,
+    id: "lists",
+    title: "Lists",
+    description: "Shared household lists",
+    icon: ListChecks,
   },
   {
     id: "notes",
@@ -29,9 +29,9 @@ export const dashboardModules: DashboardModule[] = [
     icon: Newspaper,
   },
   {
-    id: "saved",
-    title: "Saved",
-    description: "Saved items and links",
-    icon: Bookmark,
+    id: "readLater",
+    title: "Read Later",
+    description: "Saved articles and links",
+    icon: BookMarked,
   },
 ];
