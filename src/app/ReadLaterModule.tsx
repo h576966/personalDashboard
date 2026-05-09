@@ -1,11 +1,25 @@
 "use client";
 
+import { useMemo, useState } from "react";
+import { Archive, CheckCircle2, Circle, ExternalLink } from "lucide-react";
+import {
+  ActionButton,
+  EmptyState,
+  InlineNotice,
+  LoadingRow,
+  ModuleCard,
+  ModuleHeader,
+  SegmentedControl,
+} from "./components/ModuleChrome";
+
 interface ReadLaterItem {
   id: string;
   title: string;
   url: string;
   description: string;
   score?: number;
+  source?: string;
+  created_at?: string;
   status: "unread" | "read" | "archived";
 }
 
@@ -17,6 +31,31 @@ interface ReadLaterModuleProps {
   onArchive: (id: string) => void | Promise<void>;
 }
 
+type ReadLaterTab = "unread" | "read";
+
+function sourceLabel(item: ReadLaterItem): string {
+  if (item.source && item.source !== "search" && item.source !== "news") return item.source;
+
+  try {
+    return new URL(item.url).hostname.replace(/^www\./, "");
+  } catch {
+    return item.source ?? "Saved";
+  }
+}
+
+function savedDate(value?: string): string {
+  if (!value) return "";
+
+  try {
+    return new Intl.DateTimeFormat(undefined, {
+      month: "short",
+      day: "numeric",
+    }).format(new Date(value));
+  } catch {
+    return "";
+  }
+}
+
 export default function ReadLaterModule({
   items,
   isLoading,
@@ -24,75 +63,106 @@ export default function ReadLaterModule({
   onMarkRead,
   onArchive,
 }: ReadLaterModuleProps) {
+  const [tab, setTab] = useState<ReadLaterTab>("unread");
+  const unreadItems = useMemo(() => items.filter((item) => item.status === "unread"), [items]);
+  const readItems = useMemo(() => items.filter((item) => item.status === "read"), [items]);
+  const visibleItems = tab === "unread" ? unreadItems : readItems;
+
   return (
-    <div className="rounded-md border border-zinc-200 bg-white shadow-sm dark:border-zinc-700 dark:bg-zinc-800">
-      <div className="border-b border-zinc-200 px-4 py-3 dark:border-zinc-700">
-        <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Read Later</p>
-        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-          Search results saved for later reading.
-        </p>
-      </div>
+    <ModuleCard>
+      <ModuleHeader
+        title="Read Later"
+        description="A small queue for articles and search results worth coming back to."
+        action={
+          <SegmentedControl
+            value={tab}
+            onChange={setTab}
+            options={[
+              { value: "unread", label: "Unread", count: unreadItems.length },
+              { value: "read", label: "Read", count: readItems.length },
+            ]}
+          />
+        }
+      />
 
       <div className="p-4">
-        {error && (
-          <div className="mb-4 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-700 dark:bg-red-900/20 dark:text-red-400">
-            {error}
-          </div>
-        )}
+        {error && <InlineNotice tone="error" className="mb-4">{error}</InlineNotice>}
 
         {isLoading ? (
-          <p className="text-sm text-zinc-500">Loading...</p>
-        ) : items.length === 0 ? (
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            Nothing saved yet. Save useful search results to build a reading queue.
-          </p>
+          <LoadingRow label="Loading saved items..." />
+        ) : visibleItems.length === 0 ? (
+          <EmptyState
+            title={tab === "unread" ? "No unread items." : "Nothing marked read yet."}
+            description={
+              tab === "unread"
+                ? "Save useful search results or news sources and they will wait here."
+                : "Mark items as read when they are done but still worth keeping nearby."
+            }
+          />
         ) : (
-          <ul className="space-y-4">
-            {items.map((item) => (
+          <ul className="space-y-3">
+            {visibleItems.map((item) => (
               <li
                 key={item.id}
                 className="rounded-md border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-700 dark:bg-zinc-900"
               >
                 <div className="flex items-start justify-between gap-3">
-                  <a
-                    href={item.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-base font-medium text-zinc-900 hover:text-primary dark:text-zinc-100 dark:hover:text-secondary"
-                  >
-                    {item.title}
-                  </a>
+                  <div className="min-w-0">
+                    <a
+                      href={item.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-start gap-1.5 text-base font-medium leading-snug text-zinc-900 hover:text-primary dark:text-zinc-100 dark:hover:text-secondary"
+                    >
+                      <span>{item.title}</span>
+                      <ExternalLink className="mt-0.5 h-3.5 w-3.5 shrink-0 text-zinc-400" />
+                    </a>
+                    <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-zinc-400">
+                      <span>{sourceLabel(item)}</span>
+                      {savedDate(item.created_at) && <span>{savedDate(item.created_at)}</span>}
+                      {item.source && item.source !== "search" && (
+                        <span className="capitalize">{item.source}</span>
+                      )}
+                    </div>
+                  </div>
                   <span className="shrink-0 rounded-md bg-zinc-100 px-2 py-1 text-xs font-medium capitalize text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300">
                     {item.status}
                   </span>
                 </div>
-                <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-                  {item.description}
-                </p>
-                <p className="mt-1 truncate text-xs text-zinc-400 dark:text-zinc-500">
-                  {item.url}
-                </p>
+
+                {item.description && (
+                  <p className="mt-2 text-sm leading-6 text-zinc-500 dark:text-zinc-400">
+                    {item.description}
+                  </p>
+                )}
+
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <button
-                    type="button"
+                  <ActionButton
                     onClick={() => onMarkRead(item.id, item.status === "read" ? "unread" : "read")}
-                    className="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium text-zinc-600 transition-colors hover:border-primary hover:text-primary dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+                    variant="secondary"
+                    className="min-h-8 px-2.5 py-1.5 text-xs"
                   >
+                    {item.status === "read" ? (
+                      <Circle className="h-4 w-4" />
+                    ) : (
+                      <CheckCircle2 className="h-4 w-4" />
+                    )}
                     {item.status === "read" ? "Mark unread" : "Mark read"}
-                  </button>
-                  <button
-                    type="button"
+                  </ActionButton>
+                  <ActionButton
                     onClick={() => onArchive(item.id)}
-                    className="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium text-zinc-600 transition-colors hover:border-red-500 hover:text-red-600 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+                    variant="danger"
+                    className="min-h-8 px-2.5 py-1.5 text-xs"
                   >
+                    <Archive className="h-4 w-4" />
                     Archive
-                  </button>
+                  </ActionButton>
                 </div>
               </li>
             ))}
           </ul>
         )}
       </div>
-    </div>
+    </ModuleCard>
   );
 }

@@ -8,6 +8,7 @@ interface SaveItemRequest {
   url?: string;
   description?: string;
   score?: number;
+  source?: string;
 }
 
 const savedItemSelect = "id,title,url,description,score,source,status,household_id,created_at";
@@ -54,7 +55,7 @@ export async function POST(req: Request) {
           url: body.url,
           description: body.description ?? "",
           score: body.score ?? null,
-          source: "search",
+          source: typeof body.source === "string" && body.source.trim() ? body.source.trim() : "search",
           status: "unread",
         },
         { onConflict: "url" },

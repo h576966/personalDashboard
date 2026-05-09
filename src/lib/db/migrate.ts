@@ -8,7 +8,7 @@
  * connection string constructed from the project URL.
  *
  * Usage:
- *   1. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in .env.local
+ *   1. Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in .env.local
  *   2. npx tsx src/lib/db/migrate.ts
  *
  * Note: The service role key can be used with the Supabase REST API

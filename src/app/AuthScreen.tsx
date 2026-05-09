@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { ActionButton, InlineNotice } from "./components/ModuleChrome";
 import { createClient } from "@/lib/supabase/client";
 
 interface AuthScreenProps {
@@ -12,11 +13,14 @@ export default function AuthScreen({ deniedEmail, initialMessage }: AuthScreenPr
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "sent" | "error">("idle");
   const [message, setMessage] = useState(initialMessage ?? "");
+  const isAuthConfigured = Boolean(
+    process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+  );
 
   async function signIn(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const trimmedEmail = email.trim();
-    if (!trimmedEmail) return;
+    if (!trimmedEmail || !isAuthConfigured) return;
 
     setStatus("loading");
     setMessage("");
@@ -59,6 +63,13 @@ export default function AuthScreen({ deniedEmail, initialMessage }: AuthScreenPr
           Enter an allowlisted household email and we will send a one-time sign-in link.
         </p>
 
+        {!isAuthConfigured && (
+          <InlineNotice tone="warning" className="mt-4">
+            Supabase Auth needs the public URL and publishable key in `.env.local`, then a dev
+            server restart.
+          </InlineNotice>
+        )}
+
         {deniedEmail && (
           <div className="mt-4 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-700 dark:bg-red-900/20 dark:text-red-400">
             {deniedEmail} is not allowed for this household.
@@ -77,13 +88,14 @@ export default function AuthScreen({ deniedEmail, initialMessage }: AuthScreenPr
             placeholder="you@example.com"
             className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none transition-colors focus:border-primary dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
           />
-          <button
+          <ActionButton
             type="submit"
-            disabled={status === "loading"}
-            className="w-full rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary-hover disabled:cursor-wait disabled:opacity-70"
+            disabled={status === "loading" || !isAuthConfigured}
+            variant="primary"
+            className="w-full"
           >
             {status === "loading" ? "Sending..." : "Send magic link"}
-          </button>
+          </ActionButton>
         </form>
 
         {message && (

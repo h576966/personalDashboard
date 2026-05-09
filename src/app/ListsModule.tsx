@@ -1,7 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import { Check, Pencil, Plus, Trash2 } from "lucide-react";
+import {
+  ActionButton,
+  EmptyState,
+  InlineNotice,
+  LoadingRow,
+  ModuleCard,
+  ModuleHeader,
+} from "./components/ModuleChrome";
+import { cn } from "@/lib/utils";
 
 interface ListItem {
   id: string;
@@ -24,12 +34,18 @@ export default function ListsModule() {
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editingLabel, setEditingLabel] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [isCreatingList, setIsCreatingList] = useState(false);
+  const [isCreatingItem, setIsCreatingItem] = useState(false);
+  const [pendingItemIds, setPendingItemIds] = useState<Set<string>>(new Set());
+  const [isClearingCompleted, setIsClearingCompleted] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const activeList = useMemo(
     () => lists.find((list) => list.id === activeListId) ?? lists[0],
     [activeListId, lists],
   );
+  const openItems = activeList?.items.filter((item) => !item.is_completed) ?? [];
+  const completedItems = activeList?.items.filter((item) => item.is_completed) ?? [];
 
   useEffect(() => {
     let isMounted = true;
@@ -66,9 +82,21 @@ export default function ListsModule() {
     };
   }, []);
 
+  function setItemPending(id: string, pending: boolean) {
+    setPendingItemIds((prev) => {
+      const next = new Set(prev);
+      if (pending) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
   async function createList() {
     const name = newListName.trim();
-    if (!name) return;
+    if (!name || isCreatingList) return;
+
+    setIsCreatingList(true);
+    setError(null);
 
     const res = await fetch("/api/lists", {
       method: "POST",
@@ -76,6 +104,8 @@ export default function ListsModule() {
       body: JSON.stringify({ name }),
     });
     const data = await res.json();
+
+    setIsCreatingList(false);
 
     if (!res.ok) {
       setError(data.error?.message ?? "Failed to create list");
@@ -88,10 +118,13 @@ export default function ListsModule() {
   }
 
   async function createItem() {
-    if (!activeList) return;
+    if (!activeList || isCreatingItem) return;
 
     const label = newItemLabel.trim();
     if (!label) return;
+
+    setIsCreatingItem(true);
+    setError(null);
 
     const res = await fetch(`/api/lists/${activeList.id}/items`, {
       method: "POST",
@@ -99,6 +132,8 @@ export default function ListsModule() {
       body: JSON.stringify({ label }),
     });
     const data = await res.json();
+
+    setIsCreatingItem(false);
 
     if (!res.ok) {
       setError(data.error?.message ?? "Failed to add item");
@@ -113,7 +148,15 @@ export default function ListsModule() {
     setNewItemLabel("");
   }
 
-  async function updateItem(item: ListItem, updates: Partial<Pick<ListItem, "label" | "is_completed">>) {
+  async function updateItem(
+    item: ListItem,
+    updates: Partial<Pick<ListItem, "label" | "is_completed">>,
+  ): Promise<boolean> {
+    if (pendingItemIds.has(item.id)) return false;
+
+    setItemPending(item.id, true);
+    setError(null);
+
     const res = await fetch(`/api/list-items/${item.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -121,9 +164,11 @@ export default function ListsModule() {
     });
     const data = await res.json();
 
+    setItemPending(item.id, false);
+
     if (!res.ok) {
       setError(data.error?.message ?? "Failed to update item");
-      return;
+      return false;
     }
 
     setLists((prev) =>
@@ -138,15 +183,23 @@ export default function ListsModule() {
           : list,
       ),
     );
+    return true;
   }
 
-  async function deleteItem(item: ListItem) {
+  async function deleteItem(item: ListItem): Promise<boolean> {
+    if (pendingItemIds.has(item.id)) return false;
+
+    setItemPending(item.id, true);
+    setError(null);
+
     const res = await fetch(`/api/list-items/${item.id}`, { method: "DELETE" });
     const data = await res.json();
 
+    setItemPending(item.id, false);
+
     if (!res.ok) {
       setError(data.error?.message ?? "Failed to delete item");
-      return;
+      return false;
     }
 
     setLists((prev) =>
@@ -156,6 +209,15 @@ export default function ListsModule() {
           : list,
       ),
     );
+    return true;
+  }
+
+  async function clearCompleted() {
+    if (completedItems.length === 0 || isClearingCompleted) return;
+
+    setIsClearingCompleted(true);
+    await Promise.all(completedItems.map((item) => deleteItem(item)));
+    setIsClearingCompleted(false);
   }
 
   function startEditing(item: ListItem) {
@@ -167,29 +229,25 @@ export default function ListsModule() {
     const label = editingLabel.trim();
     if (!label) return;
 
-    await updateItem(item, { label });
-    setEditingItemId(null);
-    setEditingLabel("");
+    const updated = await updateItem(item, { label });
+    if (updated) {
+      setEditingItemId(null);
+      setEditingLabel("");
+    }
   }
 
   return (
-    <div className="rounded-md border border-zinc-200 bg-white shadow-sm dark:border-zinc-700 dark:bg-zinc-800">
-      <div className="border-b border-zinc-200 px-4 py-3 dark:border-zinc-700">
-        <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Lists</p>
-        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-          Shared household lists for groceries, errands, and to-dos.
-        </p>
-      </div>
+    <ModuleCard>
+      <ModuleHeader
+        title="Lists"
+        description="Groceries, errands, and the small things that keep the household moving."
+      />
 
       <div className="space-y-4 p-4">
-        {error && (
-          <div className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-700 dark:bg-red-900/20 dark:text-red-400">
-            {error}
-          </div>
-        )}
+        {error && <InlineNotice tone="error">{error}</InlineNotice>}
 
         {isLoading ? (
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">Loading lists...</p>
+          <LoadingRow label="Loading lists..." />
         ) : (
           <>
             <div className="flex flex-wrap gap-2">
@@ -198,141 +256,236 @@ export default function ListsModule() {
                   key={list.id}
                   type="button"
                   onClick={() => setActiveListId(list.id)}
-                  className={
-                    "rounded-md border px-3 py-2 text-sm font-medium transition-colors " +
-                    (activeList?.id === list.id
+                  className={cn(
+                    "min-h-10 rounded-md border px-3 py-2 text-sm font-medium transition-colors",
+                    activeList?.id === list.id
                       ? "border-primary bg-primary-hover text-white"
-                      : "border-zinc-200 bg-white text-zinc-700 hover:border-primary hover:text-primary dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200")
-                  }
+                      : "border-zinc-200 bg-white text-zinc-700 hover:border-primary hover:text-primary dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200",
+                  )}
                 >
                   {list.name}
+                  <span className="ml-1 text-xs opacity-70">
+                    {list.items.filter((item) => !item.is_completed).length}
+                  </span>
                 </button>
               ))}
             </div>
 
-            <div className="flex gap-2">
+            <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
               <input
                 value={newListName}
                 onChange={(event) => setNewListName(event.target.value)}
                 onKeyDown={(event) => {
-                  if (event.key === "Enter") createList();
+                  if (event.key === "Enter") void createList();
                 }}
                 placeholder="New list"
-                className="min-w-0 flex-1 rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none transition-colors focus:border-primary dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
+                className="min-h-10 min-w-0 rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none transition-colors focus:border-primary dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
               />
-              <button
-                type="button"
-                onClick={createList}
-                className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-hover"
-              >
+              <ActionButton onClick={createList} disabled={isCreatingList}>
                 <Plus className="h-4 w-4" />
-                Add
-              </button>
+                {isCreatingList ? "Adding..." : "Add list"}
+              </ActionButton>
             </div>
 
             {activeList ? (
-              <div className="space-y-3">
-                <div className="flex gap-2">
+              <div className="space-y-4">
+                <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
                   <input
                     value={newItemLabel}
                     onChange={(event) => setNewItemLabel(event.target.value)}
                     onKeyDown={(event) => {
-                      if (event.key === "Enter") createItem();
+                      if (event.key === "Enter") void createItem();
                     }}
                     placeholder={`Add to ${activeList.name}`}
-                    className="min-w-0 flex-1 rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none transition-colors focus:border-primary dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
+                    className="min-h-11 min-w-0 rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none transition-colors focus:border-primary dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
                   />
-                  <button
-                    type="button"
-                    onClick={createItem}
-                    className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-hover"
-                  >
+                  <ActionButton onClick={createItem} disabled={isCreatingItem} variant="primary">
                     <Plus className="h-4 w-4" />
-                    Item
-                  </button>
+                    {isCreatingItem ? "Adding..." : "Add item"}
+                  </ActionButton>
                 </div>
 
-                {activeList.items.length === 0 ? (
-                  <p className="rounded-md border border-dashed border-zinc-300 p-4 text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
-                    Nothing here yet. Add the first item when something needs doing or buying.
-                  </p>
-                ) : (
-                  <ul className="divide-y divide-zinc-200 rounded-md border border-zinc-200 dark:divide-zinc-700 dark:border-zinc-700">
-                    {activeList.items.map((item) => (
-                      <li
-                        key={item.id}
-                        className="flex min-h-14 items-center gap-3 px-3 py-2 dark:bg-zinc-900"
+                <ItemSection
+                  title="Open"
+                  items={openItems}
+                  emptyTitle="Nothing open."
+                  emptyDescription="A rare and pleasant state. Add something when it appears."
+                  editingItemId={editingItemId}
+                  editingLabel={editingLabel}
+                  pendingItemIds={pendingItemIds}
+                  onEditingLabelChange={setEditingLabel}
+                  onStartEditing={startEditing}
+                  onSaveEditing={saveEditing}
+                  onCancelEditing={() => setEditingItemId(null)}
+                  onToggle={(item) => updateItem(item, { is_completed: true })}
+                  onDelete={deleteItem}
+                />
+
+                {completedItems.length > 0 && (
+                  <ItemSection
+                    title="Completed"
+                    items={completedItems}
+                    action={
+                      <ActionButton
+                        variant="ghost"
+                        onClick={clearCompleted}
+                        disabled={isClearingCompleted}
+                        className="min-h-8 px-2 py-1 text-xs"
                       >
-                        <button
-                          type="button"
-                          onClick={() =>
-                            updateItem(item, { is_completed: !item.is_completed })
-                          }
-                          className={
-                            "flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition-colors " +
-                            (item.is_completed
-                              ? "border-primary bg-primary text-white"
-                              : "border-zinc-300 text-transparent hover:border-primary dark:border-zinc-600")
-                          }
-                          aria-label={item.is_completed ? "Mark incomplete" : "Mark complete"}
-                        >
-                          <Check className="h-4 w-4" />
-                        </button>
-
-                        {editingItemId === item.id ? (
-                          <input
-                            value={editingLabel}
-                            onChange={(event) => setEditingLabel(event.target.value)}
-                            onBlur={() => saveEditing(item)}
-                            onKeyDown={(event) => {
-                              if (event.key === "Enter") saveEditing(item);
-                              if (event.key === "Escape") setEditingItemId(null);
-                            }}
-                            autoFocus
-                            className="min-w-0 flex-1 rounded-md border border-zinc-300 bg-white px-2 py-1 text-sm text-zinc-900 outline-none focus:border-primary dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
-                          />
-                        ) : (
-                          <span
-                            className={
-                              "min-w-0 flex-1 text-sm " +
-                              (item.is_completed
-                                ? "text-zinc-400 line-through"
-                                : "text-zinc-800 dark:text-zinc-100")
-                            }
-                          >
-                            {item.label}
-                          </span>
-                        )}
-
-                        <button
-                          type="button"
-                          onClick={() => startEditing(item)}
-                          className="rounded-md p-2 text-zinc-400 hover:bg-zinc-100 hover:text-primary dark:hover:bg-zinc-800"
-                          aria-label="Edit item"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => deleteItem(item)}
-                          className="rounded-md p-2 text-zinc-400 hover:bg-zinc-100 hover:text-red-600 dark:hover:bg-zinc-800"
-                          aria-label="Delete item"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
+                        {isClearingCompleted ? "Clearing..." : "Clear completed"}
+                      </ActionButton>
+                    }
+                    editingItemId={editingItemId}
+                    editingLabel={editingLabel}
+                    pendingItemIds={pendingItemIds}
+                    muted
+                    onEditingLabelChange={setEditingLabel}
+                    onStartEditing={startEditing}
+                    onSaveEditing={saveEditing}
+                    onCancelEditing={() => setEditingItemId(null)}
+                    onToggle={(item) => updateItem(item, { is_completed: false })}
+                    onDelete={deleteItem}
+                  />
                 )}
               </div>
             ) : (
-              <p className="rounded-md border border-dashed border-zinc-300 p-4 text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
-                Create a list to start sharing household items.
-              </p>
+              <EmptyState
+                title="Create a list to begin."
+                description="Shopping and To-do are good first lists for a shared home."
+              />
             )}
           </>
         )}
       </div>
+    </ModuleCard>
+  );
+}
+
+function ItemSection({
+  title,
+  items,
+  action,
+  muted = false,
+  emptyTitle,
+  emptyDescription,
+  editingItemId,
+  editingLabel,
+  pendingItemIds,
+  onEditingLabelChange,
+  onStartEditing,
+  onSaveEditing,
+  onCancelEditing,
+  onToggle,
+  onDelete,
+}: {
+  title: string;
+  items: ListItem[];
+  action?: ReactNode;
+  muted?: boolean;
+  emptyTitle?: string;
+  emptyDescription?: string;
+  editingItemId: string | null;
+  editingLabel: string;
+  pendingItemIds: Set<string>;
+  onEditingLabelChange: (value: string) => void;
+  onStartEditing: (item: ListItem) => void;
+  onSaveEditing: (item: ListItem) => void | Promise<void>;
+  onCancelEditing: () => void;
+  onToggle: (item: ListItem) => void | Promise<unknown>;
+  onDelete: (item: ListItem) => void | Promise<unknown>;
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex min-h-8 items-center justify-between gap-3">
+        <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+          {title}
+          <span className="ml-1 text-zinc-400">{items.length}</span>
+        </p>
+        {action}
+      </div>
+
+      {items.length === 0 ? (
+        <EmptyState title={emptyTitle ?? "Nothing here."} description={emptyDescription} />
+      ) : (
+        <ul className="divide-y divide-zinc-200 rounded-md border border-zinc-200 dark:divide-zinc-700 dark:border-zinc-700">
+          {items.map((item) => {
+            const pending = pendingItemIds.has(item.id);
+
+            return (
+              <li
+                key={item.id}
+                className={cn(
+                  "flex min-h-14 items-center gap-3 px-3 py-2 dark:bg-zinc-900",
+                  muted && "bg-zinc-50/50 dark:bg-zinc-900/70",
+                  pending && "opacity-60",
+                )}
+              >
+                <button
+                  type="button"
+                  onClick={() => onToggle(item)}
+                  disabled={pending}
+                  className={cn(
+                    "flex h-7 w-7 shrink-0 items-center justify-center rounded-md border transition-colors disabled:cursor-wait",
+                    item.is_completed
+                      ? "border-primary bg-primary text-white"
+                      : "border-zinc-300 text-transparent hover:border-primary dark:border-zinc-600",
+                  )}
+                  aria-label={item.is_completed ? "Mark incomplete" : "Mark complete"}
+                >
+                  <Check className="h-4 w-4" />
+                </button>
+
+                {editingItemId === item.id ? (
+                  <input
+                    value={editingLabel}
+                    onChange={(event) => onEditingLabelChange(event.target.value)}
+                    onBlur={() => onSaveEditing(item)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") void onSaveEditing(item);
+                      if (event.key === "Escape") onCancelEditing();
+                    }}
+                    autoFocus
+                    disabled={pending}
+                    className="min-h-9 min-w-0 flex-1 rounded-md border border-zinc-300 bg-white px-2 py-1 text-sm text-zinc-900 outline-none focus:border-primary disabled:opacity-60 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+                  />
+                ) : (
+                  <span
+                    className={cn(
+                      "min-w-0 flex-1 text-sm",
+                      item.is_completed
+                        ? "text-zinc-400 line-through"
+                        : "text-zinc-800 dark:text-zinc-100",
+                    )}
+                  >
+                    {item.label}
+                  </span>
+                )}
+
+                <div className="flex shrink-0 items-center gap-1">
+                  <ActionButton
+                    variant="ghost"
+                    onClick={() => onStartEditing(item)}
+                    disabled={pending}
+                    className="min-h-9 w-9 px-0"
+                    aria-label="Edit item"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </ActionButton>
+                  <ActionButton
+                    variant="ghost"
+                    onClick={() => onDelete(item)}
+                    disabled={pending}
+                    className="min-h-9 w-9 px-0 hover:text-red-600"
+                    aria-label="Delete item"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </ActionButton>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }

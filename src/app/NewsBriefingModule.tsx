@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { ThumbsDown, ThumbsUp } from "lucide-react";
+import { BookmarkPlus, Check, ThumbsDown, ThumbsUp } from "lucide-react";
 import BriefingPreferencesPanel from "./BriefingPreferencesPanel";
 import TopicsPanel from "./TopicsPanel";
+import { ActionButton } from "./components/ModuleChrome";
 
 interface BriefingSource {
   title: string;
@@ -35,6 +36,16 @@ interface BriefingResponse {
   };
 }
 
+interface NewsBriefingModuleProps {
+  savedUrls: Set<string>;
+  onSaveSource: (item: {
+    title: string;
+    url: string;
+    description: string;
+    score: number;
+  }) => Promise<boolean>;
+}
+
 function sourceLabel(source: BriefingSource): string {
   try {
     return source.source || new URL(source.url).hostname.replace(/^www\./, "");
@@ -54,7 +65,7 @@ function formatTime(value: string): string {
   }
 }
 
-export default function NewsBriefingModule() {
+export default function NewsBriefingModule({ savedUrls, onSaveSource }: NewsBriefingModuleProps) {
   const [storyCards, setStoryCards] = useState<StoryCard[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -62,6 +73,7 @@ export default function NewsBriefingModule() {
   const [showPreferences, setShowPreferences] = useState(false);
   const [feedbackByStory, setFeedbackByStory] = useState<Record<string, "up" | "down">>({});
   const [feedbackNotice, setFeedbackNotice] = useState<string | null>(null);
+  const [savingUrls, setSavingUrls] = useState<Set<string>>(new Set());
 
   const loadBriefings = useCallback(async (refresh = false) => {
     setIsLoading(true);
@@ -117,6 +129,21 @@ export default function NewsBriefingModule() {
           : "Feedback noted here, but could not sync yet.",
       );
     }
+  }
+
+  async function saveSource(story: StoryCard, source: BriefingSource) {
+    setSavingUrls((prev) => new Set(prev).add(source.url));
+    await onSaveSource({
+      title: source.title || story.title,
+      url: source.url,
+      description: source.description || story.summary,
+      score: Math.round(story.score),
+    });
+    setSavingUrls((prev) => {
+      const next = new Set(prev);
+      next.delete(source.url);
+      return next;
+    });
   }
 
   useEffect(() => {
@@ -274,15 +301,29 @@ export default function NewsBriefingModule() {
               {story.sources.length > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {story.sources.map((source) => (
-                  <a
-                    key={source.url}
-                    href={source.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="rounded-full border border-zinc-300 px-2.5 py-1 text-xs font-medium text-zinc-600 transition-colors hover:border-primary hover:text-primary dark:border-zinc-600 dark:text-zinc-300"
-                  >
-                    {sourceLabel(source)}
-                  </a>
+                    <div key={source.url} className="flex items-center gap-1">
+                      <a
+                        href={source.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="rounded-full border border-zinc-300 px-2.5 py-1 text-xs font-medium text-zinc-600 transition-colors hover:border-primary hover:text-primary dark:border-zinc-600 dark:text-zinc-300"
+                      >
+                        {sourceLabel(source)}
+                      </a>
+                      <ActionButton
+                        onClick={() => saveSource(story, source)}
+                        disabled={savedUrls.has(source.url) || savingUrls.has(source.url)}
+                        variant="ghost"
+                        className="min-h-7 w-7 rounded-full px-0 py-0"
+                        aria-label={savedUrls.has(source.url) ? "Saved to Read Later" : "Save to Read Later"}
+                      >
+                        {savedUrls.has(source.url) ? (
+                          <Check className="h-3.5 w-3.5" />
+                        ) : (
+                          <BookmarkPlus className="h-3.5 w-3.5" />
+                        )}
+                      </ActionButton>
+                    </div>
                   ))}
                 </div>
               )}

@@ -15,6 +15,7 @@ interface SearchResult {
   url: string;
   description: string;
   score: number;
+  source?: string;
 }
 
 interface SavedItem extends SearchResult {
@@ -64,14 +65,15 @@ export default function DashboardShell({ userEmail }: DashboardShellProps) {
   const [isLoadingNotes, setIsLoadingNotes] = useState(false);
   const [notesError, setNotesError] = useState<string | null>(null);
   const [hasLoadedNotes, setHasLoadedNotes] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const savedUrls = useMemo(
     () => new Set(savedItems.map((item) => item.url)),
     [savedItems],
   );
 
-  const loadSavedItems = useCallback(async () => {
-    if (hasLoadedSaved || isLoadingSaved) return;
+  const loadSavedItems = useCallback(async (force = false) => {
+    if (!force && (hasLoadedSaved || isLoadingSaved)) return;
 
     setIsLoadingSaved(true);
     setSavedError(null);
@@ -120,8 +122,16 @@ export default function DashboardShell({ userEmail }: DashboardShellProps) {
     }
   }, [hasLoadedNotes, isLoadingNotes]);
 
-  async function saveItem(item: SearchResult) {
-    if (savedUrls.has(item.url)) return;
+  function showNotice(message: string) {
+    setNotice(message);
+    window.setTimeout(() => setNotice(null), 2400);
+  }
+
+  async function saveItem(item: SearchResult): Promise<boolean> {
+    if (savedUrls.has(item.url)) {
+      showNotice("Already in Read Later");
+      return true;
+    }
 
     const res = await fetch("/api/saved", {
       method: "POST",
@@ -132,7 +142,7 @@ export default function DashboardShell({ userEmail }: DashboardShellProps) {
 
     if (!res.ok) {
       setSavedError(data.error?.message ?? "Failed to save item");
-      return;
+      return false;
     }
 
     setSavedItems((prev) => {
@@ -140,6 +150,8 @@ export default function DashboardShell({ userEmail }: DashboardShellProps) {
       return [data.item, ...withoutDuplicate];
     });
     setHasLoadedSaved(true);
+    showNotice("Saved to Read Later");
+    return true;
   }
 
   async function updateSavedStatus(id: string, status: "unread" | "read" | "archived") {
@@ -252,7 +264,7 @@ export default function DashboardShell({ userEmail }: DashboardShellProps) {
     setSearchData(null);
     setSearchError(null);
 
-    if (module === "readLater") {
+    if (module === "readLater" || module === "news") {
       loadSavedItems();
     }
 
@@ -269,16 +281,25 @@ export default function DashboardShell({ userEmail }: DashboardShellProps) {
 
   return (
     <div className="min-h-screen">
+      {notice && (
+        <div className="fixed right-4 top-4 z-50 rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-700 shadow-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200">
+          {notice}
+        </div>
+      )}
+
       <div className="border-b border-zinc-200 bg-white px-6 py-2 dark:border-zinc-800 dark:bg-zinc-950">
-        <div className="mx-auto flex max-w-7xl items-center justify-end gap-3 text-xs text-zinc-500 dark:text-zinc-400">
-          <span className="truncate">{userEmail}</span>
-          <button
-            type="button"
-            onClick={signOut}
-            className="font-medium text-primary hover:text-primary-hover"
-          >
-            Sign out
-          </button>
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 text-xs text-zinc-500 dark:text-zinc-400">
+          <span className="font-medium text-zinc-700 dark:text-zinc-200">Home</span>
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="truncate">{userEmail}</span>
+            <button
+              type="button"
+              onClick={signOut}
+              className="font-medium text-primary hover:text-primary-hover"
+            >
+              Sign out
+            </button>
+          </div>
         </div>
       </div>
 
@@ -412,7 +433,10 @@ export default function DashboardShell({ userEmail }: DashboardShellProps) {
           )}
 
           {!isSearching && !searchData && !searchError && activeModule === "news" && (
-            <NewsBriefingModule />
+            <NewsBriefingModule
+              savedUrls={savedUrls}
+              onSaveSource={(item) => saveItem({ ...item, source: "news" })}
+            />
           )}
 
           {!isSearching && !searchData && !searchError && activeModule === "notes" && (
