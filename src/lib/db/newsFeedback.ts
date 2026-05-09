@@ -2,6 +2,13 @@ import { supabaseAdmin } from "@/lib/supabaseServer";
 
 export type NewsFeedbackVote = "up" | "down";
 
+export class NewsFeedbackStorageNotReadyError extends Error {
+  constructor(message = "News feedback storage is not ready") {
+    super(message);
+    this.name = "NewsFeedbackStorageNotReadyError";
+  }
+}
+
 export interface NewsFeedback {
   id: string;
   storyId: string;
@@ -45,6 +52,22 @@ export async function createNewsFeedback(input: {
     .select("*")
     .single();
 
-  if (error) throw error;
+  if (error) {
+    const message = String(error.message ?? "");
+    const code = String(error.code ?? "");
+
+    if (
+      code === "42P01" ||
+      message.includes("news_feedback") ||
+      message.toLowerCase().includes("does not exist")
+    ) {
+      throw new NewsFeedbackStorageNotReadyError(
+        "Apply migration 003_personal_news_feed.sql before feedback can sync.",
+      );
+    }
+
+    throw error;
+  }
+
   return rowToFeedback(data as Record<string, unknown>);
 }

@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { createNewsFeedback, type NewsFeedbackVote } from "@/lib/db/newsFeedback";
+import {
+  createNewsFeedback,
+  NewsFeedbackStorageNotReadyError,
+  type NewsFeedbackVote,
+} from "@/lib/db/newsFeedback";
 
 const VALID_VOTES = new Set<NewsFeedbackVote>(["up", "down"]);
 
@@ -33,6 +37,13 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ feedback });
   } catch (error) {
+    if (error instanceof NewsFeedbackStorageNotReadyError) {
+      return NextResponse.json(
+        { error: error.message, code: "FEEDBACK_STORAGE_NOT_READY" },
+        { status: 503 },
+      );
+    }
+
     console.error("POST news feedback failed", error);
     return NextResponse.json(
       { error: "Failed to save feedback" },

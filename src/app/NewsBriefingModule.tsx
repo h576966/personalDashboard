@@ -61,7 +61,7 @@ export default function NewsBriefingModule() {
   const [hasLoaded, setHasLoaded] = useState(false);
   const [showPreferences, setShowPreferences] = useState(false);
   const [feedbackByStory, setFeedbackByStory] = useState<Record<string, "up" | "down">>({});
-  const [feedbackError, setFeedbackError] = useState<string | null>(null);
+  const [feedbackNotice, setFeedbackNotice] = useState<string | null>(null);
 
   const loadBriefings = useCallback(async () => {
     setIsLoading(true);
@@ -86,7 +86,7 @@ export default function NewsBriefingModule() {
   }, []);
 
   async function sendFeedback(storyId: string, vote: "up" | "down") {
-    setFeedbackError(null);
+    setFeedbackNotice(null);
     setFeedbackByStory((prev) => ({ ...prev, [storyId]: vote }));
 
     try {
@@ -99,12 +99,11 @@ export default function NewsBriefingModule() {
 
       if (!res.ok) throw new Error(data.error ?? "Failed to save feedback");
     } catch (err) {
-      setFeedbackError(err instanceof Error ? err.message : "Failed to save feedback");
-      setFeedbackByStory((prev) => {
-        const next = { ...prev };
-        delete next[storyId];
-        return next;
-      });
+      setFeedbackNotice(
+        err instanceof Error
+          ? err.message
+          : "Feedback noted here, but could not sync yet.",
+      );
     }
   }
 
@@ -171,9 +170,9 @@ export default function NewsBriefingModule() {
         </div>
       )}
 
-      {feedbackError && (
+      {feedbackNotice && (
         <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
-          {feedbackError}
+          {feedbackNotice}
         </div>
       )}
 
