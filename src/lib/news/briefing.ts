@@ -661,6 +661,12 @@ function scoreCluster(
   const freshness = Math.max(...cluster.articles.map((article) => article.freshness));
   const regionalRelevance = Math.max(...cluster.articles.map((article) => article.regionalRelevance));
   const feedbackAffinity = personalization.feedbackAffinityByStory.get(cluster.id) ?? 0;
+  const interestAffinities = cluster.matchedInterests.map(
+    (interest) => personalization.feedbackAffinityByInterest.get(interest.toLowerCase()) ?? 0,
+  );
+  const maxInterestAffinity = Math.max(...interestAffinities, 0);
+  const minInterestAffinity = Math.min(...interestAffinities, 0);
+  const netInterestAffinity = maxInterestAffinity + minInterestAffinity;
   const savedArticleAffinity = Math.max(
     ...cluster.articles.map((article) => {
       const status = personalization.savedUrlStatusByUrl.get(article.url);
@@ -696,6 +702,7 @@ function scoreCluster(
       freshness * 15 +
       regionalRelevance * 12 +
       feedbackAffinity * 15 +
+      netInterestAffinity * 15 +
       savedArticleAffinity * 8 +
       savedHostAffinity * 6 +
       sourceDiversity * 10 +

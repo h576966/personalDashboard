@@ -4,6 +4,7 @@ export type SavedNewsStatus = "unread" | "read" | "archived";
 
 export interface NewsPersonalizationSignals {
   feedbackAffinityByStory: Map<string, number>;
+  feedbackAffinityByInterest: Map<string, number>;
   savedUrlStatusByUrl: Map<string, SavedNewsStatus>;
   savedHostAffinityByHost: Map<string, number>;
 }
@@ -23,17 +24,29 @@ function clampAffinity(value: number): number {
 export async function getNewsPersonalizationSignals(
   householdId: string,
 ): Promise<NewsPersonalizationSignals> {
-  const [feedbackResult, savedResult] = await Promise.all([
+  const [feedbackResult, savedResult, clustersResult] = await Promise.all([
     supabaseAdmin.from("news_feedback").select("story_id,vote"),
     supabaseAdmin
       .from("saved_items")
       .select("url,status")
       .eq("household_id", householdId)
       .eq("source", "news"),
+    supabaseAdmin.from("news_story_clusters").select("id,matched_interests"),
   ]);
 
   if (feedbackResult.error) throw feedbackResult.error;
   if (savedResult.error) throw savedResult.error;
+  if (clustersResult.error) throw clustersResult.error;
+
+  // Build cluster lookup: story_id → normalized interest names
+  const clusterMap = new Map<string, string[]>();
+  for (const row of (clustersResult.data ?? []) as Array<Record<string, unknown>>) {
+    const id = String(row.id ?? "");
+    const interests = (row.matched_interests as unknown as string[]) ?? [];
+    if (id && interests.length > 0) {
+      clusterMap.set(id, interests.map((i) => i.toLowerCase()));
+    }
+  }
 
   const feedbackTotals = new Map<string, { up: number; down: number }>();
 
@@ -55,6 +68,34 @@ export async function getNewsPersonalizationSignals(
       const votes = total.up + total.down;
       const raw = votes === 0 ? 0 : (total.up - total.down) / votes;
       return [storyId, clampAffinity(raw)];
+    }),
+  );
+
+  // Per-interest affinity: join feedback with cluster matched_interests
+  const interestTotals = new Map<string, { up: number; down: number }>();
+  for (const row of (feedbackResult.data ?? []) as Array<Record<string, unknown>>) {
+    const storyId = String(row.story_id ?? "");
+    if (!storyId) continue;
+
+    const matchedInterests = clusterMap.get(storyId);
+    if (!matchedInterests) continue;
+
+    for (const interest of matchedInterests) {
+      const current = interestTotals.get(interest) ?? { up: 0, down: 0 };
+      if (row.vote === "down") {
+        current.down += 1;
+      } else {
+        current.up += 1;
+      }
+      interestTotals.set(interest, current);
+    }
+  }
+
+  const feedbackAffinityByInterest = new Map(
+    [...interestTotals.entries()].map(([interest, total]) => {
+      const votes = total.up + total.down;
+      const raw = votes === 0 ? 0 : (total.up - total.down) / votes;
+      return [interest, clampAffinity(raw)];
     }),
   );
 
@@ -81,6 +122,7 @@ export async function getNewsPersonalizationSignals(
 
   return {
     feedbackAffinityByStory,
+    feedbackAffinityByInterest,
     savedUrlStatusByUrl,
     savedHostAffinityByHost,
   };
