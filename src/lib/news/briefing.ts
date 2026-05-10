@@ -20,6 +20,7 @@ import {
   type NewsPersonalizationSignals,
 } from "@/lib/db/newsPersonalization";
 import { stripHtml } from "@/lib/search/filter";
+import { rankClusterSelection } from "./ranking";
 
 export interface BriefingSource {
   title: string;
@@ -686,71 +687,6 @@ function clusterCandidates(candidates: CandidateArticle[]): StoryCluster[] {
   return clusters;
 }
 
-function scoreCluster(
-  cluster: StoryCluster,
-  interests: FeedInterest[],
-  blockedKeywords: string[],
-  blockedCategories: string[],
-  personalization: NewsPersonalizationSignals,
-): StoryCluster {
-  const uniqueSources = new Set(cluster.articles.map((article) => article.source));
-  const sourceQuality = Math.max(...cluster.articles.map((article) => article.sourceQuality));
-  const interestMatch = Math.min(cluster.matchedInterests.length / Math.max(interests.length, 1), 1);
-  const freshness = Math.max(...cluster.articles.map((article) => article.freshness));
-  const regionalRelevance = Math.max(...cluster.articles.map((article) => article.regionalRelevance));
-  const feedbackAffinity = personalization.feedbackAffinityByStory.get(cluster.id) ?? 0;
-  const interestAffinities = cluster.matchedInterests.map(
-    (interest) => personalization.feedbackAffinityByInterest.get(interest.toLowerCase()) ?? 0,
-  );
-  const maxInterestAffinity = Math.max(...interestAffinities, 0);
-  const minInterestAffinity = Math.min(...interestAffinities, 0);
-  const netInterestAffinity = maxInterestAffinity + minInterestAffinity;
-  const savedArticleAffinity = Math.max(
-    ...cluster.articles.map((article) => {
-      const status = personalization.savedUrlStatusByUrl.get(article.url);
-      if (!status) return 0;
-      return status === "archived" ? -1 : 1;
-    }),
-  );
-  const savedHostAffinity = Math.max(
-    ...cluster.articles.map((article) =>
-      personalization.savedHostAffinityByHost.get(getHost(article.url).toLowerCase()) ?? 0,
-    ),
-  );
-  const sourceDiversity = Math.min(uniqueSources.size / 3, 1);
-  const watchSignificance = cluster.isWatchUpdate
-    ? Math.max(...cluster.articles.map((article) => article.watchConfidence || 0.8))
-    : 0;
-  const blockedPenalty = cluster.articles.some((article) =>
-    containsBlockedSignal(article, blockedKeywords),
-  ) ? 1 : 0;
-  const allInterestsBlocked = blockedCategories.length > 0 &&
-    cluster.matchedInterests.length > 0 &&
-    cluster.matchedInterests.every((interest) =>
-      blockedCategories.some((cat) => interest.toLowerCase().includes(cat.toLowerCase())),
-    );
-  const categoryBlockedPenalty = allInterestsBlocked ? 1 : 0;
-  const duplicatePenalty = cluster.articles.length > uniqueSources.size ? 0.25 : 0;
-
-  return {
-    ...cluster,
-    score:
-      sourceQuality * 25 +
-      interestMatch * 20 +
-      freshness * 15 +
-      regionalRelevance * 12 +
-      feedbackAffinity * 15 +
-      netInterestAffinity * 15 +
-      savedArticleAffinity * 8 +
-      savedHostAffinity * 6 +
-      sourceDiversity * 10 +
-      watchSignificance * 30 -
-      blockedPenalty * 100 -
-      categoryBlockedPenalty * 100 -
-      duplicatePenalty * 50,
-  };
-}
-
 async function summarizeCluster(
   cluster: StoryCluster,
   summaryLanguage: SummaryLanguage,
@@ -843,18 +779,12 @@ function rankBriefingClusters(input: {
   blockedCategories: string[];
   personalization: NewsPersonalizationSignals;
 }): StoryCluster[] {
-  return clusterCandidates(input.candidates)
-    .map((cluster) =>
-      scoreCluster(
-        cluster,
-        input.interests,
-        input.blockedKeywords,
-        input.blockedCategories,
-        input.personalization,
-      ))
-    .filter((cluster) => cluster.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 5);
+  return rankClusterSelection(clusterCandidates(input.candidates), {
+    interests: input.interests,
+    blockedKeywords: input.blockedKeywords,
+    blockedCategories: input.blockedCategories,
+    personalization: input.personalization,
+  }) as StoryCluster[];
 }
 
 async function generateStoryCards(input: {
