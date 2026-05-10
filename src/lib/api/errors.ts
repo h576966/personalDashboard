@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { createErrorPayload } from "./errorPayload.mjs";
 
 export interface ErrorResponse {
   error: {
@@ -12,5 +13,5 @@ export function errorResponse(
   code: string,
   status: number,
 ): NextResponse<ErrorResponse> {
-  return NextResponse.json({ error: { message, code } }, { status });
+  return NextResponse.json(createErrorPayload(message, code), { status });
 }
