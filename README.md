@@ -64,6 +64,13 @@ Post-deploy smoke checks:
 - Manual News refresh completes.
 - Lists, Notes, Read Later, and Settings load after login.
 
+Post-refactor stabilization smoke checks:
+
+- Lists: create list, rename list, add item, verify non-empty list delete is blocked, clear/delete items, then delete empty list.
+- News: confirm `/api/news/briefings` GET serves cache/empty only, and manual refresh (`POST /api/news/briefings`) returns a fresh briefing.
+- News: verify save source, thumbs feedback, details expand/collapse, and image visibility rules still behave as before.
+- Settings: change language and verify shell/module copy updates correctly.
+
 ## Current Features
 
 **Clean Search:** Web search powered by the Brave Search API, re-ranked by relevance scoring.

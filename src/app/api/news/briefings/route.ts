@@ -3,6 +3,7 @@ import { errorResponse } from "@/lib/api/errors";
 import { authErrorResponse, requireCurrentHousehold } from "@/lib/auth/household";
 import { getTodaysStoryCards } from "@/lib/db/storyClusters";
 import { buildDailyNewsBriefing } from "@/lib/news/briefing";
+import { getBriefingGetPayload } from "./payload";
 
 export const maxDuration = 120;
 
@@ -16,17 +17,7 @@ export async function GET() {
     await requireCurrentHousehold();
 
     const storyCards = await getTodaysStoryCards();
-    if (storyCards.length > 0) {
-      return NextResponse.json({
-        briefing: {
-          storyCards,
-          generatedAt: storyCards[0]?.generatedAt ?? new Date().toISOString(),
-        },
-        source: "cache",
-      });
-    }
-
-    return NextResponse.json({ briefing: null, source: "empty" });
+    return NextResponse.json(getBriefingGetPayload(storyCards));
   } catch (err) {
     const authResponse = authErrorResponse(err);
     if (authResponse) return authResponse;

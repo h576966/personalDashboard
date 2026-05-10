@@ -8,6 +8,7 @@ import {
   listExistsForHousehold,
   updateList,
 } from "@/lib/db/lists";
+import { getDeleteListRuleFailure } from "../deleteRules";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -64,14 +65,14 @@ export async function DELETE(_req: Request, context: RouteContext) {
     }
 
     const listCount = await getHouseholdListCount(householdId);
-    if (listCount <= 1) {
-      return errorResponse("Keep at least one list", "LAST_LIST", 400);
-    }
-
     const itemCount = await getListItemCount(id);
-
-    if (itemCount > 0) {
-      return errorResponse("Only empty lists can be deleted", "LIST_NOT_EMPTY", 400);
+    const failure = getDeleteListRuleFailure({
+      listExists,
+      listCount,
+      itemCount,
+    });
+    if (failure) {
+      return errorResponse(failure.message, failure.code, failure.status);
     }
 
     const deleted = await deleteList(id, householdId);
