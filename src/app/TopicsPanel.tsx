@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import type { AppCopy } from "@/lib/i18n";
 
 interface Topic {
   id: string;
@@ -20,7 +21,7 @@ function errorMessage(data: TopicsResponse, fallback: string): string {
     : data.error?.message ?? fallback;
 }
 
-export default function TopicsPanel() {
+export default function TopicsPanel({ copy }: { copy: AppCopy }) {
   const [topics, setTopics] = useState<Topic[]>([]);
   const [newTopic, setNewTopic] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -79,17 +80,17 @@ export default function TopicsPanel() {
 
   return (
     <div className="rounded-md border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-800">
-      <h2 className="text-sm font-semibold">Interests</h2>
+      <h2 className="text-sm font-semibold">{copy.newsSettings.interests}</h2>
 
       <div className="mt-3 flex gap-2">
         <input
           value={newTopic}
           onChange={(e) => setNewTopic(e.target.value)}
-          placeholder="Add interest (e.g. local LLMs)"
+          placeholder={copy.newsSettings.addInterest}
           className="flex-1 rounded-md border p-2 text-sm"
         />
         <button onClick={addTopic} disabled={isLoading} className="px-3 text-sm">
-          Add
+          {copy.newsSettings.add}
         </button>
       </div>
 
@@ -100,13 +101,13 @@ export default function TopicsPanel() {
           <div key={t.id} className="flex justify-between text-sm">
             <span>{t.name}</span>
             <button onClick={() => removeTopic(t.id)} className="text-xs text-red-500">
-              remove
+              {copy.newsSettings.remove.toLowerCase()}
             </button>
           </div>
         ))}
         {topics.length === 0 && !error && (
           <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            Add interests to steer the briefing toward what matters to you.
+            {copy.newsSettings.loadingInterestsHint}
           </p>
         )}
       </div>

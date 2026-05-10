@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabaseServer";
+import { normalizeAppLanguage, type AppLanguage } from "@/lib/i18n";
 
 export type RegionalFocus = "nordic" | "norway" | "sweden" | "global";
 export type SummaryLanguage = "en" | "no" | "sv";
@@ -11,6 +12,7 @@ export interface BriefingPreferences {
   preferred_sources: string[];
   blocked_sources: string[];
   regional_focus: RegionalFocus;
+  app_language: AppLanguage;
   summary_language: SummaryLanguage;
   created_at?: string;
   updated_at?: string;
@@ -29,11 +31,16 @@ const DEFAULT_PREFERENCES: Omit<BriefingPreferences, "id" | "created_at" | "upda
     "nba",
     "mlb",
     "nhl",
+    "fotball",
+    "sport",
+    "idrett",
+    "fotboll",
   ],
   preferred_categories: ["technology", "ai", "science", "geopolitics"],
   preferred_sources: [],
   blocked_sources: [],
   regional_focus: "nordic",
+  app_language: "en",
   summary_language: "en",
 };
 
@@ -60,6 +67,7 @@ function normalizePreferences(value: Record<string, unknown>): BriefingPreferenc
     preferred_sources: asStringArray(value.preferred_sources),
     blocked_sources: asStringArray(value.blocked_sources),
     regional_focus: regionalFocus(value.regional_focus),
+    app_language: normalizeAppLanguage(value.app_language),
     summary_language: summaryLanguage(value.summary_language),
     created_at: typeof value.created_at === "string" ? value.created_at : undefined,
     updated_at: typeof value.updated_at === "string" ? value.updated_at : undefined,
@@ -103,6 +111,10 @@ export async function updateBriefingPreferences(
 
   if (patch.summary_language !== undefined) {
     update.summary_language = summaryLanguage(patch.summary_language);
+  }
+
+  if (patch.app_language !== undefined) {
+    update.app_language = normalizeAppLanguage(patch.app_language);
   }
 
   const { data, error } = await supabaseAdmin

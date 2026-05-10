@@ -28,6 +28,12 @@ export interface BriefingSource {
   description?: string;
 }
 
+export interface StoryBreakdownItem {
+  title: string;
+  summary: string;
+  sourceUrls: string[];
+}
+
 export interface StoryCard {
   id: string;
   title: string;
@@ -36,6 +42,9 @@ export interface StoryCard {
   score: number;
   sources: BriefingSource[];
   angles: string[];
+  storyBreakdown: StoryBreakdownItem[];
+  imageUrl?: string;
+  imageSource?: string;
   matchedInterests: string[];
   isWatchUpdate: boolean;
   generatedAt: string;
@@ -58,6 +67,7 @@ interface CandidateArticle extends BriefingSource {
   id: string;
   source: string;
   description: string;
+  imageUrl?: string;
   sourceQuality: number;
   regionalRelevance: number;
   freshness: number;
@@ -200,6 +210,29 @@ function freshnessScore(age?: string): number {
   }
 
   return 0.65;
+}
+
+function validHttpsUrl(value: unknown): string {
+  if (typeof value !== "string" || !value.trim()) return "";
+
+  try {
+    const parsed = new URL(value.trim());
+    return parsed.protocol === "https:" ? parsed.toString() : "";
+  } catch {
+    return "";
+  }
+}
+
+function imageUrlFromResult(result: BraveWebResult): string {
+  if (typeof result.thumbnail === "string") {
+    return validHttpsUrl(result.thumbnail);
+  }
+
+  if (result.thumbnail && result.thumbnail.logo !== true) {
+    return validHttpsUrl(result.thumbnail.original) || validHttpsUrl(result.thumbnail.src);
+  }
+
+  return "";
 }
 
 function containsBlockedSignal(candidate: BriefingSource, blockedKeywords: string[]): boolean {
@@ -416,6 +449,7 @@ function candidateFromResult(input: {
   return {
     ...candidate,
     id: hashText(`${title}|${url}`),
+    imageUrl: imageUrlFromResult(input.result),
     sourceQuality: source?.qualityScore ?? 0.55,
     regionalRelevance: regionalRelevanceForHost(host, input.policy.enabledSources, input.regionalFocus),
     freshness: freshnessScore(input.result.age),
@@ -423,6 +457,16 @@ function candidateFromResult(input: {
     isWatchUpdate: input.isWatchUpdate ?? false,
     watchConfidence: input.watchConfidence ?? 0,
     watchReason: input.watchReason,
+  };
+}
+
+function clusterImage(cluster: StoryCluster): { imageUrl: string; imageSource: string } {
+  const article = cluster.articles.find((candidate) => validHttpsUrl(candidate.imageUrl));
+  if (!article?.imageUrl) return { imageUrl: "", imageSource: "" };
+
+  return {
+    imageUrl: article.imageUrl,
+    imageSource: article.source,
   };
 }
 
@@ -608,6 +652,7 @@ function scoreCluster(
   cluster: StoryCluster,
   interests: FeedInterest[],
   blockedKeywords: string[],
+  blockedCategories: string[],
   personalization: NewsPersonalizationSignals,
 ): StoryCluster {
   const uniqueSources = new Set(cluster.articles.map((article) => article.source));
@@ -635,6 +680,12 @@ function scoreCluster(
   const blockedPenalty = cluster.articles.some((article) =>
     containsBlockedSignal(article, blockedKeywords),
   ) ? 1 : 0;
+  const allInterestsBlocked = blockedCategories.length > 0 &&
+    cluster.matchedInterests.length > 0 &&
+    cluster.matchedInterests.every((interest) =>
+      blockedCategories.some((cat) => interest.toLowerCase().includes(cat.toLowerCase())),
+    );
+  const categoryBlockedPenalty = allInterestsBlocked ? 1 : 0;
   const duplicatePenalty = cluster.articles.length > uniqueSources.size ? 0.25 : 0;
 
   return {
@@ -650,6 +701,7 @@ function scoreCluster(
       sourceDiversity * 10 +
       watchSignificance * 30 -
       blockedPenalty * 100 -
+      categoryBlockedPenalty * 100 -
       duplicatePenalty * 50,
   };
 }
@@ -664,6 +716,7 @@ async function summarizeCluster(
     source: article.source,
     description: article.description,
   }));
+  const image = clusterImage(cluster);
 
   try {
     const generated = await generateNewsBriefing({
@@ -681,6 +734,9 @@ async function summarizeCluster(
       score: Math.round(cluster.score),
       sources,
       angles: generated.angles,
+      storyBreakdown: generated.stories ?? [],
+      imageUrl: image.imageUrl,
+      imageSource: image.imageSource,
       matchedInterests: cluster.matchedInterests,
       isWatchUpdate: cluster.isWatchUpdate,
       generatedAt: new Date().toISOString(),
@@ -699,6 +755,9 @@ async function summarizeCluster(
       score: Math.round(cluster.score),
       sources,
       angles: [],
+      storyBreakdown: [],
+      imageUrl: image.imageUrl,
+      imageSource: image.imageSource,
       matchedInterests: cluster.matchedInterests,
       isWatchUpdate: cluster.isWatchUpdate,
       generatedAt: new Date().toISOString(),
@@ -720,6 +779,7 @@ export async function buildDailyNewsBriefing(householdId: string): Promise<Daily
       ...prefs.blocked_keywords,
     ]),
   ];
+  const blockedCategories = prefs.blocked_categories ?? [];
 
   const [interestCandidates, watchCandidates] = await Promise.all([
     collectInterestCandidates({ interests, policy, blockedKeywords, prefs }),
@@ -728,7 +788,7 @@ export async function buildDailyNewsBriefing(householdId: string): Promise<Daily
   const personalization = await getNewsPersonalizationSignals(householdId);
 
   const rankedClusters = clusterCandidates([...watchCandidates, ...interestCandidates])
-    .map((cluster) => scoreCluster(cluster, interests, blockedKeywords, personalization))
+    .map((cluster) => scoreCluster(cluster, interests, blockedKeywords, blockedCategories, personalization))
     .filter((cluster) => cluster.score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, 5);

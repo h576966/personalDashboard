@@ -13,6 +13,7 @@ import {
   SkeletonList,
   ToolbarInput,
 } from "./components/ModuleChrome";
+import type { AppCopy } from "@/lib/i18n";
 
 interface Note {
   id: string;
@@ -34,12 +35,14 @@ interface NotesModuleProps {
   onCreate: (note: NoteInput) => Promise<void>;
   onUpdate: (id: string, note: NoteInput) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
+  copy: AppCopy;
 }
 
 interface EditFormProps {
   note: Note;
   onSave: (id: string, note: NoteInput) => Promise<void>;
   onCancel: () => void;
+  copy: AppCopy;
 }
 
 const PAGE_SIZE = 8;
@@ -51,6 +54,7 @@ export default function NotesModule({
   onCreate,
   onUpdate,
   onDelete,
+  copy,
 }: NotesModuleProps) {
   const [isCreating, setIsCreating] = useState(false);
   const [title, setTitle] = useState("");
@@ -74,7 +78,7 @@ export default function NotesModule({
 
   async function handleCreate() {
     if (!title.trim()) {
-      setValidation("Add a title before saving the note.");
+      setValidation(copy.notes.titleRequired);
       return;
     }
 
@@ -90,8 +94,8 @@ export default function NotesModule({
   return (
     <ModuleCard>
       <ModuleHeader
-        title="Notes"
-        description="Small shared thoughts, drafts, and household reference."
+        title={copy.notes.title}
+        description={copy.notes.description}
         action={
           !isCreating && (
             <ActionButton
@@ -102,7 +106,7 @@ export default function NotesModule({
               className="min-h-8 px-2.5 py-1.5 text-xs"
             >
               <Plus className="h-4 w-4" />
-              New note
+              {copy.notes.newNote}
             </ActionButton>
           )
         }
@@ -117,19 +121,19 @@ export default function NotesModule({
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Title"
+              placeholder={copy.notes.titlePlaceholder}
               className="min-h-10 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-primary dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
             />
             <textarea
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              placeholder="Write something worth keeping..."
+              placeholder={copy.notes.contentPlaceholder}
               rows={5}
               className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-primary dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
             />
             <div className="flex flex-wrap gap-2">
               <ActionButton onClick={handleCreate} disabled={isSaving} variant="primary">
-                {isSaving ? "Saving..." : "Save note"}
+                {isSaving ? copy.notes.saving : copy.notes.saveNote}
               </ActionButton>
               <ActionButton
                 onClick={() => {
@@ -137,7 +141,7 @@ export default function NotesModule({
                   setValidation(null);
                 }}
               >
-                Cancel
+                {copy.notes.cancel}
               </ActionButton>
             </div>
           </div>
@@ -147,8 +151,8 @@ export default function NotesModule({
           <SkeletonList count={3} />
         ) : notes.length === 0 ? (
           <EmptyState
-            title="No notes yet."
-            description="Use notes for the bits that do not belong on a checklist."
+            title={copy.notes.noNotesTitle}
+            description={copy.notes.noNotesDescription}
           />
         ) : (
           <div className="space-y-3">
@@ -159,17 +163,20 @@ export default function NotesModule({
                   setSearchQuery(event.target.value);
                   setVisibleCount(PAGE_SIZE);
                 }}
-                placeholder="Search notes"
+                placeholder={copy.notes.search}
               />
               <ResultCount>
                 {searchQuery.trim()
-                  ? `${filteredNotes.length} match${filteredNotes.length === 1 ? "" : "es"}`
-                  : `${notes.length} note${notes.length === 1 ? "" : "s"}`}
+                  ? copy.counts.match(filteredNotes.length)
+                  : copy.counts.note(notes.length)}
               </ResultCount>
             </div>
 
             {filteredNotes.length === 0 ? (
-              <EmptyState title="No matching notes." description="Try a shorter search." />
+              <EmptyState
+                title={copy.notes.noMatchesTitle}
+                description={copy.notes.noMatchesDescription}
+              />
             ) : (
               <>
                 <ul className="space-y-2 sm:space-y-3">
@@ -183,6 +190,7 @@ export default function NotesModule({
                           note={note}
                           onSave={onUpdate}
                           onCancel={() => setEditingId(null)}
+                          copy={copy}
                         />
                       ) : (
                         <>
@@ -197,7 +205,7 @@ export default function NotesModule({
                                 variant="ghost"
                                 onClick={() => setEditingId(note.id)}
                                 className="min-h-8 w-8 px-0"
-                                aria-label="Edit note"
+                                aria-label={copy.notes.editNote}
                               >
                                 <Pencil className="h-4 w-4" />
                               </ActionButton>
@@ -205,7 +213,7 @@ export default function NotesModule({
                                 variant="ghost"
                                 onClick={() => onDelete(note.id)}
                                 className="min-h-8 w-8 px-0 hover:text-red-600"
-                                aria-label="Delete note"
+                                aria-label={copy.notes.deleteNote}
                               >
                                 <Trash2 className="h-4 w-4" />
                               </ActionButton>
@@ -216,7 +224,7 @@ export default function NotesModule({
                               {note.content}
                             </p>
                           ) : (
-                            <p className="mt-2 text-sm text-zinc-400">No details.</p>
+                            <p className="mt-2 text-sm text-zinc-400">{copy.notes.noDetails}</p>
                           )}
                         </>
                       )}
@@ -226,6 +234,7 @@ export default function NotesModule({
                 <ShowMoreButton
                   hiddenCount={hiddenCount}
                   onClick={() => setVisibleCount((count) => count + PAGE_SIZE)}
+                  label={copy.showMore(hiddenCount)}
                 />
               </>
             )}
@@ -236,7 +245,7 @@ export default function NotesModule({
   );
 }
 
-function EditForm({ note, onSave, onCancel }: EditFormProps) {
+function EditForm({ note, onSave, onCancel, copy }: EditFormProps) {
   const [title, setTitle] = useState(note.title);
   const [content, setContent] = useState(note.content);
   const [validation, setValidation] = useState<string | null>(null);
@@ -244,7 +253,7 @@ function EditForm({ note, onSave, onCancel }: EditFormProps) {
 
   async function handleSave() {
     if (!title.trim()) {
-      setValidation("A note needs a title.");
+      setValidation(copy.notes.editTitleRequired);
       return;
     }
 
@@ -271,9 +280,9 @@ function EditForm({ note, onSave, onCancel }: EditFormProps) {
       />
       <div className="flex flex-wrap gap-2">
         <ActionButton onClick={handleSave} disabled={isSaving} variant="primary">
-          {isSaving ? "Saving..." : "Save"}
-        </ActionButton>
-        <ActionButton onClick={onCancel}>Cancel</ActionButton>
+        {isSaving ? copy.notes.saving : copy.notes.save}
+      </ActionButton>
+      <ActionButton onClick={onCancel}>{copy.notes.cancel}</ActionButton>
       </div>
     </div>
   );

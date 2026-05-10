@@ -10,6 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { COUNTRY_OPTIONS } from "@/lib/db/topics";
+import type { AppCopy } from "@/lib/i18n";
 import { Clock, Globe } from "lucide-react";
 
 interface SearchModuleProps {
@@ -21,6 +22,7 @@ interface SearchModuleProps {
   onFreshnessChange: (value: string) => void;
   onCountryChange: (value: string) => void;
   onSearch: (query: string) => void;
+  copy: AppCopy;
 }
 
 export default function SearchModule({
@@ -32,6 +34,7 @@ export default function SearchModule({
   onFreshnessChange,
   onCountryChange,
   onSearch,
+  copy,
 }: SearchModuleProps) {
   function handleKeyDown(e: React.KeyboardEvent) {
     if (e.key === "Enter") {
@@ -48,7 +51,7 @@ export default function SearchModule({
           value={query}
           onChange={(e) => onQueryChange(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Search news, notes, and saved links..."
+          placeholder={copy.search.placeholder}
           className="h-10 min-w-0 border-primary/40 bg-white text-sm dark:bg-zinc-800 dark:text-zinc-100"
           disabled={isLoading}
         />
@@ -59,7 +62,7 @@ export default function SearchModule({
           size="sm"
           className="h-10 bg-muted px-4 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
         >
-          {isLoading ? "..." : "Go"}
+          {isLoading ? "..." : copy.search.go}
         </Button>
         <div className="flex items-center gap-1">
           <span className="text-white">
@@ -67,14 +70,14 @@ export default function SearchModule({
           </span>
           <Select value={freshness} onValueChange={onFreshnessChange} disabled={isLoading}>
             <SelectTrigger className="h-9 w-[130px] rounded-md border border-white/20 bg-white/5 px-2 py-1 text-xs text-white focus:ring-primary [&>span]:text-white [&>svg]:text-white">
-              <SelectValue placeholder="Any time" />
+              <SelectValue placeholder={copy.search.anyTime} />
             </SelectTrigger>
             <SelectContent className="w-[130px] min-w-[130px] bg-primary border-primary text-white">
-              <SelectItem value="all" className="text-white focus:bg-primary-hover focus:text-white text-xs">Any time</SelectItem>
-              <SelectItem value="pd" className="text-white focus:bg-primary-hover focus:text-white text-xs">Past Day</SelectItem>
-              <SelectItem value="pw" className="text-white focus:bg-primary-hover focus:text-white text-xs">Past Week</SelectItem>
-              <SelectItem value="pm" className="text-white focus:bg-primary-hover focus:text-white text-xs">Past Month</SelectItem>
-              <SelectItem value="py" className="text-white focus:bg-primary-hover focus:text-white text-xs">Past Year</SelectItem>
+              <SelectItem value="all" className="text-white focus:bg-primary-hover focus:text-white text-xs">{copy.search.anyTime}</SelectItem>
+              <SelectItem value="pd" className="text-white focus:bg-primary-hover focus:text-white text-xs">{copy.search.pastDay}</SelectItem>
+              <SelectItem value="pw" className="text-white focus:bg-primary-hover focus:text-white text-xs">{copy.search.pastWeek}</SelectItem>
+              <SelectItem value="pm" className="text-white focus:bg-primary-hover focus:text-white text-xs">{copy.search.pastMonth}</SelectItem>
+              <SelectItem value="py" className="text-white focus:bg-primary-hover focus:text-white text-xs">{copy.search.pastYear}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -84,7 +87,7 @@ export default function SearchModule({
           </span>
           <Select value={country} onValueChange={onCountryChange} disabled={isLoading}>
             <SelectTrigger className="h-9 w-[150px] rounded-md border border-white/20 bg-white/5 px-2 py-1 text-xs text-white focus:ring-primary [&>span]:text-white [&>svg]:text-white">
-              <SelectValue placeholder="All regions" />
+              <SelectValue placeholder={copy.search.allRegions} />
             </SelectTrigger>
             <SelectContent className="w-[150px] min-w-[150px] bg-primary border-primary text-white max-h-[200px]">
               {COUNTRY_OPTIONS.map((opt) => (

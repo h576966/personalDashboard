@@ -11,6 +11,7 @@ import {
   ModuleHeader,
   SkeletonList,
 } from "./components/ModuleChrome";
+import type { AppCopy } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 interface ListItem {
@@ -28,9 +29,10 @@ interface HouseholdList {
 
 interface ListsModuleProps {
   onOpenCountChange?: (count: number) => void;
+  copy: AppCopy;
 }
 
-export default function ListsModule({ onOpenCountChange }: ListsModuleProps) {
+export default function ListsModule({ onOpenCountChange, copy }: ListsModuleProps) {
   const [lists, setLists] = useState<HouseholdList[]>([]);
   const [activeListId, setActiveListId] = useState<string | null>(null);
   const [newListName, setNewListName] = useState("");
@@ -252,8 +254,8 @@ export default function ListsModule({ onOpenCountChange }: ListsModuleProps) {
   return (
     <ModuleCard>
       <ModuleHeader
-        title="Lists"
-        description="Groceries, errands, and the small things that keep the household moving."
+        title={copy.lists.title}
+        description={copy.lists.description}
       />
 
       <div className="space-y-4 p-4">
@@ -291,12 +293,12 @@ export default function ListsModule({ onOpenCountChange }: ListsModuleProps) {
                 onKeyDown={(event) => {
                   if (event.key === "Enter") void createList();
                 }}
-                placeholder="New list"
+                placeholder={copy.lists.newList}
                 className="min-h-10 min-w-0 rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none transition-colors focus:border-primary dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
               />
               <ActionButton onClick={createList} disabled={isCreatingList}>
                 <Plus className="h-4 w-4" />
-                {isCreatingList ? "Adding..." : "Add list"}
+                {isCreatingList ? copy.lists.adding : copy.lists.addList}
               </ActionButton>
             </div>
 
@@ -309,20 +311,20 @@ export default function ListsModule({ onOpenCountChange }: ListsModuleProps) {
                     onKeyDown={(event) => {
                       if (event.key === "Enter") void createItem();
                     }}
-                    placeholder={`Add to ${activeList.name}`}
+                    placeholder={copy.lists.addTo(activeList.name)}
                     className="min-h-11 min-w-0 rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none transition-colors focus:border-primary dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
                   />
                   <ActionButton onClick={createItem} disabled={isCreatingItem} variant="primary">
                     <Plus className="h-4 w-4" />
-                    {isCreatingItem ? "Adding..." : "Add item"}
+                    {isCreatingItem ? copy.lists.adding : copy.lists.addItem}
                   </ActionButton>
                 </div>
 
                 <ItemSection
-                  title="Open"
+                  title={copy.lists.open}
                   items={openItems}
-                  emptyTitle="Nothing open."
-                  emptyDescription="A rare and pleasant state. Add something when it appears."
+                  emptyTitle={copy.lists.nothingOpenTitle}
+                  emptyDescription={copy.lists.nothingOpenDescription}
                   editingItemId={editingItemId}
                   editingLabel={editingLabel}
                   pendingItemIds={pendingItemIds}
@@ -332,11 +334,12 @@ export default function ListsModule({ onOpenCountChange }: ListsModuleProps) {
                   onCancelEditing={() => setEditingItemId(null)}
                   onToggle={(item) => updateItem(item, { is_completed: true })}
                   onDelete={deleteItem}
+                  copy={copy}
                 />
 
                 {completedItems.length > 0 && (
                   <ItemSection
-                    title="Completed"
+                    title={copy.lists.completed}
                     items={completedItems}
                     action={
                       <ActionButton
@@ -345,7 +348,7 @@ export default function ListsModule({ onOpenCountChange }: ListsModuleProps) {
                         disabled={isClearingCompleted}
                         className="min-h-8 px-2 py-1 text-xs"
                       >
-                        {isClearingCompleted ? "Clearing..." : "Clear completed"}
+                        {isClearingCompleted ? copy.lists.clearing : copy.lists.clearCompleted}
                       </ActionButton>
                     }
                     editingItemId={editingItemId}
@@ -358,13 +361,14 @@ export default function ListsModule({ onOpenCountChange }: ListsModuleProps) {
                     onCancelEditing={() => setEditingItemId(null)}
                     onToggle={(item) => updateItem(item, { is_completed: false })}
                     onDelete={deleteItem}
+                    copy={copy}
                   />
                 )}
               </div>
             ) : (
               <EmptyState
-                title="Create a list to begin."
-                description="Shopping and To-do are good first lists for a shared home."
+                title={copy.lists.createListTitle}
+                description={copy.lists.createListDescription}
               />
             )}
           </>
@@ -390,6 +394,7 @@ function ItemSection({
   onCancelEditing,
   onToggle,
   onDelete,
+  copy,
 }: {
   title: string;
   items: ListItem[];
@@ -406,6 +411,7 @@ function ItemSection({
   onCancelEditing: () => void;
   onToggle: (item: ListItem) => void | Promise<unknown>;
   onDelete: (item: ListItem) => void | Promise<unknown>;
+  copy: AppCopy;
 }) {
   return (
     <div className="space-y-2">
@@ -418,7 +424,7 @@ function ItemSection({
       </div>
 
       {items.length === 0 ? (
-        <EmptyState title={emptyTitle ?? "Nothing here."} description={emptyDescription} />
+        <EmptyState title={emptyTitle ?? copy.lists.nothingHere} description={emptyDescription} />
       ) : (
         <ul className="divide-y divide-zinc-200 rounded-md border border-zinc-200 dark:divide-zinc-700 dark:border-zinc-700">
           {items.map((item) => {
@@ -443,7 +449,7 @@ function ItemSection({
                       ? "border-primary bg-primary text-white"
                       : "border-zinc-300 text-transparent hover:border-primary dark:border-zinc-600",
                   )}
-                  aria-label={item.is_completed ? "Mark incomplete" : "Mark complete"}
+                  aria-label={item.is_completed ? copy.lists.markIncomplete : copy.lists.markComplete}
                 >
                   <Check className="h-4 w-4" />
                 </button>
@@ -480,7 +486,7 @@ function ItemSection({
                     onClick={() => onStartEditing(item)}
                     disabled={pending}
                     className="min-h-9 w-9 px-0"
-                    aria-label="Edit item"
+                    aria-label={copy.lists.editItem}
                   >
                     <Pencil className="h-4 w-4" />
                   </ActionButton>
@@ -489,7 +495,7 @@ function ItemSection({
                     onClick={() => onDelete(item)}
                     disabled={pending}
                     className="min-h-9 w-9 px-0 hover:text-red-600"
-                    aria-label="Delete item"
+                    aria-label={copy.lists.deleteItem}
                   >
                     <Trash2 className="h-4 w-4" />
                   </ActionButton>

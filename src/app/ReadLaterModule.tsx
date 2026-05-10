@@ -14,6 +14,7 @@ import {
   SkeletonList,
   ToolbarInput,
 } from "./components/ModuleChrome";
+import { formatShortDate, type AppCopy, type AppLanguage } from "@/lib/i18n";
 
 interface ReadLaterItem {
   id: string;
@@ -33,6 +34,8 @@ interface ReadLaterModuleProps {
   onMarkRead: (id: string, status: "unread" | "read") => void | Promise<void>;
   onArchive: (id: string) => void | Promise<void>;
   onRestore: (id: string) => void | Promise<void>;
+  appLanguage: AppLanguage;
+  copy: AppCopy;
 }
 
 type ReadLaterTab = "unread" | "read" | "archived";
@@ -49,21 +52,14 @@ function sourceLabel(item: ReadLaterItem): string {
   }
 }
 
-function savedDate(value?: string): string {
-  if (!value) return "";
-
-  try {
-    return new Intl.DateTimeFormat(undefined, {
-      month: "short",
-      day: "numeric",
-    }).format(new Date(value));
-  } catch {
-    return "";
-  }
-}
-
 function searchableText(item: ReadLaterItem): string {
   return `${item.title} ${item.description} ${item.url} ${sourceLabel(item)} ${item.source ?? ""}`.toLowerCase();
+}
+
+function statusLabel(status: ReadLaterItem["status"], copy: AppCopy): string {
+  if (status === "read") return copy.readLater.read;
+  if (status === "archived") return copy.readLater.archived;
+  return copy.readLater.unread;
 }
 
 export default function ReadLaterModule({
@@ -73,6 +69,8 @@ export default function ReadLaterModule({
   onMarkRead,
   onArchive,
   onRestore,
+  appLanguage,
+  copy,
 }: ReadLaterModuleProps) {
   const [tab, setTab] = useState<ReadLaterTab>("unread");
   const [searchQuery, setSearchQuery] = useState("");
@@ -92,24 +90,24 @@ export default function ReadLaterModule({
   const hiddenCount = Math.max(filteredItems.length - visibleItems.length, 0);
   const emptyCopy = {
     unread: {
-      title: "No unread items.",
-      description: "Save articles or search results to keep them here.",
+      title: copy.readLater.noUnreadTitle,
+      description: copy.readLater.noUnreadDescription,
     },
     read: {
-      title: "Nothing marked read.",
-      description: "Finished items can stay nearby without being unread.",
+      title: copy.readLater.noReadTitle,
+      description: copy.readLater.noReadDescription,
     },
     archived: {
-      title: "Nothing archived.",
-      description: "Archived items stay recoverable here.",
+      title: copy.readLater.noArchivedTitle,
+      description: copy.readLater.noArchivedDescription,
     },
   } satisfies Record<ReadLaterTab, { title: string; description: string }>;
 
   return (
     <ModuleCard>
       <ModuleHeader
-        title="Read Later"
-        description="A small queue for articles and search results worth coming back to."
+        title={copy.readLater.title}
+        description={copy.readLater.description}
         action={
           <SegmentedControl
             value={tab}
@@ -118,9 +116,9 @@ export default function ReadLaterModule({
               setVisibleCount(PAGE_SIZE);
             }}
             options={[
-              { value: "unread", label: "Unread", count: unreadItems.length },
-              { value: "read", label: "Read", count: readItems.length },
-              { value: "archived", label: "Archived", count: archivedItems.length },
+              { value: "unread", label: copy.readLater.unread, count: unreadItems.length },
+              { value: "read", label: copy.readLater.read, count: readItems.length },
+              { value: "archived", label: copy.readLater.archived, count: archivedItems.length },
             ]}
           />
         }
@@ -145,17 +143,20 @@ export default function ReadLaterModule({
                   setSearchQuery(event.target.value);
                   setVisibleCount(PAGE_SIZE);
                 }}
-                placeholder="Search saved items"
+                placeholder={copy.readLater.search}
               />
               <ResultCount>
                 {searchQuery.trim()
-                  ? `${filteredItems.length} match${filteredItems.length === 1 ? "" : "es"}`
-                  : `${tabItems.length} item${tabItems.length === 1 ? "" : "s"}`}
+                  ? copy.counts.match(filteredItems.length)
+                  : copy.counts.item(tabItems.length)}
               </ResultCount>
             </div>
 
             {filteredItems.length === 0 ? (
-              <EmptyState title="No matching items." description="Try a shorter search." />
+              <EmptyState
+                title={copy.readLater.noMatchesTitle}
+                description={copy.readLater.noMatchesDescription}
+              />
             ) : (
               <>
                 <ul className="space-y-2 sm:space-y-3">
@@ -177,14 +178,16 @@ export default function ReadLaterModule({
                           </a>
                           <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-zinc-400">
                             <span>{sourceLabel(item)}</span>
-                            {savedDate(item.created_at) && <span>{savedDate(item.created_at)}</span>}
+                            {formatShortDate(item.created_at, appLanguage) && (
+                              <span>{formatShortDate(item.created_at, appLanguage)}</span>
+                            )}
                             {item.source && item.source !== "search" && (
                               <span className="capitalize">{item.source}</span>
                             )}
                           </div>
                         </div>
                         <span className="shrink-0 rounded-md bg-zinc-100 px-2 py-1 text-xs font-medium capitalize text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300">
-                          {item.status}
+                          {statusLabel(item.status, copy)}
                         </span>
                       </div>
 
@@ -202,7 +205,7 @@ export default function ReadLaterModule({
                             className="min-h-8 px-2.5 py-1.5 text-xs"
                           >
                             <RotateCcw className="h-4 w-4" />
-                            Restore
+                            {copy.readLater.restore}
                           </ActionButton>
                         ) : (
                           <>
@@ -218,7 +221,7 @@ export default function ReadLaterModule({
                               ) : (
                                 <CheckCircle2 className="h-4 w-4" />
                               )}
-                              {item.status === "read" ? "Mark unread" : "Mark read"}
+                              {item.status === "read" ? copy.readLater.markUnread : copy.readLater.markRead}
                             </ActionButton>
                             <ActionButton
                               onClick={() => onArchive(item.id)}
@@ -226,7 +229,7 @@ export default function ReadLaterModule({
                               className="min-h-8 px-2.5 py-1.5 text-xs"
                             >
                               <Archive className="h-4 w-4" />
-                              Archive
+                              {copy.readLater.archive}
                             </ActionButton>
                           </>
                         )}
@@ -237,6 +240,7 @@ export default function ReadLaterModule({
                 <ShowMoreButton
                   hiddenCount={hiddenCount}
                   onClick={() => setVisibleCount((count) => count + PAGE_SIZE)}
+                  label={copy.showMore(hiddenCount)}
                 />
               </>
             )}

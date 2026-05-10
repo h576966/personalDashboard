@@ -18,7 +18,10 @@ export interface CreateBlockedTopicData {
 export const DEFAULT_BLOCKED_TOPICS: CreateBlockedTopicData[] = [
   {
     label: "Sports",
-    keywords: ["sports", "football", "soccer", "nfl", "nba", "mlb", "nhl"],
+    keywords: [
+      "sports", "football", "soccer", "nfl", "nba", "mlb", "nhl",
+      "fotball", "sport", "idrett", "fotboll",
+    ],
   },
   {
     label: "Celebrities",

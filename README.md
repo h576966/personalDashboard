@@ -45,10 +45,12 @@ then marked read, archived, or restored from the Archived view.
 muted topics, watch topics, and feedback. Today's generated story cards are cached in
 Supabase so normal page loads do not rebuild Brave and DeepSeek results. Feedback, saved
 news links, and archived news links provide lightweight implicit personalization on refresh.
-The active news path is the story-card briefing at `/api/news/briefings`.
+Richer story cards can include expandable detail and optional source-provided images. The
+active news path is the story-card briefing at `/api/news/briefings`.
 
 **Nordic-First News:** News preferences include regional focus (`Norway + Sweden`, `Norway`,
-`Sweden`, or `Global`) and generated summary language (`English`, `Norwegian`, or `Swedish`).
+`Sweden`, or `Global`). The app language preference supports `English`, `Norwegian`, and
+`Swedish`, and intentionally controls both active UI copy and generated news summaries in v1.
 Trusted sources include a reproducible Nordic source pack that can be synced from the UI.
 
 **Dashboard Layout:** A two-column responsive layout with:
@@ -95,7 +97,7 @@ SQL Editor, then record them in `schema_migrations`:
 
 ```sql
 INSERT INTO public.schema_migrations (version)
-VALUES ('007_nordic_news_preferences')
+VALUES ('009_app_language_preference')
 ON CONFLICT (version) DO NOTHING;
 ```
 
@@ -107,6 +109,10 @@ read-only audit confirms row counts, dependencies, and backup status. Use
 Migration `007` adds Nordic news preferences and expands the default trusted source pack. Existing
 projects should run the migration, record it in `schema_migrations`, then use **News > Preferences >
 Trusted sources > Sync defaults** to ensure the UI and database source list are aligned.
+
+Migration `008` adds cached story detail and optional source image metadata for richer news cards.
+Migration `009` adds the user-facing app language preference; in v1 the selected app language also
+sets the generated news summary language.
 
 ## Directory Structure
 

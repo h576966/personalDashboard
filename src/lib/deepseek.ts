@@ -222,7 +222,9 @@ export async function generateNewsBriefing(input: {
     "- If sources cover unrelated stories, stories must contain separate items and the title must not imply one combined event.\n" +
     "- Each story must be supported by at least one sourceUrl from the allowed list.\n" +
     "- sourceUrls must exactly match allowed source URLs; do not invent or alter URLs.\n" +
-    "- The top-level summary should be 2-4 sentences and should only summarize what the provided sources cover.\n" +
+    "- For short or simple stories, the top-level summary should be 2-3 sentences.\n" +
+    "- For complex, multi-thread, or high-impact stories, the top-level summary may be 3-5 sentences when that improves clarity.\n" +
+    "- Use stories only when the sources contain distinct sub-stories, major angles, or multiple developments worth separating.\n" +
     "- whyItMatters should be cautious and limited to direct implications supported by the source descriptions; otherwise say implications are unclear from the snippets.\n" +
     "- angles should describe source framing or emphasis, not add new analysis.\n" +
     "- Use cautious language when only one source supports a story.";

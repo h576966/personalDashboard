@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import type { AppCopy } from "@/lib/i18n";
 
 interface NewsSource {
   id: string;
@@ -23,6 +24,7 @@ interface NewsSourcesResponse {
 
 interface NewsSourcesPanelProps {
   onChanged?: () => void;
+  copy: AppCopy;
 }
 
 function groupKey(source: NewsSource): string {
@@ -37,7 +39,7 @@ function errorMessage(data: NewsSourcesResponse, fallback: string): string {
     : data.error?.message ?? fallback;
 }
 
-export default function NewsSourcesPanel({ onChanged }: NewsSourcesPanelProps) {
+export default function NewsSourcesPanel({ onChanged, copy }: NewsSourcesPanelProps) {
   const [sources, setSources] = useState<NewsSource[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSeeding, setIsSeeding] = useState(false);
@@ -129,10 +131,10 @@ export default function NewsSourcesPanel({ onChanged }: NewsSourcesPanelProps) {
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-            Trusted sources
+            {copy.newsSettings.trustedSources}
           </h3>
           <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-            Curated sources used before ranking and summarization.
+            {copy.newsSettings.trustedSourcesDescription}
           </p>
         </div>
 
@@ -143,7 +145,11 @@ export default function NewsSourcesPanel({ onChanged }: NewsSourcesPanelProps) {
             disabled={isSeeding}
             className="shrink-0 rounded-md border border-primary bg-white px-3 py-1.5 text-xs font-medium text-primary hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60 dark:bg-zinc-800"
           >
-            {isSeeding ? "Syncing..." : sources.length === 0 ? "Seed defaults" : "Sync defaults"}
+            {isSeeding
+              ? copy.newsSettings.syncing
+              : sources.length === 0
+                ? copy.newsSettings.seedDefaults
+                : copy.newsSettings.syncDefaults}
           </button>
         )}
       </div>
@@ -155,10 +161,10 @@ export default function NewsSourcesPanel({ onChanged }: NewsSourcesPanelProps) {
       )}
 
       {isLoading ? (
-        <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">Loading sources...</p>
+        <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">{copy.newsSettings.loadingSources}</p>
       ) : sources.length === 0 ? (
         <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">
-          Seed trusted sources so the briefing can start from a known source list.
+          {copy.newsSettings.seedSourcesHint}
         </p>
       ) : (
         <div className="mt-3 max-h-80 space-y-4 overflow-y-auto pr-1">

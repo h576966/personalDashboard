@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import NewsSourcesPanel from "./NewsSourcesPanel";
 import MutedTopicsPanel from "./MutedTopicsPanel";
 import WatchTopicsPanel from "./WatchTopicsPanel";
+import { LANGUAGE_OPTIONS, type AppCopy, type AppLanguage } from "@/lib/i18n";
 
 interface BriefingPreferences {
   id: string;
@@ -13,6 +14,7 @@ interface BriefingPreferences {
   preferred_sources: string[];
   blocked_sources: string[];
   regional_focus: "nordic" | "norway" | "sweden" | "global";
+  app_language: AppLanguage;
   summary_language: "en" | "no" | "sv";
 }
 
@@ -24,7 +26,8 @@ interface ApiErrorBody {
 
 interface BriefingPreferencesPanelProps {
   onClose: () => void;
-  onSaved?: () => void;
+  onSaved?: () => void | Promise<void>;
+  copy: AppCopy;
 }
 
 function parseList(value: string): string[] {
@@ -44,13 +47,14 @@ function errorMessage(data: ApiErrorBody, fallback: string): string {
     : data.error?.message ?? fallback;
 }
 
-export default function BriefingPreferencesPanel({ onClose, onSaved }: BriefingPreferencesPanelProps) {
+export default function BriefingPreferencesPanel({ onClose, onSaved, copy }: BriefingPreferencesPanelProps) {
   const [prefs, setPrefs] = useState<BriefingPreferences | null>(null);
+  const [blockedCategories, setBlockedCategories] = useState("");
   const [blockedKeywords, setBlockedKeywords] = useState("");
   const [preferredSources, setPreferredSources] = useState("");
   const [blockedSources, setBlockedSources] = useState("");
   const [regionalFocus, setRegionalFocus] = useState<BriefingPreferences["regional_focus"]>("nordic");
-  const [summaryLanguage, setSummaryLanguage] = useState<BriefingPreferences["summary_language"]>("en");
+  const [appLanguage, setAppLanguage] = useState<AppLanguage>("en");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -67,11 +71,12 @@ export default function BriefingPreferencesPanel({ onClose, onSaved }: BriefingP
         if (!res.ok) throw new Error(errorMessage(data, "Failed to load preferences"));
 
         setPrefs(data);
+        setBlockedCategories(listToText(data.blocked_categories ?? []));
         setBlockedKeywords(listToText(data.blocked_keywords ?? []));
         setPreferredSources(listToText(data.preferred_sources ?? []));
         setBlockedSources(listToText(data.blocked_sources ?? []));
         setRegionalFocus(data.regional_focus ?? "nordic");
-        setSummaryLanguage(data.summary_language ?? "en");
+        setAppLanguage(data.app_language ?? data.summary_language ?? "en");
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load preferences");
       } finally {
@@ -91,11 +96,13 @@ export default function BriefingPreferencesPanel({ onClose, onSaved }: BriefingP
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          blocked_categories: parseList(blockedCategories),
           blocked_keywords: parseList(blockedKeywords),
           preferred_sources: parseList(preferredSources),
           blocked_sources: parseList(blockedSources),
           regional_focus: regionalFocus,
-          summary_language: summaryLanguage,
+          app_language: appLanguage,
+          summary_language: appLanguage,
         }),
       });
       const data = await res.json();
@@ -103,7 +110,7 @@ export default function BriefingPreferencesPanel({ onClose, onSaved }: BriefingP
       if (!res.ok) throw new Error(errorMessage(data, "Failed to save preferences"));
 
       setPrefs(data);
-      onSaved?.();
+      await onSaved?.();
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save preferences");
@@ -117,10 +124,10 @@ export default function BriefingPreferencesPanel({ onClose, onSaved }: BriefingP
       <div className="flex items-start justify-between gap-4">
         <div>
           <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-            Briefing preferences
+            {copy.preferences.title}
           </h2>
           <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-            Comma-separated filters used before the AI generates the briefing.
+            {copy.preferences.description}
           </p>
         </div>
         <button
@@ -128,7 +135,7 @@ export default function BriefingPreferencesPanel({ onClose, onSaved }: BriefingP
           onClick={onClose}
           className="text-xs font-medium text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
         >
-          Close
+          {copy.preferences.close}
         </button>
       </div>
 
@@ -139,17 +146,17 @@ export default function BriefingPreferencesPanel({ onClose, onSaved }: BriefingP
       )}
 
       {isLoading ? (
-        <p className="mt-4 text-sm text-zinc-500 dark:text-zinc-400">Loading preferences...</p>
+        <p className="mt-4 text-sm text-zinc-500 dark:text-zinc-400">{copy.preferences.loading}</p>
       ) : (
         <div className="mt-4 space-y-4">
-          <NewsSourcesPanel onChanged={onSaved} />
-          <MutedTopicsPanel onChanged={onSaved} />
-          <WatchTopicsPanel onChanged={onSaved} />
+          <NewsSourcesPanel onChanged={onSaved} copy={copy} />
+          <MutedTopicsPanel onChanged={onSaved} copy={copy} />
+          <WatchTopicsPanel onChanged={onSaved} copy={copy} />
 
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="block">
               <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                Regional focus
+                {copy.preferences.regionalFocus}
               </span>
               <select
                 value={regionalFocus}
@@ -158,34 +165,47 @@ export default function BriefingPreferencesPanel({ onClose, onSaved }: BriefingP
                 }
                 className="mt-1 w-full rounded-md border border-zinc-300 bg-white p-2 text-sm text-zinc-900 outline-none focus:border-primary dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
               >
-                <option value="nordic">Norway + Sweden</option>
-                <option value="norway">Norway</option>
-                <option value="sweden">Sweden</option>
-                <option value="global">Global</option>
+                <option value="nordic">{copy.preferences.regions.nordic}</option>
+                <option value="norway">{copy.preferences.regions.norway}</option>
+                <option value="sweden">{copy.preferences.regions.sweden}</option>
+                <option value="global">{copy.preferences.regions.global}</option>
               </select>
             </label>
 
             <label className="block">
               <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                Summary language
+                {copy.preferences.language}
               </span>
               <select
-                value={summaryLanguage}
-                onChange={(event) =>
-                  setSummaryLanguage(event.target.value as BriefingPreferences["summary_language"])
-                }
+                value={appLanguage}
+                onChange={(event) => setAppLanguage(event.target.value as AppLanguage)}
                 className="mt-1 w-full rounded-md border border-zinc-300 bg-white p-2 text-sm text-zinc-900 outline-none focus:border-primary dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
               >
-                <option value="en">English</option>
-                <option value="no">Norwegian</option>
-                <option value="sv">Swedish</option>
+                {LANGUAGE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
               </select>
             </label>
           </div>
 
           <label className="block">
             <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-              Blocked keywords
+              {copy.preferences.blockedCategories}
+            </span>
+            <textarea
+              value={blockedCategories}
+              onChange={(event) => setBlockedCategories(event.target.value)}
+              rows={3}
+              className="mt-1 w-full rounded-md border border-zinc-300 bg-white p-2 text-sm text-zinc-900 outline-none focus:border-primary dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+              placeholder="sports, celebrities, entertainment gossip"
+            />
+          </label>
+
+          <label className="block">
+            <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+              {copy.preferences.blockedKeywords}
             </span>
             <textarea
               value={blockedKeywords}
@@ -198,7 +218,7 @@ export default function BriefingPreferencesPanel({ onClose, onSaved }: BriefingP
 
           <label className="block">
             <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-              Preferred sources
+              {copy.preferences.preferredSources}
             </span>
             <input
               value={preferredSources}
@@ -210,7 +230,7 @@ export default function BriefingPreferencesPanel({ onClose, onSaved }: BriefingP
 
           <label className="block">
             <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-              Blocked sources
+              {copy.preferences.blockedSources}
             </span>
             <input
               value={blockedSources}
@@ -226,7 +246,7 @@ export default function BriefingPreferencesPanel({ onClose, onSaved }: BriefingP
               onClick={onClose}
               className="rounded-md border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-600 hover:border-zinc-400 dark:border-zinc-700 dark:text-zinc-300"
             >
-              Cancel
+              {copy.preferences.cancel}
             </button>
             <button
               type="button"
@@ -234,7 +254,7 @@ export default function BriefingPreferencesPanel({ onClose, onSaved }: BriefingP
               disabled={isSaving || !prefs}
               className="rounded-md border border-primary bg-primary px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isSaving ? "Saving..." : "Save preferences"}
+              {isSaving ? copy.preferences.saving : copy.preferences.save}
             </button>
           </div>
         </div>

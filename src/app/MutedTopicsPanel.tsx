@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import type { AppCopy } from "@/lib/i18n";
 
 interface MutedTopic {
   id: string;
@@ -19,9 +20,10 @@ interface MutedTopicsResponse {
 
 interface MutedTopicsPanelProps {
   onChanged?: () => void;
+  copy: AppCopy;
 }
 
-export default function MutedTopicsPanel({ onChanged }: MutedTopicsPanelProps) {
+export default function MutedTopicsPanel({ onChanged, copy }: MutedTopicsPanelProps) {
   const [topics, setTopics] = useState<MutedTopic[]>([]);
   const [newLabel, setNewLabel] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -113,10 +115,10 @@ export default function MutedTopicsPanel({ onChanged }: MutedTopicsPanelProps) {
     <section className="rounded-md border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-700 dark:bg-zinc-900">
       <div>
         <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-          Muted topics
+          {copy.newsSettings.mutedTopics}
         </h3>
         <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-          Hard filters applied before story ranking.
+          {copy.newsSettings.mutedTopicsDescription}
         </p>
       </div>
 
@@ -130,7 +132,7 @@ export default function MutedTopicsPanel({ onChanged }: MutedTopicsPanelProps) {
         <input
           value={newLabel}
           onChange={(event) => setNewLabel(event.target.value)}
-          placeholder="Mute topic"
+          placeholder={copy.newsSettings.muteTopic}
           className="min-w-0 flex-1 rounded-md border border-zinc-300 bg-white p-2 text-sm text-zinc-900 outline-none focus:border-primary dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
         />
         <button
@@ -139,15 +141,15 @@ export default function MutedTopicsPanel({ onChanged }: MutedTopicsPanelProps) {
           disabled={updatingId === "new"}
           className="rounded-md border border-zinc-300 px-3 text-xs font-medium text-zinc-600 hover:border-primary hover:text-primary disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-300"
         >
-          Add
+          {copy.newsSettings.add}
         </button>
       </div>
 
       {isLoading ? (
-        <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">Loading muted topics...</p>
+        <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">{copy.newsSettings.loadingMutedTopics}</p>
       ) : topics.length === 0 ? (
         <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">
-          Add topics you want kept out of the daily briefing.
+          {copy.newsSettings.mutedTopicsHint}
         </p>
       ) : (
         <div className="mt-3 space-y-2">

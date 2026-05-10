@@ -7,7 +7,7 @@ import NotesModule from "./NotesModule";
 import ReadLaterModule from "./ReadLaterModule";
 import SearchModule from "./SearchModule";
 import { EmptyState, InlineNotice, SkeletonList } from "./components/ModuleChrome";
-import { dashboardModules, type ActiveModule } from "./modules";
+import { getDashboardModules, type ActiveModule } from "./modules";
 import { useDashboardData } from "./useDashboardData";
 
 interface DashboardShellProps {
@@ -17,6 +17,8 @@ interface DashboardShellProps {
 export default function DashboardShell({ userEmail }: DashboardShellProps) {
   const {
     activeModule,
+    appLanguage,
+    copy,
     query,
     freshness,
     country,
@@ -41,6 +43,7 @@ export default function DashboardShell({ userEmail }: DashboardShellProps) {
     setCountry,
     setOpenListCount,
     setStoryCount,
+    loadPreferences,
     saveItem,
     updateSavedStatus,
     createNote,
@@ -51,6 +54,7 @@ export default function DashboardShell({ userEmail }: DashboardShellProps) {
     selectModule,
     signOut,
   } = useDashboardData();
+  const dashboardModules = getDashboardModules(copy);
 
   return (
     <div className="min-h-screen">
@@ -62,7 +66,7 @@ export default function DashboardShell({ userEmail }: DashboardShellProps) {
 
       <div className="border-b border-zinc-200 bg-white px-6 py-2 dark:border-zinc-800 dark:bg-zinc-950">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 text-xs text-zinc-500 dark:text-zinc-400">
-          <span className="font-medium text-zinc-700 dark:text-zinc-200">Home</span>
+          <span className="font-medium text-zinc-700 dark:text-zinc-200">{copy.shell.home}</span>
           <div className="flex min-w-0 items-center gap-3">
             <span className="truncate">{userEmail}</span>
             <button
@@ -70,7 +74,7 @@ export default function DashboardShell({ userEmail }: DashboardShellProps) {
               onClick={signOut}
               className="font-medium text-primary hover:text-primary-hover"
             >
-              Sign out
+              {copy.shell.signOut}
             </button>
           </div>
         </div>
@@ -85,6 +89,7 @@ export default function DashboardShell({ userEmail }: DashboardShellProps) {
         onFreshnessChange={setFreshness}
         onCountryChange={setCountry}
         onSearch={handleSearch}
+        copy={copy}
       />
 
       <div className="mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:grid-cols-[minmax(0,7fr)_minmax(260px,2.6fr)]">
@@ -95,6 +100,7 @@ export default function DashboardShell({ userEmail }: DashboardShellProps) {
               openItems={openListCount}
               unreadItems={hasLoadedSaved ? unreadSavedCount : null}
               notes={notesCount}
+              copy={copy}
             />
           )}
 
@@ -111,10 +117,10 @@ export default function DashboardShell({ userEmail }: DashboardShellProps) {
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                    Search results
+                    {copy.shell.searchResults}
                   </p>
                   <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                    {searchData.results.length} result{searchData.results.length !== 1 ? "s" : ""}
+                    {copy.counts.result(searchData.results.length)}
                   </p>
                 </div>
                 <button
@@ -122,21 +128,21 @@ export default function DashboardShell({ userEmail }: DashboardShellProps) {
                   onClick={() => selectModule(activeModule)}
                   className="text-xs font-medium text-primary hover:text-primary-hover"
                 >
-                  Clear search
+                  {copy.shell.clearSearch}
                 </button>
               </div>
 
               {searchData.summary && (
                 <div className="rounded-md border border-muted bg-muted p-4 dark:border-primary-hover dark:bg-primary-hover/20">
                   <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-primary-hover dark:text-secondary">
-                    AI Summary
+                    {copy.shell.aiSummary}
                   </p>
                   <p className="text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">
                     {searchData.summary}
                   </p>
                   {searchData.rewrittenQuery && searchData.rewrittenQuery !== query.trim() && (
                     <p className="mt-2 text-xs italic text-zinc-400 dark:text-zinc-500">
-                      Showing results for: {searchData.rewrittenQuery}
+                      {copy.shell.showingResultsFor} {searchData.rewrittenQuery}
                     </p>
                   )}
                 </div>
@@ -158,7 +164,10 @@ export default function DashboardShell({ userEmail }: DashboardShellProps) {
               )}
 
               {searchData.results.length === 0 ? (
-                <EmptyState title="No results found." description="Try a shorter search." />
+                <EmptyState
+                  title={copy.shell.noResultsTitle}
+                  description={copy.shell.noResultsDescription}
+                />
               ) : (
                 <ul className="space-y-4">
                   {searchData.results.map((result) => {
@@ -188,7 +197,7 @@ export default function DashboardShell({ userEmail }: DashboardShellProps) {
                               disabled={alreadySaved}
                               className="rounded-md border border-zinc-300 bg-white px-3 py-1 text-xs font-medium text-zinc-600 transition-colors hover:border-primary hover:text-primary disabled:cursor-default disabled:border-zinc-200 disabled:text-zinc-400 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
                             >
-                              {alreadySaved ? "Read later" : "Save"}
+                              {alreadySaved ? copy.shell.readLater : copy.shell.save}
                             </button>
                           </div>
                         </div>
@@ -207,14 +216,17 @@ export default function DashboardShell({ userEmail }: DashboardShellProps) {
           )}
 
           {!isSearching && !searchData && !searchError && activeModule === "lists" && (
-            <ListsModule onOpenCountChange={setOpenListCount} />
+            <ListsModule onOpenCountChange={setOpenListCount} copy={copy} />
           )}
 
           {!isSearching && !searchData && !searchError && activeModule === "news" && (
             <NewsBriefingModule
               savedUrls={savedUrls}
+              appLanguage={appLanguage}
+              copy={copy}
               onStoryCountChange={setStoryCount}
               onSaveSource={(item) => saveItem({ ...item, source: "news" })}
+              onPreferencesChanged={loadPreferences}
             />
           )}
 
@@ -226,6 +238,7 @@ export default function DashboardShell({ userEmail }: DashboardShellProps) {
               onCreate={createNote}
               onUpdate={updateNote}
               onDelete={deleteNote}
+              copy={copy}
             />
           )}
 
@@ -237,6 +250,8 @@ export default function DashboardShell({ userEmail }: DashboardShellProps) {
               onMarkRead={(id, status) => updateSavedStatus(id, status)}
               onArchive={(id) => updateSavedStatus(id, "archived")}
               onRestore={(id) => updateSavedStatus(id, "unread")}
+              appLanguage={appLanguage}
+              copy={copy}
             />
           )}
         </main>
@@ -245,7 +260,7 @@ export default function DashboardShell({ userEmail }: DashboardShellProps) {
           <div className="w-full rounded-md border border-zinc-200 bg-white/80 p-3 shadow-sm dark:border-zinc-700 dark:bg-zinc-800/80">
             <div className="mb-3 flex items-center justify-between">
               <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                Sections
+                {copy.shell.sections}
               </p>
               {(searchData || searchError) && (
                 <button
@@ -253,7 +268,7 @@ export default function DashboardShell({ userEmail }: DashboardShellProps) {
                   onClick={() => selectModule(activeModule)}
                   className="text-xs font-medium text-primary hover:text-primary-hover"
                 >
-                  Clear
+                  {copy.shell.clear}
                 </button>
               )}
             </div>
@@ -313,17 +328,19 @@ function MetricRow({
   openItems,
   unreadItems,
   notes,
+  copy,
 }: {
   stories: number | null;
   openItems: number | null;
   unreadItems: number | null;
   notes: number | null;
+  copy: ReturnType<typeof useDashboardData>["copy"];
 }) {
   const metrics = [
-    { label: "Stories", value: stories, icon: Newspaper },
-    { label: "Open", value: openItems, icon: ListChecks },
-    { label: "Unread", value: unreadItems, icon: BookMarked },
-    { label: "Notes", value: notes, icon: NotebookPen },
+    { label: copy.shell.metrics.stories, value: stories, icon: Newspaper },
+    { label: copy.shell.metrics.open, value: openItems, icon: ListChecks },
+    { label: copy.shell.metrics.unread, value: unreadItems, icon: BookMarked },
+    { label: copy.shell.metrics.notes, value: notes, icon: NotebookPen },
   ];
 
   return (

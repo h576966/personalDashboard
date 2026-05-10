@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { getAppCopy, normalizeAppLanguage, type AppLanguage } from "@/lib/i18n";
 import { normalizeParam } from "@/lib/utils";
 import type { ActiveModule } from "./modules";
 
@@ -38,6 +39,7 @@ export interface SearchData {
 
 export function useDashboardData() {
   const [activeModule, setActiveModule] = useState<ActiveModule>("news");
+  const [appLanguage, setAppLanguage] = useState<AppLanguage>("en");
 
   const [query, setQuery] = useState("");
   const [freshness, setFreshness] = useState("");
@@ -60,6 +62,7 @@ export function useDashboardData() {
   const [notice, setNotice] = useState<string | null>(null);
   const [openListCount, setOpenListCount] = useState<number | null>(null);
   const [storyCount, setStoryCount] = useState<number | null>(null);
+  const copy = useMemo(() => getAppCopy(appLanguage), [appLanguage]);
 
   const savedUrls = useMemo(
     () => new Set(savedItems.filter((item) => item.status !== "archived").map((item) => item.url)),
@@ -70,6 +73,19 @@ export function useDashboardData() {
     [savedItems],
   );
   const notesCount = hasLoadedNotes ? notes.length : null;
+
+  const loadPreferences = useCallback(async () => {
+    try {
+      const res = await fetch("/api/briefing-preferences");
+      const data = await res.json();
+
+      if (!res.ok) return;
+
+      setAppLanguage(normalizeAppLanguage(data.app_language));
+    } catch {
+      setAppLanguage("en");
+    }
+  }, []);
 
   const loadListOverview = useCallback(async () => {
     try {
@@ -145,10 +161,11 @@ export function useDashboardData() {
       void loadSavedItems();
       void loadNotes();
       void loadListOverview();
+      void loadPreferences();
     }, 0);
 
     return () => window.clearTimeout(timer);
-  }, [loadListOverview, loadNotes, loadSavedItems]);
+  }, [loadListOverview, loadNotes, loadPreferences, loadSavedItems]);
 
   function showNotice(message: string) {
     setNotice(message);
@@ -176,12 +193,12 @@ export function useDashboardData() {
 
     if (existing?.status === "archived") {
       await updateSavedStatus(existing.id, "unread");
-      showNotice("Restored to Read Later");
+      showNotice(copy.notices.restored);
       return true;
     }
 
     if (existing || savedUrls.has(item.url)) {
-      showNotice("Already in Read Later");
+      showNotice(copy.notices.alreadySaved);
       return true;
     }
 
@@ -202,7 +219,7 @@ export function useDashboardData() {
       return [data.item, ...withoutDuplicate];
     });
     setHasLoadedSaved(true);
-    showNotice("Saved to Read Later");
+    showNotice(copy.notices.saved);
     return true;
   }
 
@@ -311,6 +328,8 @@ export function useDashboardData() {
 
   return {
     activeModule,
+    appLanguage,
+    copy,
     query,
     freshness,
     country,
@@ -335,6 +354,7 @@ export function useDashboardData() {
     setCountry,
     setOpenListCount,
     setStoryCount,
+    loadPreferences,
     saveItem,
     updateSavedStatus,
     createNote,

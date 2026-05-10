@@ -4,6 +4,14 @@ export interface BraveWebResult {
   description: string;
   age?: string;
   language?: string;
+  thumbnail?: string | {
+    src?: string;
+    original?: string;
+    logo?: boolean;
+  };
+  profile?: {
+    img?: string;
+  };
 }
 
 export interface BraveSearchResponse {

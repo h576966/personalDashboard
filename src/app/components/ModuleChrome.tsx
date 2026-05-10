@@ -155,16 +155,18 @@ export function ResultCount({ children }: { children: ReactNode }) {
 export function ShowMoreButton({
   hiddenCount,
   onClick,
+  label,
 }: {
   hiddenCount: number;
   onClick: () => void;
+  label?: string;
 }) {
   if (hiddenCount <= 0) return null;
 
   return (
     <div className="flex justify-center pt-1">
       <ActionButton onClick={onClick} variant="secondary" className="min-h-9 px-3 py-1.5 text-xs">
-        Show {Math.min(hiddenCount, 8)} more
+        {label ?? `Show ${Math.min(hiddenCount, 8)} more`}
       </ActionButton>
     </div>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import type { AppCopy } from "@/lib/i18n";
 
 interface WatchTopic {
   id: string;
@@ -20,6 +21,7 @@ interface WatchTopicsResponse {
 
 interface WatchTopicsPanelProps {
   onChanged?: () => void;
+  copy: AppCopy;
 }
 
 function errorMessage(data: WatchTopicsResponse, fallback: string): string {
@@ -36,7 +38,7 @@ function splitLines(value: string): string[] {
     .filter(Boolean);
 }
 
-export default function WatchTopicsPanel({ onChanged }: WatchTopicsPanelProps) {
+export default function WatchTopicsPanel({ onChanged, copy }: WatchTopicsPanelProps) {
   const [topics, setTopics] = useState<WatchTopic[]>([]);
   const [name, setName] = useState("");
   const [queries, setQueries] = useState("");
@@ -149,10 +151,10 @@ export default function WatchTopicsPanel({ onChanged }: WatchTopicsPanelProps) {
     <section className="rounded-md border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-700 dark:bg-zinc-900">
       <div>
         <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-          Watch topics
+          {copy.newsSettings.watchTopics}
         </h3>
         <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-          Narrow items to monitor for meaningful new updates.
+          {copy.newsSettings.watchTopicsDescription}
         </p>
       </div>
 
@@ -166,21 +168,21 @@ export default function WatchTopicsPanel({ onChanged }: WatchTopicsPanelProps) {
         <input
           value={name}
           onChange={(event) => setName(event.target.value)}
-          placeholder="Watch topic name"
+          placeholder={copy.newsSettings.watchTopicName}
           className="w-full rounded-md border border-zinc-300 bg-white p-2 text-sm text-zinc-900 outline-none focus:border-primary dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
         />
         <textarea
           value={queries}
           onChange={(event) => setQueries(event.target.value)}
           rows={2}
-          placeholder="Search terms, one per line"
+          placeholder={copy.newsSettings.searchTerms}
           className="w-full rounded-md border border-zinc-300 bg-white p-2 text-sm text-zinc-900 outline-none focus:border-primary dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
         />
         <textarea
           value={domains}
           onChange={(event) => setDomains(event.target.value)}
           rows={2}
-          placeholder="Optional source domains"
+          placeholder={copy.newsSettings.sourceDomains}
           className="w-full rounded-md border border-zinc-300 bg-white p-2 text-sm text-zinc-900 outline-none focus:border-primary dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
         />
         <button
@@ -189,15 +191,15 @@ export default function WatchTopicsPanel({ onChanged }: WatchTopicsPanelProps) {
           disabled={updatingId === "new" || !name.trim() || splitLines(queries).length === 0}
           className="rounded-md border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-600 hover:border-primary hover:text-primary disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-300"
         >
-          {updatingId === "new" ? "Adding..." : "Add watch topic"}
+          {updatingId === "new" ? copy.newsSettings.adding : copy.newsSettings.addWatchTopic}
         </button>
       </div>
 
       {isLoading ? (
-        <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">Loading watch topics...</p>
+        <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">{copy.newsSettings.loadingWatchTopics}</p>
       ) : topics.length === 0 ? (
         <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">
-          Add a focused topic when you want the briefing to surface important changes.
+          {copy.newsSettings.watchTopicsHint}
         </p>
       ) : (
         <div className="mt-3 space-y-2">
@@ -234,7 +236,7 @@ export default function WatchTopicsPanel({ onChanged }: WatchTopicsPanelProps) {
                     disabled={updatingId === topic.id}
                     className="text-xs font-medium text-zinc-400 hover:text-red-600 disabled:opacity-50"
                   >
-                    Remove
+                    {copy.newsSettings.remove}
                   </button>
                 </div>
               </div>

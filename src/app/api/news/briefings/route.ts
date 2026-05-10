@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { errorResponse } from "@/lib/api/errors";
 import { authErrorResponse, requireCurrentHousehold } from "@/lib/auth/household";
 import { getTodaysStoryCards } from "@/lib/db/storyClusters";
@@ -9,11 +9,9 @@ async function buildAndReturn(householdId: string) {
   return NextResponse.json({ briefing, source: "fresh" });
 }
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const { householdId } = await requireCurrentHousehold();
-    const refresh = request.nextUrl.searchParams.get("refresh") === "true";
-    if (refresh) return await buildAndReturn(householdId);
+    await requireCurrentHousehold();
 
     const storyCards = await getTodaysStoryCards();
     if (storyCards.length > 0) {
@@ -26,13 +24,13 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    return await buildAndReturn(householdId);
+    return NextResponse.json({ briefing: null, source: "empty" });
   } catch (err) {
     const authResponse = authErrorResponse(err);
     if (authResponse) return authResponse;
 
-    console.error("Failed to build news briefings:", err);
-    return errorResponse("Failed to build news briefings", "INTERNAL_ERROR", 500);
+    console.error("Failed to get news briefings:", err);
+    return errorResponse("Failed to get news briefings", "INTERNAL_ERROR", 500);
   }
 }
 
