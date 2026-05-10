@@ -7,9 +7,9 @@ import {
   ActionButton,
   EmptyState,
   InlineNotice,
-  LoadingRow,
   ModuleCard,
   ModuleHeader,
+  SkeletonList,
 } from "./components/ModuleChrome";
 import { cn } from "@/lib/utils";
 
@@ -260,7 +260,7 @@ export default function ListsModule({ onOpenCountChange }: ListsModuleProps) {
         {error && <InlineNotice tone="error">{error}</InlineNotice>}
 
         {isLoading ? (
-          <LoadingRow label="Loading lists..." />
+          <SkeletonList count={2} />
         ) : (
           <>
             <div className="flex flex-wrap gap-2">

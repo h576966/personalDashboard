@@ -1,14 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import {
   ActionButton,
   EmptyState,
   InlineNotice,
-  LoadingRow,
   ModuleCard,
   ModuleHeader,
+  ResultCount,
+  ShowMoreButton,
+  SkeletonList,
+  ToolbarInput,
 } from "./components/ModuleChrome";
 
 interface Note {
@@ -39,6 +42,8 @@ interface EditFormProps {
   onCancel: () => void;
 }
 
+const PAGE_SIZE = 8;
+
 export default function NotesModule({
   notes,
   isLoading,
@@ -53,6 +58,19 @@ export default function NotesModule({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [validation, setValidation] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+
+  const filteredNotes = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return notes;
+
+    return notes.filter((note) =>
+      `${note.title} ${note.content}`.toLowerCase().includes(query),
+    );
+  }, [notes, searchQuery]);
+  const visibleNotes = filteredNotes.slice(0, visibleCount);
+  const hiddenCount = Math.max(filteredNotes.length - visibleNotes.length, 0);
 
   async function handleCreate() {
     if (!title.trim()) {
@@ -126,60 +144,92 @@ export default function NotesModule({
         )}
 
         {isLoading ? (
-          <LoadingRow label="Loading notes..." />
+          <SkeletonList count={3} />
         ) : notes.length === 0 ? (
           <EmptyState
             title="No notes yet."
             description="Use notes for the bits that do not belong on a checklist."
           />
         ) : (
-          <ul className="space-y-3">
-            {notes.map((note) => (
-              <li
-                key={note.id}
-                className="rounded-md border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900"
-              >
-                {editingId === note.id ? (
-                  <EditForm note={note} onSave={onUpdate} onCancel={() => setEditingId(null)} />
-                ) : (
-                  <>
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                          {note.title}
-                        </h3>
-                      </div>
-                      <div className="flex shrink-0 gap-1">
-                        <ActionButton
-                          variant="ghost"
-                          onClick={() => setEditingId(note.id)}
-                          className="min-h-8 w-8 px-0"
-                          aria-label="Edit note"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </ActionButton>
-                        <ActionButton
-                          variant="ghost"
-                          onClick={() => onDelete(note.id)}
-                          className="min-h-8 w-8 px-0 hover:text-red-600"
-                          aria-label="Delete note"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </ActionButton>
-                      </div>
-                    </div>
-                    {note.content ? (
-                      <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-zinc-500 dark:text-zinc-400">
-                        {note.content}
-                      </p>
-                    ) : (
-                      <p className="mt-2 text-sm text-zinc-400">No details yet.</p>
-                    )}
-                  </>
-                )}
-              </li>
-            ))}
-          </ul>
+          <div className="space-y-3">
+            <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+              <ToolbarInput
+                value={searchQuery}
+                onChange={(event) => {
+                  setSearchQuery(event.target.value);
+                  setVisibleCount(PAGE_SIZE);
+                }}
+                placeholder="Search notes"
+              />
+              <ResultCount>
+                {searchQuery.trim()
+                  ? `${filteredNotes.length} match${filteredNotes.length === 1 ? "" : "es"}`
+                  : `${notes.length} note${notes.length === 1 ? "" : "s"}`}
+              </ResultCount>
+            </div>
+
+            {filteredNotes.length === 0 ? (
+              <EmptyState title="No matching notes." description="Try a shorter search." />
+            ) : (
+              <>
+                <ul className="space-y-2 sm:space-y-3">
+                  {visibleNotes.map((note) => (
+                    <li
+                      key={note.id}
+                      className="rounded-md border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-900 sm:p-4"
+                    >
+                      {editingId === note.id ? (
+                        <EditForm
+                          note={note}
+                          onSave={onUpdate}
+                          onCancel={() => setEditingId(null)}
+                        />
+                      ) : (
+                        <>
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                                {note.title}
+                              </h3>
+                            </div>
+                            <div className="flex shrink-0 gap-1">
+                              <ActionButton
+                                variant="ghost"
+                                onClick={() => setEditingId(note.id)}
+                                className="min-h-8 w-8 px-0"
+                                aria-label="Edit note"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </ActionButton>
+                              <ActionButton
+                                variant="ghost"
+                                onClick={() => onDelete(note.id)}
+                                className="min-h-8 w-8 px-0 hover:text-red-600"
+                                aria-label="Delete note"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </ActionButton>
+                            </div>
+                          </div>
+                          {note.content ? (
+                            <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-zinc-500 dark:text-zinc-400">
+                              {note.content}
+                            </p>
+                          ) : (
+                            <p className="mt-2 text-sm text-zinc-400">No details.</p>
+                          )}
+                        </>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+                <ShowMoreButton
+                  hiddenCount={hiddenCount}
+                  onClick={() => setVisibleCount((count) => count + PAGE_SIZE)}
+                />
+              </>
+            )}
+          </div>
         )}
       </div>
     </ModuleCard>

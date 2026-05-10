@@ -6,6 +6,7 @@ import NewsBriefingModule from "./NewsBriefingModule";
 import NotesModule from "./NotesModule";
 import ReadLaterModule from "./ReadLaterModule";
 import SearchModule from "./SearchModule";
+import { EmptyState, InlineNotice, SkeletonList } from "./components/ModuleChrome";
 import { dashboardModules, type ActiveModule } from "./modules";
 import { useDashboardData } from "./useDashboardData";
 
@@ -98,15 +99,11 @@ export default function DashboardShell({ userEmail }: DashboardShellProps) {
           )}
 
           {isSearching && (
-            <div className="rounded-md border border-zinc-200 bg-white p-4 text-sm text-zinc-500 shadow-sm dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400">
-              Searching...
-            </div>
+            <SkeletonList count={3} />
           )}
 
           {!isSearching && searchError && (
-            <div className="rounded-md border border-red-300 bg-red-50 p-4 text-sm text-red-700 dark:border-red-700 dark:bg-red-900/20 dark:text-red-400">
-              {searchError}
-            </div>
+            <InlineNotice tone="error">{searchError}</InlineNotice>
           )}
 
           {!isSearching && searchData && (
@@ -161,7 +158,7 @@ export default function DashboardShell({ userEmail }: DashboardShellProps) {
               )}
 
               {searchData.results.length === 0 ? (
-                <p className="text-sm text-zinc-500 dark:text-zinc-400">No results found.</p>
+                <EmptyState title="No results found." description="Try a shorter search." />
               ) : (
                 <ul className="space-y-4">
                   {searchData.results.map((result) => {

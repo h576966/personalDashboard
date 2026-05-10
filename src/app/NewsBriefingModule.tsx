@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { BookmarkPlus, Check, ThumbsDown, ThumbsUp } from "lucide-react";
 import BriefingPreferencesPanel from "./BriefingPreferencesPanel";
 import TopicsPanel from "./TopicsPanel";
-import { ActionButton } from "./components/ModuleChrome";
+import { ActionButton, EmptyState, InlineNotice, SkeletonList } from "./components/ModuleChrome";
 
 interface BriefingSource {
   title: string;
@@ -212,28 +212,17 @@ export default function NewsBriefingModule({
         </div>
       )}
 
-      {error && (
-        <div className="rounded-md border border-red-300 bg-red-50 p-4 text-sm text-red-700 dark:border-red-700 dark:bg-red-900/20 dark:text-red-400">
-          {error}
-        </div>
-      )}
+      {error && <InlineNotice tone="error">{error}</InlineNotice>}
 
-      {feedbackNotice && (
-        <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
-          {feedbackNotice}
-        </div>
-      )}
+      {feedbackNotice && <InlineNotice tone="warning">{feedbackNotice}</InlineNotice>}
 
-      {isLoading && storyCards.length === 0 && (
-        <div className="rounded-md border border-zinc-200 bg-white p-4 text-sm text-zinc-500 shadow-sm dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400">
-          Building today&apos;s top stories...
-        </div>
-      )}
+      {isLoading && storyCards.length === 0 && <SkeletonList count={3} />}
 
       {!isLoading && !error && hasLoaded && storyCards.length === 0 && (
-        <div className="rounded-md border border-zinc-200 bg-white p-4 text-sm text-zinc-500 shadow-sm dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400">
-          No high-signal stories could be generated from the current sources and interests.
-        </div>
+        <EmptyState
+          title="No stories generated."
+          description="Check sources and interests, then refresh."
+        />
       )}
 
       <div className="space-y-5">

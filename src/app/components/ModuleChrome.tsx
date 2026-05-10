@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, ReactNode } from "react";
+import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 export function ModuleCard({ children, className }: { children: ReactNode; className?: string }) {
@@ -27,7 +27,7 @@ export function ModuleHeader({
 }) {
   return (
     <div className="border-b border-zinc-200 px-4 py-3 dark:border-zinc-700">
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           {eyebrow && (
             <p className="text-xs font-semibold uppercase tracking-wider text-primary-hover dark:text-secondary">
@@ -43,7 +43,7 @@ export function ModuleHeader({
             </p>
           )}
         </div>
-        {action && <div className="shrink-0">{action}</div>}
+        {action && <div className="w-full sm:w-auto sm:shrink-0">{action}</div>}
       </div>
     </div>
   );
@@ -95,11 +95,77 @@ export function EmptyState({
   );
 }
 
-export function LoadingRow({ label = "Loading..." }: { label?: string }) {
+export function SkeletonBlock({ className }: { className?: string }) {
   return (
-    <div className="flex items-center gap-2 rounded-md border border-zinc-200 bg-white px-3 py-3 text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400">
-      <span className="inline-block h-4 w-4 rounded-full border-2 border-zinc-300 border-t-primary animate-spin" />
-      <span>{label}</span>
+    <div
+      className={cn(
+        "animate-pulse rounded-md bg-zinc-100 dark:bg-zinc-700/70",
+        className,
+      )}
+    />
+  );
+}
+
+export function SkeletonList({
+  count = 3,
+  className,
+}: {
+  count?: number;
+  className?: string;
+}) {
+  return (
+    <div className={cn("space-y-3", className)}>
+      {Array.from({ length: count }).map((_, index) => (
+        <div
+          key={index}
+          className="rounded-md border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-700 dark:bg-zinc-900"
+        >
+          <SkeletonBlock className="h-4 w-2/3" />
+          <SkeletonBlock className="mt-3 h-3 w-full" />
+          <SkeletonBlock className="mt-2 h-3 w-5/6" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function ToolbarInput({
+  className,
+  ...props
+}: InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <input
+      className={cn(
+        "min-h-10 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none transition-colors placeholder:text-zinc-400 focus:border-primary dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+export function ResultCount({ children }: { children: ReactNode }) {
+  return (
+    <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+      {children}
+    </p>
+  );
+}
+
+export function ShowMoreButton({
+  hiddenCount,
+  onClick,
+}: {
+  hiddenCount: number;
+  onClick: () => void;
+}) {
+  if (hiddenCount <= 0) return null;
+
+  return (
+    <div className="flex justify-center pt-1">
+      <ActionButton onClick={onClick} variant="secondary" className="min-h-9 px-3 py-1.5 text-xs">
+        Show {Math.min(hiddenCount, 8)} more
+      </ActionButton>
     </div>
   );
 }
@@ -114,7 +180,7 @@ export function SegmentedControl<T extends string>({
   onChange: (value: T) => void;
 }) {
   return (
-    <div className="inline-flex rounded-md border border-zinc-200 bg-zinc-50 p-1 dark:border-zinc-700 dark:bg-zinc-900">
+    <div className="flex w-full rounded-md border border-zinc-200 bg-zinc-50 p-1 dark:border-zinc-700 dark:bg-zinc-900 sm:inline-flex sm:w-auto">
       {options.map((option) => {
         const active = option.value === value;
         return (
@@ -123,7 +189,7 @@ export function SegmentedControl<T extends string>({
             type="button"
             onClick={() => onChange(option.value)}
             className={cn(
-              "rounded px-3 py-1.5 text-xs font-medium transition-colors",
+              "flex-1 rounded px-3 py-1.5 text-xs font-medium transition-colors sm:flex-none",
               active
                 ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-800 dark:text-zinc-50"
                 : "text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-100",
