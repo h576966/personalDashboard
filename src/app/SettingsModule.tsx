@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import BriefingPreferencesPanel from "./BriefingPreferencesPanel";
-import TopicsPanel from "./TopicsPanel";
 import { ActionButton, InlineNotice, ModuleCard, ModuleHeader } from "./components/ModuleChrome";
 import { LANGUAGE_OPTIONS, type AppCopy, type AppLanguage } from "@/lib/i18n";
 
@@ -118,10 +117,7 @@ export default function SettingsModule({
         </div>
       </ModuleCard>
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(260px,1fr)]">
-        <BriefingPreferencesPanel copy={copy} onSaved={onPreferencesChanged} />
-        <TopicsPanel copy={copy} />
-      </div>
+      <BriefingPreferencesPanel copy={copy} onSaved={onPreferencesChanged} />
     </section>
   );
 }

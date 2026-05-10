@@ -8,14 +8,14 @@ export async function GET(request: NextRequest) {
   const next = requestUrl.searchParams.get("next") ?? "/";
 
   if (!code) {
-    return NextResponse.redirect(new URL("/?auth=error", request.url));
+    return NextResponse.redirect(new URL("/?auth=missing_code", request.url));
   }
 
   const supabase = await createClient();
   const { error } = await supabase.auth.exchangeCodeForSession(code);
 
   if (error) {
-    return NextResponse.redirect(new URL("/?auth=error", request.url));
+    return NextResponse.redirect(new URL("/?auth=exchange_failed", request.url));
   }
 
   const {
@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.redirect(new URL("/?auth=error", request.url));
+    return NextResponse.redirect(new URL("/?auth=session_missing", request.url));
   }
 
   try {

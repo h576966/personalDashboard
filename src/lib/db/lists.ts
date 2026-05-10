@@ -86,6 +86,84 @@ export async function createList(householdId: string, name: string): Promise<Hou
   };
 }
 
+export async function updateList(
+  id: string,
+  householdId: string,
+  updates: { name: string },
+): Promise<HouseholdList | null> {
+  const { data, error } = await supabaseAdmin
+    .from("lists")
+    .update({
+      name: updates.name,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .eq("household_id", householdId)
+    .select(listSelect)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) return null;
+
+  return {
+    ...(data as Omit<HouseholdList, "items">),
+    items: [],
+  };
+}
+
+export async function getListItemCount(listId: string): Promise<number> {
+  const { count, error } = await supabaseAdmin
+    .from("list_items")
+    .select("id", { count: "exact", head: true })
+    .eq("list_id", listId);
+
+  if (error) throw error;
+  return count ?? 0;
+}
+
+export async function getHouseholdListCount(householdId: string): Promise<number> {
+  const { count, error } = await supabaseAdmin
+    .from("lists")
+    .select("id", { count: "exact", head: true })
+    .eq("household_id", householdId);
+
+  if (error) throw error;
+  return count ?? 0;
+}
+
+export async function listExistsForHousehold(id: string, householdId: string): Promise<boolean> {
+  const { data, error } = await supabaseAdmin
+    .from("lists")
+    .select("id")
+    .eq("id", id)
+    .eq("household_id", householdId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return Boolean(data);
+}
+
+export async function deleteList(id: string, householdId: string): Promise<boolean> {
+  const { data, error: lookupError } = await supabaseAdmin
+    .from("lists")
+    .select("id")
+    .eq("id", id)
+    .eq("household_id", householdId)
+    .maybeSingle();
+
+  if (lookupError) throw lookupError;
+  if (!data) return false;
+
+  const { error } = await supabaseAdmin
+    .from("lists")
+    .delete()
+    .eq("id", id)
+    .eq("household_id", householdId);
+
+  if (error) throw error;
+  return true;
+}
+
 export async function createListItem(listId: string, label: string): Promise<ListItem> {
   const { count, error: countError } = await supabaseAdmin
     .from("list_items")

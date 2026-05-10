@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import NewsSourcesPanel from "./NewsSourcesPanel";
 import MutedTopicsPanel from "./MutedTopicsPanel";
+import TopicsPanel from "./TopicsPanel";
 import WatchTopicsPanel from "./WatchTopicsPanel";
 import { type AppCopy, type AppLanguage } from "@/lib/i18n";
 
@@ -147,79 +148,99 @@ export default function BriefingPreferencesPanel({ onClose, onSaved, copy }: Bri
         <p className="mt-4 text-sm text-zinc-500 dark:text-zinc-400">{copy.preferences.loading}</p>
       ) : (
         <div className="mt-4 space-y-4">
-          <NewsSourcesPanel onChanged={onSaved} copy={copy} />
-          <MutedTopicsPanel onChanged={onSaved} copy={copy} />
-          <WatchTopicsPanel onChanged={onSaved} copy={copy} />
+          <section className="rounded-md border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-700 dark:bg-zinc-900">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+              {copy.newsSettings.newsBasics}
+            </h3>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <label className="block">
+                <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                  {copy.preferences.regionalFocus}
+                </span>
+                <select
+                  value={regionalFocus}
+                  onChange={(event) =>
+                    setRegionalFocus(event.target.value as BriefingPreferences["regional_focus"])
+                  }
+                  className="mt-1 w-full rounded-md border border-zinc-300 bg-white p-2 text-sm text-zinc-900 outline-none focus:border-primary dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+                >
+                  <option value="nordic">{copy.preferences.regions.nordic}</option>
+                  <option value="norway">{copy.preferences.regions.norway}</option>
+                  <option value="sweden">{copy.preferences.regions.sweden}</option>
+                  <option value="global">{copy.preferences.regions.global}</option>
+                </select>
+              </label>
+            </div>
+          </section>
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="block">
-              <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                {copy.preferences.regionalFocus}
-              </span>
-              <select
-                value={regionalFocus}
-                onChange={(event) =>
-                  setRegionalFocus(event.target.value as BriefingPreferences["regional_focus"])
-                }
-                className="mt-1 w-full rounded-md border border-zinc-300 bg-white p-2 text-sm text-zinc-900 outline-none focus:border-primary dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
-              >
-                <option value="nordic">{copy.preferences.regions.nordic}</option>
-                <option value="norway">{copy.preferences.regions.norway}</option>
-                <option value="sweden">{copy.preferences.regions.sweden}</option>
-                <option value="global">{copy.preferences.regions.global}</option>
-              </select>
-            </label>
+          <TopicsPanel copy={copy} />
+          <NewsSourcesPanel onChanged={onSaved} copy={copy} />
+
+          <div className="grid gap-4 xl:grid-cols-2">
+            <MutedTopicsPanel onChanged={onSaved} copy={copy} />
+            <WatchTopicsPanel onChanged={onSaved} copy={copy} />
           </div>
 
-          <label className="block">
-            <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-              {copy.preferences.blockedCategories}
-            </span>
-            <textarea
-              value={blockedCategories}
-              onChange={(event) => setBlockedCategories(event.target.value)}
-              rows={3}
-              className="mt-1 w-full rounded-md border border-zinc-300 bg-white p-2 text-sm text-zinc-900 outline-none focus:border-primary dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
-              placeholder="sports, celebrities, entertainment gossip"
-            />
-          </label>
+          <details className="rounded-md border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-700 dark:bg-zinc-900">
+            <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+              {copy.newsSettings.advancedFilters}
+            </summary>
+            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+              {copy.newsSettings.advancedFiltersDescription}
+            </p>
 
-          <label className="block">
-            <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-              {copy.preferences.blockedKeywords}
-            </span>
-            <textarea
-              value={blockedKeywords}
-              onChange={(event) => setBlockedKeywords(event.target.value)}
-              rows={3}
-              className="mt-1 w-full rounded-md border border-zinc-300 bg-white p-2 text-sm text-zinc-900 outline-none focus:border-primary dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
-              placeholder="sports, celebrities, football"
-            />
-          </label>
+            <div className="mt-4 space-y-4">
+              <label className="block">
+                <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                  {copy.preferences.blockedCategories}
+                </span>
+                <textarea
+                  value={blockedCategories}
+                  onChange={(event) => setBlockedCategories(event.target.value)}
+                  rows={3}
+                  className="mt-1 w-full rounded-md border border-zinc-300 bg-white p-2 text-sm text-zinc-900 outline-none focus:border-primary dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+                  placeholder="sports, celebrities, entertainment gossip"
+                />
+              </label>
 
-          <label className="block">
-            <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-              {copy.preferences.preferredSources}
-            </span>
-            <input
-              value={preferredSources}
-              onChange={(event) => setPreferredSources(event.target.value)}
-              className="mt-1 w-full rounded-md border border-zinc-300 bg-white p-2 text-sm text-zinc-900 outline-none focus:border-primary dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
-              placeholder="reuters.com, apnews.com"
-            />
-          </label>
+              <label className="block">
+                <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                  {copy.preferences.blockedKeywords}
+                </span>
+                <textarea
+                  value={blockedKeywords}
+                  onChange={(event) => setBlockedKeywords(event.target.value)}
+                  rows={3}
+                  className="mt-1 w-full rounded-md border border-zinc-300 bg-white p-2 text-sm text-zinc-900 outline-none focus:border-primary dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+                  placeholder="sports, celebrities, football"
+                />
+              </label>
 
-          <label className="block">
-            <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-              {copy.preferences.blockedSources}
-            </span>
-            <input
-              value={blockedSources}
-              onChange={(event) => setBlockedSources(event.target.value)}
-              className="mt-1 w-full rounded-md border border-zinc-300 bg-white p-2 text-sm text-zinc-900 outline-none focus:border-primary dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
-              placeholder="example.com"
-            />
-          </label>
+              <label className="block">
+                <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                  {copy.preferences.preferredSources}
+                </span>
+                <input
+                  value={preferredSources}
+                  onChange={(event) => setPreferredSources(event.target.value)}
+                  className="mt-1 w-full rounded-md border border-zinc-300 bg-white p-2 text-sm text-zinc-900 outline-none focus:border-primary dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+                  placeholder="reuters.com, apnews.com"
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                  {copy.preferences.blockedSources}
+                </span>
+                <input
+                  value={blockedSources}
+                  onChange={(event) => setBlockedSources(event.target.value)}
+                  className="mt-1 w-full rounded-md border border-zinc-300 bg-white p-2 text-sm text-zinc-900 outline-none focus:border-primary dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+                  placeholder="example.com"
+                />
+              </label>
+            </div>
+          </details>
 
           <div className="flex items-center justify-end gap-2 border-t border-zinc-100 pt-4 dark:border-zinc-700">
             {onClose && (

@@ -79,8 +79,10 @@ export default function TopicsPanel({ copy }: { copy: AppCopy }) {
   }, [loadTopics]);
 
   return (
-    <div className="rounded-md border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-800">
-      <h2 className="text-sm font-semibold">{copy.newsSettings.interests}</h2>
+    <section className="rounded-md border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-700 dark:bg-zinc-900">
+      <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+        {copy.newsSettings.interests}
+      </h3>
 
       <div className="mt-3 flex gap-2">
         <input
@@ -111,6 +113,6 @@ export default function TopicsPanel({ copy }: { copy: AppCopy }) {
           </p>
         )}
       </div>
-    </div>
+    </section>
   );
 }

@@ -8,12 +8,25 @@ import { createClient } from "@/lib/supabase/client";
 interface AuthScreenProps {
   deniedEmail?: string;
   initialMessage?: string;
+  initialStatus?: "error" | "warning";
 }
 
-export default function AuthScreen({ deniedEmail, initialMessage }: AuthScreenProps) {
+function getAuthCallbackUrl(): string {
+  const configuredSiteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  const baseUrl =
+    configuredSiteUrl && /^https?:\/\//.test(configuredSiteUrl)
+      ? configuredSiteUrl
+      : window.location.origin;
+
+  return `${baseUrl.replace(/\/$/, "")}/auth/callback`;
+}
+
+export default function AuthScreen({ deniedEmail, initialMessage, initialStatus }: AuthScreenProps) {
   const copy = getAppCopy("en");
   const [email, setEmail] = useState("");
-  const [status, setStatus] = useState<"idle" | "loading" | "sent" | "error">("idle");
+  const [status, setStatus] = useState<"idle" | "loading" | "sent" | "error" | "warning">(
+    initialStatus ?? "idle",
+  );
   const [message, setMessage] = useState(initialMessage ?? "");
   const isAuthConfigured = Boolean(
     process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
@@ -32,7 +45,7 @@ export default function AuthScreen({ deniedEmail, initialMessage }: AuthScreenPr
       const { error } = await supabase.auth.signInWithOtp({
         email: trimmedEmail,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          emailRedirectTo: getAuthCallbackUrl(),
         },
       });
 
@@ -105,6 +118,8 @@ export default function AuthScreen({ deniedEmail, initialMessage }: AuthScreenPr
               "mt-4 rounded-md px-3 py-2 text-sm " +
               (status === "error"
                 ? "border border-red-300 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-900/20 dark:text-red-400"
+                : status === "warning"
+                  ? "border border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300"
                 : "border border-zinc-200 bg-zinc-50 text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300")
             }
           >

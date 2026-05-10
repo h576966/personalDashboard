@@ -19,6 +19,7 @@ The dashboard uses Supabase Magic Links for a small allowlisted household. Confi
 
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+- `NEXT_PUBLIC_SITE_URL` (optional locally, recommended in production for stable Magic Link redirects)
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `HOUSEHOLD_ALLOWED_EMAILS`
 
@@ -34,11 +35,12 @@ variables in Vercel for Production, Preview, and Development as needed:
 
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+- `NEXT_PUBLIC_SITE_URL` (set to your stable production domain, for example `https://personal-dashboard.vercel.app`)
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `HOUSEHOLD_ALLOWED_EMAILS`
 - `BRAVE_API_KEY`
 - `DEEPSEEK_API_KEY`
-- `DEEPSEEK_MODEL` (optional, defaults to `deepseek-chat`)
+- `DEEPSEEK_MODEL` (optional, defaults to `deepseek-v4-flash`; use `deepseek-v4-pro` only if you need higher-quality, higher-cost refreshes)
 
 Before deploying, apply all migrations in `src/lib/db/migrations/` through
 `009_app_language_preference.sql` in Supabase and record each file name without `.sql` in
@@ -50,6 +52,9 @@ In Supabase Auth, allow these redirect URLs:
 - `http://localhost:3000/auth/callback`
 - `https://<production-domain>/auth/callback`
 - `https://*-<vercel-team-or-user>.vercel.app/auth/callback` if using Vercel preview deployments
+
+Set `NEXT_PUBLIC_SITE_URL` to the stable production domain so Magic Links sent from preview or
+deployment-specific URLs still return to the canonical app URL.
 
 Post-deploy smoke checks:
 
@@ -65,8 +70,9 @@ Post-deploy smoke checks:
 Results are filtered for quality, scored by term matching, and optionally summarized by DeepSeek AI
 with follow-up suggestions.
 
-**Lists:** Shared household lists for groceries, errands, and to-dos. Existing task rows are
-migrated into a default `To-do` list by migration `005`.
+**Lists:** Shared household lists for groceries, errands, and to-dos. Lists can be renamed, and
+empty lists can be deleted. Existing task rows are migrated into a default `To-do` list by
+migration `005`.
 
 **Notes:** Freeform shared notes for drafts, reminders, and household reference material.
 
@@ -81,8 +87,8 @@ Richer story cards can include expandable detail and optional source-provided im
 active news path is the story-card briefing at `/api/news/briefings`.
 
 **Settings:** App and news configuration lives in a dedicated Settings section. General settings
-cover account and language, while News settings cover regional focus, trusted sources, muted topics,
-watch topics, interests, and briefing filters.
+cover account and language, while News settings are grouped into basics, interests, trusted
+sources, muted/watch topics, and collapsed advanced filters.
 
 **Nordic-First News:** News settings include regional focus (`Norway + Sweden`, `Norway`,
 `Sweden`, or `Global`). The app language preference supports `English`, `Norwegian`, and

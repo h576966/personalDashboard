@@ -74,7 +74,7 @@ async function callDeepSeek(
     );
   }
 
-  const model = process.env.DEEPSEEK_MODEL ?? "deepseek-chat";
+  const model = process.env.DEEPSEEK_MODEL ?? "deepseek-v4-flash";
 
   const response = await fetch(
     "https://api.deepseek.com/chat/completions",

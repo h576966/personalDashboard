@@ -36,12 +36,14 @@ export default function ListsModule({ onOpenCountChange, copy }: ListsModuleProp
   const [lists, setLists] = useState<HouseholdList[]>([]);
   const [activeListId, setActiveListId] = useState<string | null>(null);
   const [newListName, setNewListName] = useState("");
+  const [listNameDraft, setListNameDraft] = useState("");
   const [newItemLabel, setNewItemLabel] = useState("");
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editingLabel, setEditingLabel] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isCreatingList, setIsCreatingList] = useState(false);
   const [isCreatingItem, setIsCreatingItem] = useState(false);
+  const [pendingListId, setPendingListId] = useState<string | null>(null);
   const [pendingItemIds, setPendingItemIds] = useState<Set<string>>(new Set());
   const [isClearingCompleted, setIsClearingCompleted] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,6 +54,16 @@ export default function ListsModule({ onOpenCountChange, copy }: ListsModuleProp
   );
   const openItems = activeList?.items.filter((item) => !item.is_completed) ?? [];
   const completedItems = activeList?.items.filter((item) => item.is_completed) ?? [];
+  const canRenameActiveList =
+    Boolean(activeList) &&
+    listNameDraft.trim().length > 0 &&
+    listNameDraft.trim() !== activeList?.name &&
+    pendingListId !== activeList?.id;
+  const canDeleteActiveList =
+    Boolean(activeList) &&
+    activeList?.items.length === 0 &&
+    pendingListId !== activeList?.id &&
+    lists.length > 1;
 
   useEffect(() => {
     onOpenCountChange?.(
@@ -80,6 +92,7 @@ export default function ListsModule({ onOpenCountChange, copy }: ListsModuleProp
 
         setLists(loadedLists);
         setActiveListId((current) => current ?? loadedLists[0]?.id ?? null);
+        setListNameDraft(loadedLists[0]?.name ?? "");
       })
       .catch((err: unknown) => {
         if (!isMounted) return;
@@ -129,7 +142,60 @@ export default function ListsModule({ onOpenCountChange, copy }: ListsModuleProp
 
     setLists((prev) => [...prev, data.list]);
     setActiveListId(data.list.id);
+    setListNameDraft(data.list.name);
     setNewListName("");
+  }
+
+  async function renameActiveList() {
+    if (!activeList || !canRenameActiveList) return;
+
+    const name = listNameDraft.trim();
+    setPendingListId(activeList.id);
+    setError(null);
+
+    const res = await fetch(`/api/lists/${activeList.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    const data = await res.json();
+
+    setPendingListId(null);
+
+    if (!res.ok) {
+      setError(data.error?.message ?? "Failed to rename list");
+      return;
+    }
+
+    setLists((prev) =>
+      prev.map((list) =>
+        list.id === data.list.id ? { ...list, name: data.list.name } : list,
+      ),
+    );
+    setListNameDraft(data.list.name);
+  }
+
+  async function deleteActiveList() {
+    if (!activeList || !canDeleteActiveList) return;
+    if (!window.confirm(copy.lists.deleteListConfirm(activeList.name))) return;
+
+    setPendingListId(activeList.id);
+    setError(null);
+
+    const res = await fetch(`/api/lists/${activeList.id}`, { method: "DELETE" });
+    const data = await res.json();
+
+    setPendingListId(null);
+
+    if (!res.ok) {
+      setError(data.error?.message ?? "Failed to delete list");
+      return;
+    }
+
+    const remainingLists = lists.filter((list) => list.id !== activeList.id);
+    setLists(remainingLists);
+    setActiveListId(remainingLists[0]?.id ?? null);
+    setListNameDraft(remainingLists[0]?.name ?? "");
   }
 
   async function createItem() {
@@ -270,7 +336,10 @@ export default function ListsModule({ onOpenCountChange, copy }: ListsModuleProp
                 <button
                   key={list.id}
                   type="button"
-                  onClick={() => setActiveListId(list.id)}
+                  onClick={() => {
+                    setActiveListId(list.id);
+                    setListNameDraft(list.name);
+                  }}
                   className={cn(
                     "min-h-10 rounded-md border px-3 py-2 text-sm font-medium transition-colors",
                     activeList?.id === list.id
@@ -304,6 +373,56 @@ export default function ListsModule({ onOpenCountChange, copy }: ListsModuleProp
 
             {activeList ? (
               <div className="space-y-4">
+                <div className="rounded-md border border-zinc-200 bg-zinc-50/70 p-3 dark:border-zinc-700 dark:bg-zinc-900/50">
+                  <label className="block">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                      {copy.lists.listName}
+                    </span>
+                    <div className="mt-2 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
+                      <input
+                        value={listNameDraft}
+                        onChange={(event) => setListNameDraft(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") void renameActiveList();
+                        }}
+                        disabled={pendingListId === activeList.id}
+                        className="min-h-10 min-w-0 rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none transition-colors focus:border-primary disabled:opacity-60 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
+                      />
+                      <ActionButton
+                        onClick={renameActiveList}
+                        disabled={!canRenameActiveList}
+                        className="min-h-10"
+                      >
+                        <Pencil className="h-4 w-4" />
+                        {pendingListId === activeList.id ? copy.lists.saving : copy.lists.saveName}
+                      </ActionButton>
+                      <ActionButton
+                        onClick={deleteActiveList}
+                        disabled={!canDeleteActiveList}
+                        variant="danger"
+                        className="min-h-10"
+                        title={
+                          activeList.items.length > 0
+                            ? copy.lists.deleteEmptyOnly
+                            : lists.length <= 1
+                              ? copy.lists.keepOneList
+                              : copy.lists.deleteList
+                        }
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        {copy.lists.deleteList}
+                      </ActionButton>
+                    </div>
+                  </label>
+                  {(activeList.items.length > 0 || lists.length <= 1) && (
+                    <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+                      {activeList.items.length > 0
+                        ? copy.lists.deleteEmptyOnly
+                        : copy.lists.keepOneList}
+                    </p>
+                  )}
+                </div>
+
                 <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
                   <input
                     value={newItemLabel}
