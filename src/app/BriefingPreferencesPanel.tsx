@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import NewsSourcesPanel from "./NewsSourcesPanel";
 import MutedTopicsPanel from "./MutedTopicsPanel";
 import WatchTopicsPanel from "./WatchTopicsPanel";
-import { LANGUAGE_OPTIONS, type AppCopy, type AppLanguage } from "@/lib/i18n";
+import { type AppCopy, type AppLanguage } from "@/lib/i18n";
 
 interface BriefingPreferences {
   id: string;
@@ -25,7 +25,7 @@ interface ApiErrorBody {
 }
 
 interface BriefingPreferencesPanelProps {
-  onClose: () => void;
+  onClose?: () => void;
   onSaved?: () => void | Promise<void>;
   copy: AppCopy;
 }
@@ -54,7 +54,6 @@ export default function BriefingPreferencesPanel({ onClose, onSaved, copy }: Bri
   const [preferredSources, setPreferredSources] = useState("");
   const [blockedSources, setBlockedSources] = useState("");
   const [regionalFocus, setRegionalFocus] = useState<BriefingPreferences["regional_focus"]>("nordic");
-  const [appLanguage, setAppLanguage] = useState<AppLanguage>("en");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -76,7 +75,6 @@ export default function BriefingPreferencesPanel({ onClose, onSaved, copy }: Bri
         setPreferredSources(listToText(data.preferred_sources ?? []));
         setBlockedSources(listToText(data.blocked_sources ?? []));
         setRegionalFocus(data.regional_focus ?? "nordic");
-        setAppLanguage(data.app_language ?? data.summary_language ?? "en");
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load preferences");
       } finally {
@@ -101,8 +99,6 @@ export default function BriefingPreferencesPanel({ onClose, onSaved, copy }: Bri
           preferred_sources: parseList(preferredSources),
           blocked_sources: parseList(blockedSources),
           regional_focus: regionalFocus,
-          app_language: appLanguage,
-          summary_language: appLanguage,
         }),
       });
       const data = await res.json();
@@ -111,7 +107,7 @@ export default function BriefingPreferencesPanel({ onClose, onSaved, copy }: Bri
 
       setPrefs(data);
       await onSaved?.();
-      onClose();
+      onClose?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save preferences");
     } finally {
@@ -130,13 +126,15 @@ export default function BriefingPreferencesPanel({ onClose, onSaved, copy }: Bri
             {copy.preferences.description}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="text-xs font-medium text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
-        >
-          {copy.preferences.close}
-        </button>
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-xs font-medium text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
+          >
+            {copy.preferences.close}
+          </button>
+        )}
       </div>
 
       {error && (
@@ -169,23 +167,6 @@ export default function BriefingPreferencesPanel({ onClose, onSaved, copy }: Bri
                 <option value="norway">{copy.preferences.regions.norway}</option>
                 <option value="sweden">{copy.preferences.regions.sweden}</option>
                 <option value="global">{copy.preferences.regions.global}</option>
-              </select>
-            </label>
-
-            <label className="block">
-              <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                {copy.preferences.language}
-              </span>
-              <select
-                value={appLanguage}
-                onChange={(event) => setAppLanguage(event.target.value as AppLanguage)}
-                className="mt-1 w-full rounded-md border border-zinc-300 bg-white p-2 text-sm text-zinc-900 outline-none focus:border-primary dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
-              >
-                {LANGUAGE_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
               </select>
             </label>
           </div>
@@ -241,13 +222,15 @@ export default function BriefingPreferencesPanel({ onClose, onSaved, copy }: Bri
           </label>
 
           <div className="flex items-center justify-end gap-2 border-t border-zinc-100 pt-4 dark:border-zinc-700">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-md border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-600 hover:border-zinc-400 dark:border-zinc-700 dark:text-zinc-300"
-            >
-              {copy.preferences.cancel}
-            </button>
+            {onClose && (
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-md border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-600 hover:border-zinc-400 dark:border-zinc-700 dark:text-zinc-300"
+              >
+                {copy.preferences.cancel}
+              </button>
+            )}
             <button
               type="button"
               onClick={savePreferences}

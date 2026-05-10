@@ -1,7 +1,7 @@
-import { BookMarked, ListChecks, Newspaper, NotebookPen, type LucideIcon } from "lucide-react";
+import { BookMarked, ListChecks, Newspaper, NotebookPen, Settings, type LucideIcon } from "lucide-react";
 import type { AppCopy } from "@/lib/i18n";
 
-export type ActiveModule = "lists" | "notes" | "news" | "readLater";
+export type ActiveModule = "lists" | "notes" | "news" | "readLater" | "settings";
 
 export interface DashboardModule {
   id: ActiveModule;
@@ -35,6 +35,12 @@ export function getDashboardModules(copy: AppCopy): DashboardModule[] {
       title: copy.modules.readLater.title,
       description: copy.modules.readLater.description,
       icon: BookMarked,
+    },
+    {
+      id: "settings",
+      title: copy.modules.settings.title,
+      description: copy.modules.settings.description,
+      icon: Settings,
     },
   ];
 }

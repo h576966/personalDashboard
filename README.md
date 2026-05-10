@@ -27,6 +27,38 @@ In Supabase Auth redirect URLs, add:
 - `http://localhost:3000/auth/callback`
 - `https://<your-domain>/auth/callback`
 
+## Vercel Deployment
+
+Vercel should detect this as a standard Next.js app. Use Node 20 and set these environment
+variables in Vercel for Production, Preview, and Development as needed:
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `HOUSEHOLD_ALLOWED_EMAILS`
+- `BRAVE_API_KEY`
+- `DEEPSEEK_API_KEY`
+- `DEEPSEEK_MODEL` (optional, defaults to `deepseek-chat`)
+
+Before deploying, apply all migrations in `src/lib/db/migrations/` through
+`009_app_language_preference.sql` in Supabase and record each file name without `.sql` in
+`schema_migrations`. You can run `npx tsx src/lib/db/migrate.ts` locally as a read-only audit
+helper; it prints pending SQL but does not apply DDL.
+
+In Supabase Auth, allow these redirect URLs:
+
+- `http://localhost:3000/auth/callback`
+- `https://<production-domain>/auth/callback`
+- `https://*-<vercel-team-or-user>.vercel.app/auth/callback` if using Vercel preview deployments
+
+Post-deploy smoke checks:
+
+- Signed-out users see the Magic Link auth screen.
+- An allowlisted email can complete the `/auth/callback` flow.
+- News opens from cache without triggering a refresh.
+- Manual News refresh completes.
+- Lists, Notes, Read Later, and Settings load after login.
+
 ## Current Features
 
 **Clean Search:** Web search powered by the Brave Search API, re-ranked by relevance scoring.
@@ -48,7 +80,11 @@ news links, and archived news links provide lightweight implicit personalization
 Richer story cards can include expandable detail and optional source-provided images. The
 active news path is the story-card briefing at `/api/news/briefings`.
 
-**Nordic-First News:** News preferences include regional focus (`Norway + Sweden`, `Norway`,
+**Settings:** App and news configuration lives in a dedicated Settings section. General settings
+cover account and language, while News settings cover regional focus, trusted sources, muted topics,
+watch topics, interests, and briefing filters.
+
+**Nordic-First News:** News settings include regional focus (`Norway + Sweden`, `Norway`,
 `Sweden`, or `Global`). The app language preference supports `English`, `Norwegian`, and
 `Swedish`, and intentionally controls both active UI copy and generated news summaries in v1.
 Trusted sources include a reproducible Nordic source pack that can be synced from the UI.
@@ -56,8 +92,7 @@ Trusted sources include a reproducible Nordic source pack that can be synced fro
 **Dashboard Layout:** A two-column responsive layout with:
 - **Persistent Top Search** for news, notes, saved links, and web queries
 - **News-First Main Workspace** where the daily briefing is the default landing view
-- **Compact Dashboard Metrics** for stories, open list items, unread saved items, and notes
-- **Section Rail** for navigation and lightweight module counters
+- **Section Rail** for navigation, lightweight module counters, and Settings
 
 Search results temporarily override the main workspace, while modules (e.g. News, Read Later)
 control the default content.
@@ -76,7 +111,7 @@ control the default content.
 
 ## Product Principles
 
-- **Single dashboard shell** — One layout with a persistent module sidebar instead of page navigation.
+- **Single dashboard shell** — One layout with a persistent section rail instead of page navigation.
 - **News-first landing** — The dashboard opens on the daily briefing while keeping household
   lists, notes, and read-later one click away.
 - **Workspace-driven UI** — The main area adapts based on user actions (search vs module selection).
@@ -88,7 +123,7 @@ control the default content.
 - **Deterministic before AI** — Core functionality works without AI. AI enhances results
   (summaries, suggestions) but is never required.
 - **Local-first workflow** — Schema and app code live in the repo; data persists in Supabase Postgres.
-- **Developer-friendly config** — Topics, sources, and thresholds editable via the UI.
+- **Developer-friendly config** — Topics, sources, language, and thresholds editable via Settings.
 
 ## Database Migrations
 
@@ -107,12 +142,12 @@ read-only audit confirms row counts, dependencies, and backup status. Use
 `docs/supabase_cleanup_audit.sql` for the read-only database audit.
 
 Migration `007` adds Nordic news preferences and expands the default trusted source pack. Existing
-projects should run the migration, record it in `schema_migrations`, then use **News > Preferences >
+projects should run the migration, record it in `schema_migrations`, then use **Settings > News >
 Trusted sources > Sync defaults** to ensure the UI and database source list are aligned.
 
 Migration `008` adds cached story detail and optional source image metadata for richer news cards.
 Migration `009` adds the user-facing app language preference; in v1 the selected app language also
-sets the generated news summary language.
+sets the generated news summary language and is managed from Settings.
 
 ## Directory Structure
 

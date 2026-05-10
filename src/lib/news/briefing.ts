@@ -14,7 +14,7 @@ import {
 } from "@/lib/db/newsSources";
 import { getEnabledBlockedKeywords } from "@/lib/db/blockedTopics";
 import { getEnabledWatchTopics, updateWatchTopicLastSeen } from "@/lib/db/watchTopics";
-import { upsertStoryCards } from "@/lib/db/storyClusters";
+import { replaceTodaysStoryCards } from "@/lib/db/storyClusters";
 import {
   getNewsPersonalizationSignals,
   type NewsPersonalizationSignals,
@@ -99,6 +99,23 @@ const SECTION_PATHS = new Set([
   "latest",
   "breaking-news",
 ]);
+
+const NON_VISUAL_INTERESTS = new Set([
+  "Nordic economy and society",
+  "Geopolitics",
+]);
+
+const NON_STORY_IMAGE_TERMS = [
+  "logo",
+  "icon",
+  "favicon",
+  "avatar",
+  "profile",
+  "placeholder",
+  "default",
+  "brand",
+  "sprite",
+];
 
 const DEFAULT_INTERESTS: FeedInterest[] = [
   {
@@ -223,13 +240,27 @@ function validHttpsUrl(value: unknown): string {
   }
 }
 
+function isLikelyStoryImageUrl(value: string): boolean {
+  const url = validHttpsUrl(value);
+  if (!url) return false;
+
+  try {
+    const parsed = new URL(url);
+    const searchable = `${parsed.hostname} ${parsed.pathname} ${parsed.search}`.toLowerCase();
+    return !NON_STORY_IMAGE_TERMS.some((term) => searchable.includes(term));
+  } catch {
+    return false;
+  }
+}
+
 function imageUrlFromResult(result: BraveWebResult): string {
   if (typeof result.thumbnail === "string") {
-    return validHttpsUrl(result.thumbnail);
+    return isLikelyStoryImageUrl(result.thumbnail) ? validHttpsUrl(result.thumbnail) : "";
   }
 
   if (result.thumbnail && result.thumbnail.logo !== true) {
-    return validHttpsUrl(result.thumbnail.original) || validHttpsUrl(result.thumbnail.src);
+    const imageUrl = validHttpsUrl(result.thumbnail.original) || validHttpsUrl(result.thumbnail.src);
+    return isLikelyStoryImageUrl(imageUrl) ? imageUrl : "";
   }
 
   return "";
@@ -301,7 +332,7 @@ function isLikelyArticleUrl(url: string): boolean {
 
     const path = parsed.pathname.toLowerCase();
     const last = segments.at(-1)?.toLowerCase() ?? "";
-    const hasLongSlug = last.length >= 18 && last.includes("-");
+    const hasLongSlug = segments.length >= 3 && last.length >= 18 && last.includes("-");
     const hasArticleMarker = /\/articles?\/|\/story\/|\/news\/articles?\//.test(path);
     const hasDatePath = /\/20\d{2}\/(0?[1-9]|1[0-2])\//.test(path);
     const hasNumericId = /\d{5,}/.test(path);
@@ -461,7 +492,14 @@ function candidateFromResult(input: {
 }
 
 function clusterImage(cluster: StoryCluster): { imageUrl: string; imageSource: string } {
-  const article = cluster.articles.find((candidate) => validHttpsUrl(candidate.imageUrl));
+  const hasVisualInterest = cluster.matchedInterests.some(
+    (interest) => !NON_VISUAL_INTERESTS.has(interest),
+  );
+  if (!hasVisualInterest) return { imageUrl: "", imageSource: "" };
+
+  const article = cluster.articles.find((candidate) =>
+    candidate.imageUrl ? isLikelyStoryImageUrl(candidate.imageUrl) : false,
+  );
   if (!article?.imageUrl) return { imageUrl: "", imageSource: "" };
 
   return {
@@ -716,6 +754,7 @@ function scoreCluster(
 async function summarizeCluster(
   cluster: StoryCluster,
   summaryLanguage: SummaryLanguage,
+  generatedAt: string,
 ): Promise<StoryCard> {
   const sources = cluster.articles.slice(0, 5).map((article) => ({
     title: article.title,
@@ -746,7 +785,7 @@ async function summarizeCluster(
       imageSource: image.imageSource,
       matchedInterests: cluster.matchedInterests,
       isWatchUpdate: cluster.isWatchUpdate,
-      generatedAt: new Date().toISOString(),
+      generatedAt,
     };
   } catch (err) {
     console.warn(`Failed to summarize story cluster ${cluster.id}:`, err);
@@ -767,7 +806,7 @@ async function summarizeCluster(
       imageSource: image.imageSource,
       matchedInterests: cluster.matchedInterests,
       isWatchUpdate: cluster.isWatchUpdate,
-      generatedAt: new Date().toISOString(),
+      generatedAt,
     };
   }
 }
@@ -800,18 +839,19 @@ export async function buildDailyNewsBriefing(householdId: string): Promise<Daily
     .sort((a, b) => b.score - a.score)
     .slice(0, 5);
 
+  const generatedAt = new Date().toISOString();
   const storyCards = await Promise.all(
-    rankedClusters.map((cluster) => summarizeCluster(cluster, prefs.summary_language)),
+    rankedClusters.map((cluster) => summarizeCluster(cluster, prefs.summary_language, generatedAt)),
   );
 
   try {
-    await upsertStoryCards(storyCards);
+    await replaceTodaysStoryCards(storyCards);
   } catch (err) {
     console.warn("Failed to persist story cards:", err);
   }
 
   return {
     storyCards,
-    generatedAt: new Date().toISOString(),
+    generatedAt,
   };
 }

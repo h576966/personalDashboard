@@ -91,9 +91,40 @@ export async function upsertStoryCards(cards: StoryCard[]): Promise<void> {
   }
 }
 
-export async function getTodaysStoryCards(): Promise<StoryCard[]> {
+function startOfTodayIso(): string {
   const now = new Date();
-  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+}
+
+export async function replaceTodaysStoryCards(cards: StoryCard[]): Promise<void> {
+  const startOfDay = startOfTodayIso();
+
+  if (cards.length === 0) {
+    const { error } = await supabaseAdmin
+      .from("news_story_clusters")
+      .delete()
+      .gte("generated_at", startOfDay);
+
+    if (error) throw error;
+    return;
+  }
+
+  await upsertStoryCards(cards);
+
+  const generatedAt = cards[0]?.generatedAt;
+  if (!generatedAt) return;
+
+  const { error } = await supabaseAdmin
+    .from("news_story_clusters")
+    .delete()
+    .gte("generated_at", startOfDay)
+    .lt("generated_at", generatedAt);
+
+  if (error) throw error;
+}
+
+export async function getTodaysStoryCards(): Promise<StoryCard[]> {
+  const startOfDay = startOfTodayIso();
 
   async function selectCards(includeRicherFields: boolean, includeAngles: boolean) {
     const clusterFields = [

@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { COUNTRY_OPTIONS } from "@/lib/db/topics";
+import { COUNTRY_OPTIONS } from "@/lib/countries";
 import type { AppCopy } from "@/lib/i18n";
 import { Clock, Globe } from "lucide-react";
 

@@ -19,7 +19,7 @@
 
 ## Layout Conventions
 
-- Dashboard shell: top search with a `max-w-7xl` two-column workspace and a module sidebar.
+- Dashboard shell: persistent top search with a `max-w-7xl` two-column workspace and a section rail.
 - Main workspace: roughly 70% width on desktop, stacked below the module rail on mobile.
 - Card surfaces: `rounded-md border border-zinc-200 bg-white p-4 shadow-sm
   dark:border-zinc-700 dark:bg-zinc-800`.
@@ -37,18 +37,16 @@ the active focus area within the same workspace view.
 
 ### Default State
 
-- Show **Lists** first because shared household lists are the highest-frequency workflow.
-- The user should see value immediately without clicking anything.
+- Show **News** first so the household lands on the daily briefing.
+- Keep Lists, Notes, Read Later, and Settings one click away in the section rail.
 
 ### Interaction States
 
 - **Search:** If the user searches, expand Search results and give them more space. The rest
   of the dashboard recedes visually but remains accessible.
-- **Topic Editor:** Open as an **editor panel or modal** that keeps the dashboard context
-  visible. Do not take the user to a separate page.
-- **Advanced Settings:** Group technical configuration (scoring thresholds, source filters,
-  keywords) in expandable sections or secondary panels. Keep them visually subordinate to
-  the daily overview.
+- **Topic Editor:** Keep topic and source controls inside Settings so the News surface stays calm.
+- **Settings:** App language, account actions, and news configuration live in the Settings module.
+  Keep technical configuration visually subordinate to the daily overview.
 
 ### Mobile
 
@@ -61,7 +59,7 @@ the active focus area within the same workspace view.
 Assume a non-technical family member is the primary user. They should be able to:
 
 - Read the briefing
-- Add a topic
+- Adjust settings
 - Add a note
 - Add a list item
 - Save something to read later
@@ -194,9 +192,8 @@ for the canonical reference.
 
 - **Deterministic before AI** — Every feature must function without AI APIs. AI is an
   enhancement layer on top of a working core.
-- **Advanced config behind sections** — Technical configuration (scoring thresholds,
-  source filters, keywords) should be grouped in expandable sections or topic detail views,
-  not in the main UI flow.
+- **Advanced config behind Settings** — Technical configuration (scoring thresholds,
+  source filters, keywords) should live in Settings sections, not in the main reading flow.
 - **Family-friendly text** — UI labels must be understandable by non-technical users.
   Avoid acronyms (e.g., write "Past Week" not "pw").
 - **API keys stay server-side** — Never expose API keys to the browser. Browser code calls

@@ -30,6 +30,10 @@ export default async function Home({ searchParams }: HomeProps) {
       return <AuthScreen initialMessage="Supabase Auth is not configured yet." />;
     }
 
+    if (error instanceof Error && error.message.includes("Missing SUPABASE_SERVICE_ROLE_KEY")) {
+      return <AuthScreen initialMessage="Supabase service role key is not configured yet." />;
+    }
+
     throw error;
   }
 

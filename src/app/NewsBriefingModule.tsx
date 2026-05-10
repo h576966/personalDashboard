@@ -3,8 +3,6 @@
 import Image from "next/image";
 import { useCallback, useEffect, useState } from "react";
 import { BookmarkPlus, Check, ChevronDown, ThumbsDown, ThumbsUp } from "lucide-react";
-import BriefingPreferencesPanel from "./BriefingPreferencesPanel";
-import TopicsPanel from "./TopicsPanel";
 import { ActionButton, EmptyState, InlineNotice, SkeletonList } from "./components/ModuleChrome";
 import { formatShortTime, type AppCopy, type AppLanguage } from "@/lib/i18n";
 
@@ -58,7 +56,6 @@ interface NewsBriefingModuleProps {
     description: string;
     score: number;
   }) => Promise<boolean>;
-  onPreferencesChanged?: () => void | Promise<void>;
 }
 
 function sourceLabel(source: BriefingSource): string {
@@ -73,30 +70,57 @@ function sourceForUrl(story: StoryCard, url: string): BriefingSource | undefined
   return story.sources.find((source) => source.url === url);
 }
 
+const NON_VISUAL_CATEGORIES = new Set(["Nordic economy and society", "Geopolitics"]);
+const NON_STORY_IMAGE_TERMS = [
+  "logo",
+  "icon",
+  "favicon",
+  "avatar",
+  "profile",
+  "placeholder",
+  "default",
+  "brand",
+  "sprite",
+];
+
+function isLikelyStoryImageUrl(value: string | undefined): boolean {
+  if (!value) return false;
+
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol !== "https:") return false;
+
+    const searchable = `${parsed.hostname} ${parsed.pathname} ${parsed.search}`.toLowerCase();
+    return !NON_STORY_IMAGE_TERMS.some((term) => searchable.includes(term));
+  } catch {
+    return false;
+  }
+}
+
+function shouldShowStoryImage(story: StoryCard): boolean {
+  const hasVisualInterest = story.matchedInterests.some(
+    (interest) => !NON_VISUAL_CATEGORIES.has(interest),
+  );
+
+  return hasVisualInterest && isLikelyStoryImageUrl(story.imageUrl);
+}
+
 export default function NewsBriefingModule({
   savedUrls,
   appLanguage,
   copy,
   onStoryCountChange,
   onSaveSource,
-  onPreferencesChanged,
 }: NewsBriefingModuleProps) {
   const [storyCards, setStoryCards] = useState<StoryCard[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasLoaded, setHasLoaded] = useState(false);
-  const [showPreferences, setShowPreferences] = useState(false);
   const [feedbackByStory, setFeedbackByStory] = useState<Record<string, "up" | "down">>({});
   const [feedbackNotice, setFeedbackNotice] = useState<string | null>(null);
   const [savingUrls, setSavingUrls] = useState<Set<string>>(new Set());
   const [expandedStoryIds, setExpandedStoryIds] = useState<Set<string>>(new Set());
   const [cacheEmpty, setCacheEmpty] = useState(false);
-
-  const NON_VISUAL_CATEGORIES = new Set(["Nordic economy and society", "Geopolitics"]);
-
-  function hasVisualInterest(matchedInterests: string[]): boolean {
-    return matchedInterests.some((interest) => !NON_VISUAL_CATEGORIES.has(interest));
-  }
 
   const loadBriefings = useCallback(async (refresh = false) => {
     setIsLoading(true);
@@ -216,14 +240,6 @@ export default function NewsBriefingModule({
         <div className="flex shrink-0 items-center gap-2">
           <button
             type="button"
-            onClick={() => setShowPreferences((prev) => !prev)}
-            className="rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-600 hover:border-primary hover:text-primary dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
-          >
-            {copy.news.preferences}
-          </button>
-
-          <button
-            type="button"
             onClick={() => loadBriefings(true)}
             disabled={isLoading}
             className="rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-600 transition-colors hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
@@ -232,20 +248,6 @@ export default function NewsBriefingModule({
           </button>
         </div>
       </div>
-
-      {showPreferences && (
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(260px,1fr)]">
-          <BriefingPreferencesPanel
-            onClose={() => setShowPreferences(false)}
-            copy={copy}
-            onSaved={async () => {
-              await onPreferencesChanged?.();
-              void loadBriefings(true);
-            }}
-          />
-          <TopicsPanel copy={copy} />
-        </div>
-      )}
 
       {error && <InlineNotice tone="error">{error}</InlineNotice>}
 
@@ -272,6 +274,7 @@ export default function NewsBriefingModule({
           const storyBreakdown = story.storyBreakdown ?? [];
           const hasDetails = storyBreakdown.length > 0 || story.angles.length > 0;
           const isExpanded = expandedStoryIds.has(story.id);
+          const showImage = shouldShowStoryImage(story);
 
           return (
             <article
@@ -299,27 +302,37 @@ export default function NewsBriefingModule({
                 </div>
               </div>
 
-              <p className="mt-3 text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">
-                {story.summary}
-              </p>
+              <div
+                className={
+                  showImage
+                    ? "mt-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_9rem] sm:items-start"
+                    : "mt-3"
+                }
+              >
+                <p className="text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">
+                  {story.summary}
+                </p>
 
-              {story.imageUrl && hasVisualInterest(story.matchedInterests) && (
-                <figure className="mt-4 overflow-hidden rounded-md border border-zinc-200 bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800">
-                  <Image
-                    src={story.imageUrl}
-                    alt=""
-                    width={960}
-                    height={360}
-                    unoptimized
-                    className="w-full object-scale-down"
-                  />
-                  {story.imageSource && (
-                    <figcaption className="px-3 py-1.5 text-[11px] text-zinc-400">
-                      {copy.news.image} {story.imageSource}
-                    </figcaption>
-                  )}
-                </figure>
-              )}
+                {showImage && story.imageUrl && (
+                  <figure className="order-first overflow-hidden rounded-md border border-zinc-200 bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 sm:order-none">
+                    <div className="relative h-28 w-full sm:h-24">
+                      <Image
+                        src={story.imageUrl}
+                        alt=""
+                        fill
+                        sizes="(min-width: 640px) 144px, 100vw"
+                        unoptimized
+                        className="object-cover"
+                      />
+                    </div>
+                    {story.imageSource && (
+                      <figcaption className="truncate px-2 py-1 text-[10px] text-zinc-400">
+                        {copy.news.image} {story.imageSource}
+                      </figcaption>
+                    )}
+                  </figure>
+                )}
+              </div>
 
               {story.whyItMatters && (
                 <div className="mt-4 rounded-md border border-muted bg-muted/60 p-3 dark:border-primary-hover dark:bg-primary-hover/20">

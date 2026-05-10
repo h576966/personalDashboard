@@ -4,6 +4,8 @@ import { authErrorResponse, requireCurrentHousehold } from "@/lib/auth/household
 import { getTodaysStoryCards } from "@/lib/db/storyClusters";
 import { buildDailyNewsBriefing } from "@/lib/news/briefing";
 
+export const maxDuration = 120;
+
 async function buildAndReturn(householdId: string) {
   const briefing = await buildDailyNewsBriefing(householdId);
   return NextResponse.json({ briefing, source: "fresh" });

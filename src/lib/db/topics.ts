@@ -1,63 +1,5 @@
-import { getSupabase } from "./supabase";
+import { supabaseAdmin } from "@/lib/supabaseServer";
 import { assertField } from "./assert";
-
-// ── UI Constants ────────────────────────────────────────────────
-
-export interface CountryOption {
-  value: string;
-  label: string;
-}
-
-export const COUNTRY_OPTIONS: CountryOption[] = [
-  { value: "all", label: "Any" },
-  { value: "US", label: "United States" },
-  { value: "GB", label: "United Kingdom" },
-  { value: "DE", label: "Germany" },
-  { value: "FR", label: "France" },
-  { value: "ES", label: "Spain" },
-  { value: "IT", label: "Italy" },
-  { value: "PT", label: "Portugal" },
-  { value: "NL", label: "Netherlands" },
-  { value: "BE", label: "Belgium" },
-  { value: "CH", label: "Switzerland" },
-  { value: "AT", label: "Austria" },
-  { value: "SE", label: "Sweden" },
-  { value: "NO", label: "Norway" },
-  { value: "DK", label: "Denmark" },
-  { value: "FI", label: "Finland" },
-  { value: "PL", label: "Poland" },
-  { value: "CZ", label: "Czech Republic" },
-  { value: "HU", label: "Hungary" },
-  { value: "RO", label: "Romania" },
-  { value: "GR", label: "Greece" },
-  { value: "TR", label: "Turkey" },
-  { value: "RU", label: "Russia" },
-  { value: "JP", label: "Japan" },
-  { value: "CN", label: "China" },
-  { value: "KR", label: "South Korea" },
-  { value: "IN", label: "India" },
-  { value: "BR", label: "Brazil" },
-  { value: "CA", label: "Canada" },
-  { value: "AU", label: "Australia" },
-  { value: "NZ", label: "New Zealand" },
-  { value: "AR", label: "Argentina" },
-  { value: "CL", label: "Chile" },
-  { value: "CO", label: "Colombia" },
-  { value: "MX", label: "Mexico" },
-  { value: "ZA", label: "South Africa" },
-  { value: "NG", label: "Nigeria" },
-  { value: "EG", label: "Egypt" },
-  { value: "IL", label: "Israel" },
-  { value: "AE", label: "United Arab Emirates" },
-  { value: "SG", label: "Singapore" },
-  { value: "HK", label: "Hong Kong" },
-  { value: "TW", label: "Taiwan" },
-];
-
-/** Real country codes (excludes the "all" sentinel). */
-export const COUNTRY_VALUES: ReadonlySet<string> = new Set(
-  COUNTRY_OPTIONS.map((o) => o.value).filter((v) => v !== "all"),
-);
 
 // ── Types ───────────────────────────────────────────────────────
 
@@ -134,8 +76,7 @@ function rowToTopic(row: Record<string, unknown>): NewsTopic {
 }
 
 export async function getTopics(): Promise<NewsTopic[]> {
-  const supabase = getSupabase();
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from("news_topics")
     .select("*")
     .order("name", { ascending: true });
@@ -145,8 +86,7 @@ export async function getTopics(): Promise<NewsTopic[]> {
 }
 
 export async function getTopic(id: string): Promise<NewsTopic | null> {
-  const supabase = getSupabase();
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from("news_topics")
     .select("*")
     .eq("id", id)
@@ -164,8 +104,7 @@ export async function createTopic(data: CreateTopicData): Promise<NewsTopic> {
     throw new Error("At least one query is required");
   }
 
-  const supabase = getSupabase();
-  const { error: insertError, data: inserted } = await supabase
+  const { error: insertError, data: inserted } = await supabaseAdmin
     .from("news_topics")
     .insert({
       name: data.name.trim(),
@@ -246,8 +185,7 @@ export async function updateTopic(
 
   update.updated_at = new Date().toISOString();
 
-  const supabase = getSupabase();
-  const { error: updateError } = await supabase
+  const { error: updateError } = await supabaseAdmin
     .from("news_topics")
     .update(update)
     .eq("id", id);
@@ -260,8 +198,7 @@ export async function updateTopic(
 }
 
 export async function deleteTopic(id: string): Promise<void> {
-  const supabase = getSupabase();
-  const { error, count } = await supabase
+  const { error, count } = await supabaseAdmin
     .from("news_topics")
     .delete({ count: "exact" })
     .eq("id", id);

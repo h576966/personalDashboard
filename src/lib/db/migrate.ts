@@ -1,19 +1,15 @@
 /**
- * Database migration runner for Supabase.
+ * Manual migration audit helper for Supabase.
  *
- * Applies pending SQL migration files from src/lib/db/migrations/.
+ * Lists pending SQL migration files from src/lib/db/migrations/.
  *
- * Since supabase-js does not support raw SQL execution via the REST API,
- * this script connects directly to the Postgres database using the Supabase
- * connection string constructed from the project URL.
+ * Supabase DDL migrations are applied manually through the Supabase SQL Editor.
+ * This helper only compares local migration files with schema_migrations and
+ * prints any SQL that still needs to be applied.
  *
  * Usage:
  *   1. Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in .env.local
  *   2. npx tsx src/lib/db/migrate.ts
- *
- * Note: The service role key can be used with the Supabase REST API
- * to call the pg_database; but for DDL (CREATE TABLE), you should
- * first apply the initial migration manually via the Supabase SQL Editor.
  *
  * Required manual step (one time):
  *   Open your Supabase project's SQL Editor and run:
@@ -25,15 +21,13 @@
 
 import fs from "fs";
 import path from "path";
-import { getSupabase } from "./supabase";
+import { supabaseAdmin } from "@/lib/supabaseServer";
 
 const MIGRATIONS_DIR = path.resolve(__dirname, "migrations");
 
 export async function runMigrations(): Promise<void> {
-  const supabase = getSupabase();
-
   // Check if schema_migrations table exists by trying to query it
-  const { error: checkError } = await supabase
+  const { error: checkError } = await supabaseAdmin
     .from("schema_migrations")
     .select("version", { count: "exact", head: true });
 
@@ -50,7 +44,7 @@ export async function runMigrations(): Promise<void> {
   }
 
   // Get already applied migrations
-  const { data: applied, error: listError } = await supabase
+  const { data: applied, error: listError } = await supabaseAdmin
     .from("schema_migrations")
     .select("version")
     .order("version", { ascending: true });

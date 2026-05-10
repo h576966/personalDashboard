@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { searchBrave, BraveSearchError } from "@/lib/brave";
 import { processSearchResults } from "@/lib/search";
 import { searchCache, type CacheEntry } from "@/lib/cache";
-import { COUNTRY_VALUES } from "@/lib/db/topics";
+import { COUNTRY_VALUES } from "@/lib/countries";
 import { errorResponse } from "@/lib/api/errors";
 import {
   rewriteQuery,
@@ -17,7 +17,7 @@ import {
 
 const VALID_FRESHNESS = new Set(["pd", "pw", "pm", "py"]);
 
-// VALID_COUNTRIES is derived from COUNTRY_OPTIONS in src/lib/db/topics.ts
+// VALID_COUNTRIES is derived from COUNTRY_OPTIONS in src/lib/countries.ts
 const VALID_COUNTRIES = COUNTRY_VALUES;
 
 interface SearchRequestBody {

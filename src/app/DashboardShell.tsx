@@ -1,11 +1,11 @@
 "use client";
 
-import { BookMarked, ListChecks, Newspaper, NotebookPen } from "lucide-react";
 import ListsModule from "./ListsModule";
 import NewsBriefingModule from "./NewsBriefingModule";
 import NotesModule from "./NotesModule";
 import ReadLaterModule from "./ReadLaterModule";
 import SearchModule from "./SearchModule";
+import SettingsModule from "./SettingsModule";
 import { EmptyState, InlineNotice, SkeletonList } from "./components/ModuleChrome";
 import { getDashboardModules, type ActiveModule } from "./modules";
 import { useDashboardData } from "./useDashboardData";
@@ -64,22 +64,6 @@ export default function DashboardShell({ userEmail }: DashboardShellProps) {
         </div>
       )}
 
-      <div className="border-b border-zinc-200 bg-white px-6 py-2 dark:border-zinc-800 dark:bg-zinc-950">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 text-xs text-zinc-500 dark:text-zinc-400">
-          <span className="font-medium text-zinc-700 dark:text-zinc-200">{copy.shell.home}</span>
-          <div className="flex min-w-0 items-center gap-3">
-            <span className="truncate">{userEmail}</span>
-            <button
-              type="button"
-              onClick={signOut}
-              className="font-medium text-primary hover:text-primary-hover"
-            >
-              {copy.shell.signOut}
-            </button>
-          </div>
-        </div>
-      </div>
-
       <SearchModule
         query={query}
         freshness={freshness}
@@ -94,16 +78,6 @@ export default function DashboardShell({ userEmail }: DashboardShellProps) {
 
       <div className="mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:grid-cols-[minmax(0,7fr)_minmax(260px,2.6fr)]">
         <main className="order-2 min-w-0 lg:order-1">
-          {!isSearching && !searchData && !searchError && (
-            <MetricRow
-              stories={storyCount}
-              openItems={openListCount}
-              unreadItems={hasLoadedSaved ? unreadSavedCount : null}
-              notes={notesCount}
-              copy={copy}
-            />
-          )}
-
           {isSearching && (
             <SkeletonList count={3} />
           )}
@@ -226,7 +200,6 @@ export default function DashboardShell({ userEmail }: DashboardShellProps) {
               copy={copy}
               onStoryCountChange={setStoryCount}
               onSaveSource={(item) => saveItem({ ...item, source: "news" })}
-              onPreferencesChanged={loadPreferences}
             />
           )}
 
@@ -252,6 +225,16 @@ export default function DashboardShell({ userEmail }: DashboardShellProps) {
               onRestore={(id) => updateSavedStatus(id, "unread")}
               appLanguage={appLanguage}
               copy={copy}
+            />
+          )}
+
+          {!isSearching && !searchData && !searchError && activeModule === "settings" && (
+            <SettingsModule
+              userEmail={userEmail}
+              appLanguage={appLanguage}
+              copy={copy}
+              onPreferencesChanged={loadPreferences}
+              onSignOut={signOut}
             />
           )}
         </main>
@@ -323,46 +306,6 @@ export default function DashboardShell({ userEmail }: DashboardShellProps) {
   );
 }
 
-function MetricRow({
-  stories,
-  openItems,
-  unreadItems,
-  notes,
-  copy,
-}: {
-  stories: number | null;
-  openItems: number | null;
-  unreadItems: number | null;
-  notes: number | null;
-  copy: ReturnType<typeof useDashboardData>["copy"];
-}) {
-  const metrics = [
-    { label: copy.shell.metrics.stories, value: stories, icon: Newspaper },
-    { label: copy.shell.metrics.open, value: openItems, icon: ListChecks },
-    { label: copy.shell.metrics.unread, value: unreadItems, icon: BookMarked },
-    { label: copy.shell.metrics.notes, value: notes, icon: NotebookPen },
-  ];
-
-  return (
-    <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-      {metrics.map(({ label, value, icon: Icon }) => (
-        <div
-          key={label}
-          className="flex min-h-12 items-center justify-between gap-3 rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm shadow-sm dark:border-zinc-700 dark:bg-zinc-800"
-        >
-          <span className="flex min-w-0 items-center gap-2 text-zinc-500 dark:text-zinc-400">
-            <Icon className="h-4 w-4 shrink-0 text-primary" />
-            <span className="truncate text-xs font-medium">{label}</span>
-          </span>
-          <span className="text-sm font-semibold tabular-nums text-zinc-900 dark:text-zinc-100">
-            {value ?? "—"}
-          </span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function ModuleCount({ value, active }: { value: number | null; active: boolean }) {
   if (value === null) return null;
 
@@ -392,5 +335,6 @@ function moduleCount(
   if (module === "lists") return counts.openListCount;
   if (module === "notes") return counts.notesCount;
   if (module === "news") return counts.storyCount;
-  return counts.unreadSavedCount;
+  if (module === "readLater") return counts.unreadSavedCount;
+  return null;
 }

@@ -57,7 +57,6 @@ export const appCopy = {
       signOutTryAnother: "Sign out and try another email",
     },
     shell: {
-      home: "Home",
       signOut: "Sign out",
       sections: "Sections",
       clear: "Clear",
@@ -69,12 +68,6 @@ export const appCopy = {
       noResultsDescription: "Try a shorter search.",
       save: "Save",
       readLater: "Read later",
-      metrics: {
-        stories: "Stories",
-        open: "Open",
-        unread: "Unread",
-        notes: "Notes",
-      },
     },
     search: {
       placeholder: "Search news, notes, and saved links...",
@@ -91,6 +84,16 @@ export const appCopy = {
       notes: { title: "Notes", description: "Quick thoughts and drafts" },
       news: { title: "News", description: "Briefing and topics" },
       readLater: { title: "Read Later", description: "Saved articles and links" },
+      settings: { title: "Settings", description: "App and news preferences" },
+    },
+    settings: {
+      eyebrow: "Settings",
+      title: "Household settings",
+      description: "General app preferences and briefing controls.",
+      general: "General",
+      account: "Account",
+      language: "Language",
+      signedInAs: "Signed in as",
     },
     counts: {
       result: (count: number) => `${count} result${count === 1 ? "" : "s"}`,
@@ -165,7 +168,7 @@ export const appCopy = {
       eyebrow: "Today's briefing",
       title: "Top 5 daily stories",
       description: "High-signal updates from trusted sources, ranked before AI summarizes.",
-      preferences: "Preferences",
+      preferences: "Settings",
       refresh: "Refresh",
       refreshing: "Refreshing...",
       noStoriesTitle: "No stories generated.",
@@ -185,7 +188,7 @@ export const appCopy = {
       thumbsDown: "Thumbs down",
     },
     preferences: {
-      title: "Briefing preferences",
+      title: "News settings",
       description: "Comma-separated filters used before the AI generates the briefing.",
       close: "Close",
       loading: "Loading preferences...",
@@ -256,7 +259,6 @@ export const appCopy = {
       signOutTryAnother: "Logg ut og prøv en annen e-post",
     },
     shell: {
-      home: "Home",
       signOut: "Logg ut",
       sections: "Seksjoner",
       clear: "Tøm",
@@ -268,12 +270,6 @@ export const appCopy = {
       noResultsDescription: "Prøv et kortere søk.",
       save: "Lagre",
       readLater: "Les senere",
-      metrics: {
-        stories: "Saker",
-        open: "Åpne",
-        unread: "Ulest",
-        notes: "Notater",
-      },
     },
     search: {
       placeholder: "Søk i nyheter, notater og lagrede lenker...",
@@ -290,6 +286,16 @@ export const appCopy = {
       notes: { title: "Notater", description: "Korte tanker og utkast" },
       news: { title: "Nyheter", description: "Briefing og temaer" },
       readLater: { title: "Les senere", description: "Lagrede artikler og lenker" },
+      settings: { title: "Innstillinger", description: "App- og nyhetsvalg" },
+    },
+    settings: {
+      eyebrow: "Innstillinger",
+      title: "Husholdningsinnstillinger",
+      description: "Generelle appvalg og briefingkontroller.",
+      general: "Generelt",
+      account: "Konto",
+      language: "Språk",
+      signedInAs: "Logget inn som",
     },
     counts: {
       result: (count: number) => `${count} resultat${count === 1 ? "" : "er"}`,
@@ -384,7 +390,7 @@ export const appCopy = {
       thumbsDown: "Tommel ned",
     },
     preferences: {
-      title: "Briefing-innstillinger",
+      title: "Nyhetsinnstillinger",
       description: "Kommaseparerte filtre brukt før AI genererer briefingen.",
       close: "Lukk",
       loading: "Laster innstillinger...",
@@ -455,7 +461,6 @@ export const appCopy = {
       signOutTryAnother: "Logga ut och prova en annan mejl",
     },
     shell: {
-      home: "Home",
       signOut: "Logga ut",
       sections: "Sektioner",
       clear: "Rensa",
@@ -467,12 +472,6 @@ export const appCopy = {
       noResultsDescription: "Prova en kortare sökning.",
       save: "Spara",
       readLater: "Läs senare",
-      metrics: {
-        stories: "Nyheter",
-        open: "Öppna",
-        unread: "Olästa",
-        notes: "Anteckningar",
-      },
     },
     search: {
       placeholder: "Sök i nyheter, anteckningar och sparade länkar...",
@@ -489,6 +488,16 @@ export const appCopy = {
       notes: { title: "Anteckningar", description: "Korta tankar och utkast" },
       news: { title: "Nyheter", description: "Briefing och ämnen" },
       readLater: { title: "Läs senare", description: "Sparade artiklar och länkar" },
+      settings: { title: "Inställningar", description: "App- och nyhetsval" },
+    },
+    settings: {
+      eyebrow: "Inställningar",
+      title: "Hushållsinställningar",
+      description: "Allmänna appval och briefingkontroller.",
+      general: "Allmänt",
+      account: "Konto",
+      language: "Språk",
+      signedInAs: "Inloggad som",
     },
     counts: {
       result: (count: number) => `${count} resultat`,
@@ -583,7 +592,7 @@ export const appCopy = {
       thumbsDown: "Tumme ner",
     },
     preferences: {
-      title: "Briefinginställningar",
+      title: "Nyhetsinställningar",
       description: "Kommaseparerade filter som används innan AI genererar briefingen.",
       close: "Stäng",
       loading: "Läser inställningar...",
