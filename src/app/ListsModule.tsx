@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { Check, Pencil, Plus, Trash2 } from "lucide-react";
 import {
@@ -13,6 +12,7 @@ import {
 } from "./components/ModuleChrome";
 import type { AppCopy } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+import { useListsData } from "./useListsData";
 
 interface ListItem {
   id: string;
@@ -20,286 +20,45 @@ interface ListItem {
   label: string;
   is_completed: boolean;
 }
-
-interface HouseholdList {
-  id: string;
-  name: string;
-  items: ListItem[];
-}
-
 interface ListsModuleProps {
   onOpenCountChange?: (count: number) => void;
   copy: AppCopy;
 }
 
 export default function ListsModule({ onOpenCountChange, copy }: ListsModuleProps) {
-  const [lists, setLists] = useState<HouseholdList[]>([]);
-  const [activeListId, setActiveListId] = useState<string | null>(null);
-  const [newListName, setNewListName] = useState("");
-  const [listNameDraft, setListNameDraft] = useState("");
-  const [newItemLabel, setNewItemLabel] = useState("");
-  const [editingItemId, setEditingItemId] = useState<string | null>(null);
-  const [editingLabel, setEditingLabel] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
-  const [isCreatingList, setIsCreatingList] = useState(false);
-  const [isCreatingItem, setIsCreatingItem] = useState(false);
-  const [pendingListId, setPendingListId] = useState<string | null>(null);
-  const [pendingItemIds, setPendingItemIds] = useState<Set<string>>(new Set());
-  const [isClearingCompleted, setIsClearingCompleted] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const activeList = useMemo(
-    () => lists.find((list) => list.id === activeListId) ?? lists[0],
-    [activeListId, lists],
-  );
-  const openItems = activeList?.items.filter((item) => !item.is_completed) ?? [];
-  const completedItems = activeList?.items.filter((item) => item.is_completed) ?? [];
-  const canRenameActiveList =
-    Boolean(activeList) &&
-    listNameDraft.trim().length > 0 &&
-    listNameDraft.trim() !== activeList?.name &&
-    pendingListId !== activeList?.id;
-  const canDeleteActiveList =
-    Boolean(activeList) &&
-    activeList?.items.length === 0 &&
-    pendingListId !== activeList?.id &&
-    lists.length > 1;
-
-  useEffect(() => {
-    onOpenCountChange?.(
-      lists.reduce(
-        (count, list) => count + list.items.filter((item) => !item.is_completed).length,
-        0,
-      ),
-    );
-  }, [lists, onOpenCountChange]);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    fetch("/api/lists")
-      .then(async (res) => {
-        const data = await res.json();
-
-        if (!res.ok) {
-          throw new Error(data.error?.message ?? "Failed to load lists");
-        }
-
-        return data.lists ?? [];
-      })
-      .then((loadedLists: HouseholdList[]) => {
-        if (!isMounted) return;
-
-        setLists(loadedLists);
-        setActiveListId((current) => current ?? loadedLists[0]?.id ?? null);
-        setListNameDraft(loadedLists[0]?.name ?? "");
-      })
-      .catch((err: unknown) => {
-        if (!isMounted) return;
-
-        setError(err instanceof Error ? err.message : "Failed to load lists");
-        setLists([]);
-      })
-      .finally(() => {
-        if (!isMounted) return;
-        setIsLoading(false);
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  function setItemPending(id: string, pending: boolean) {
-    setPendingItemIds((prev) => {
-      const next = new Set(prev);
-      if (pending) next.add(id);
-      else next.delete(id);
-      return next;
-    });
-  }
-
-  async function createList() {
-    const name = newListName.trim();
-    if (!name || isCreatingList) return;
-
-    setIsCreatingList(true);
-    setError(null);
-
-    const res = await fetch("/api/lists", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name }),
-    });
-    const data = await res.json();
-
-    setIsCreatingList(false);
-
-    if (!res.ok) {
-      setError(data.error?.message ?? "Failed to create list");
-      return;
-    }
-
-    setLists((prev) => [...prev, data.list]);
-    setActiveListId(data.list.id);
-    setListNameDraft(data.list.name);
-    setNewListName("");
-  }
-
-  async function renameActiveList() {
-    if (!activeList || !canRenameActiveList) return;
-
-    const name = listNameDraft.trim();
-    setPendingListId(activeList.id);
-    setError(null);
-
-    const res = await fetch(`/api/lists/${activeList.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name }),
-    });
-    const data = await res.json();
-
-    setPendingListId(null);
-
-    if (!res.ok) {
-      setError(data.error?.message ?? "Failed to rename list");
-      return;
-    }
-
-    setLists((prev) =>
-      prev.map((list) =>
-        list.id === data.list.id ? { ...list, name: data.list.name } : list,
-      ),
-    );
-    setListNameDraft(data.list.name);
-  }
-
-  async function deleteActiveList() {
-    if (!activeList || !canDeleteActiveList) return;
-    if (!window.confirm(copy.lists.deleteListConfirm(activeList.name))) return;
-
-    setPendingListId(activeList.id);
-    setError(null);
-
-    const res = await fetch(`/api/lists/${activeList.id}`, { method: "DELETE" });
-    const data = await res.json();
-
-    setPendingListId(null);
-
-    if (!res.ok) {
-      setError(data.error?.message ?? "Failed to delete list");
-      return;
-    }
-
-    const remainingLists = lists.filter((list) => list.id !== activeList.id);
-    setLists(remainingLists);
-    setActiveListId(remainingLists[0]?.id ?? null);
-    setListNameDraft(remainingLists[0]?.name ?? "");
-  }
-
-  async function createItem() {
-    if (!activeList || isCreatingItem) return;
-
-    const label = newItemLabel.trim();
-    if (!label) return;
-
-    setIsCreatingItem(true);
-    setError(null);
-
-    const res = await fetch(`/api/lists/${activeList.id}/items`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ label }),
-    });
-    const data = await res.json();
-
-    setIsCreatingItem(false);
-
-    if (!res.ok) {
-      setError(data.error?.message ?? "Failed to add item");
-      return;
-    }
-
-    setLists((prev) =>
-      prev.map((list) =>
-        list.id === activeList.id ? { ...list, items: [...list.items, data.item] } : list,
-      ),
-    );
-    setNewItemLabel("");
-  }
-
-  async function updateItem(
-    item: ListItem,
-    updates: Partial<Pick<ListItem, "label" | "is_completed">>,
-  ): Promise<boolean> {
-    if (pendingItemIds.has(item.id)) return false;
-
-    setItemPending(item.id, true);
-    setError(null);
-
-    const res = await fetch(`/api/list-items/${item.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(updates),
-    });
-    const data = await res.json();
-
-    setItemPending(item.id, false);
-
-    if (!res.ok) {
-      setError(data.error?.message ?? "Failed to update item");
-      return false;
-    }
-
-    setLists((prev) =>
-      prev.map((list) =>
-        list.id === data.item.list_id
-          ? {
-              ...list,
-              items: list.items.map((existing) =>
-                existing.id === data.item.id ? data.item : existing,
-              ),
-            }
-          : list,
-      ),
-    );
-    return true;
-  }
-
-  async function deleteItem(item: ListItem): Promise<boolean> {
-    if (pendingItemIds.has(item.id)) return false;
-
-    setItemPending(item.id, true);
-    setError(null);
-
-    const res = await fetch(`/api/list-items/${item.id}`, { method: "DELETE" });
-    const data = await res.json();
-
-    setItemPending(item.id, false);
-
-    if (!res.ok) {
-      setError(data.error?.message ?? "Failed to delete item");
-      return false;
-    }
-
-    setLists((prev) =>
-      prev.map((list) =>
-        list.id === item.list_id
-          ? { ...list, items: list.items.filter((existing) => existing.id !== item.id) }
-          : list,
-      ),
-    );
-    return true;
-  }
-
-  async function clearCompleted() {
-    if (completedItems.length === 0 || isClearingCompleted) return;
-
-    setIsClearingCompleted(true);
-    await Promise.all(completedItems.map((item) => deleteItem(item)));
-    setIsClearingCompleted(false);
-  }
+  const {
+    lists,
+    activeList,
+    newListName,
+    listNameDraft,
+    newItemLabel,
+    editingItemId,
+    editingLabel,
+    isLoading,
+    isCreatingList,
+    isCreatingItem,
+    pendingListId,
+    pendingItemIds,
+    isClearingCompleted,
+    error,
+    openItems,
+    completedItems,
+    canRenameActiveList,
+    canDeleteActiveList,
+    setNewListName,
+    setListNameDraft,
+    setNewItemLabel,
+    setEditingLabel,
+    setEditingItemId,
+    selectList,
+    createList,
+    renameActiveList,
+    deleteActiveList,
+    createItem,
+    updateItem,
+    deleteItem,
+    clearCompleted,
+  } = useListsData({ onOpenCountChange, copy });
 
   function startEditing(item: ListItem) {
     setEditingItemId(item.id);
@@ -319,10 +78,7 @@ export default function ListsModule({ onOpenCountChange, copy }: ListsModuleProp
 
   return (
     <ModuleCard>
-      <ModuleHeader
-        title={copy.lists.title}
-        description={copy.lists.description}
-      />
+      <ModuleHeader title={copy.lists.title} description={copy.lists.description} />
 
       <div className="space-y-4 p-4">
         {error && <InlineNotice tone="error">{error}</InlineNotice>}
@@ -336,10 +92,7 @@ export default function ListsModule({ onOpenCountChange, copy }: ListsModuleProp
                 <button
                   key={list.id}
                   type="button"
-                  onClick={() => {
-                    setActiveListId(list.id);
-                    setListNameDraft(list.name);
-                  }}
+                  onClick={() => selectList(list.id)}
                   className={cn(
                     "min-h-10 rounded-md border px-3 py-2 text-sm font-medium transition-colors",
                     activeList?.id === list.id

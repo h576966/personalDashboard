@@ -811,6 +811,72 @@ async function summarizeCluster(
   }
 }
 
+interface CollectPipelineInput {
+  interests: FeedInterest[];
+  policy: SourcePolicy;
+  blockedKeywords: string[];
+  prefs: Awaited<ReturnType<typeof getBriefingPreferences>>;
+}
+
+async function collectBriefingCandidates(input: CollectPipelineInput): Promise<CandidateArticle[]> {
+  const [interestCandidates, watchCandidates] = await Promise.all([
+    collectInterestCandidates({
+      interests: input.interests,
+      policy: input.policy,
+      blockedKeywords: input.blockedKeywords,
+      prefs: input.prefs,
+    }),
+    collectWatchCandidates({
+      policy: input.policy,
+      blockedKeywords: input.blockedKeywords,
+      regionalFocus: input.prefs.regional_focus,
+    }),
+  ]);
+
+  return [...watchCandidates, ...interestCandidates];
+}
+
+function rankBriefingClusters(input: {
+  candidates: CandidateArticle[];
+  interests: FeedInterest[];
+  blockedKeywords: string[];
+  blockedCategories: string[];
+  personalization: NewsPersonalizationSignals;
+}): StoryCluster[] {
+  return clusterCandidates(input.candidates)
+    .map((cluster) =>
+      scoreCluster(
+        cluster,
+        input.interests,
+        input.blockedKeywords,
+        input.blockedCategories,
+        input.personalization,
+      ))
+    .filter((cluster) => cluster.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 5);
+}
+
+async function generateStoryCards(input: {
+  rankedClusters: StoryCluster[];
+  summaryLanguage: SummaryLanguage;
+  generatedAt: string;
+}): Promise<StoryCard[]> {
+  return Promise.all(
+    input.rankedClusters.map((cluster) =>
+      summarizeCluster(cluster, input.summaryLanguage, input.generatedAt),
+    ),
+  );
+}
+
+async function persistStoryCards(storyCards: StoryCard[]): Promise<void> {
+  try {
+    await replaceTodaysStoryCards(storyCards);
+  } catch (err) {
+    console.warn("Failed to persist story cards:", err);
+  }
+}
+
 export async function buildDailyNewsBriefing(householdId: string): Promise<DailyNewsBriefing> {
   const [topics, prefs, policy, blockedTopicKeywords] = await Promise.all([
     getTopics(),
@@ -827,28 +893,29 @@ export async function buildDailyNewsBriefing(householdId: string): Promise<Daily
   ];
   const blockedCategories = prefs.blocked_categories ?? [];
 
-  const [interestCandidates, watchCandidates] = await Promise.all([
-    collectInterestCandidates({ interests, policy, blockedKeywords, prefs }),
-    collectWatchCandidates({ policy, blockedKeywords, regionalFocus: prefs.regional_focus }),
-  ]);
+  const candidates = await collectBriefingCandidates({
+    interests,
+    policy,
+    blockedKeywords,
+    prefs,
+  });
   const personalization = await getNewsPersonalizationSignals(householdId);
 
-  const rankedClusters = clusterCandidates([...watchCandidates, ...interestCandidates])
-    .map((cluster) => scoreCluster(cluster, interests, blockedKeywords, blockedCategories, personalization))
-    .filter((cluster) => cluster.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 5);
+  const rankedClusters = rankBriefingClusters({
+    candidates,
+    interests,
+    blockedKeywords,
+    blockedCategories,
+    personalization,
+  });
 
   const generatedAt = new Date().toISOString();
-  const storyCards = await Promise.all(
-    rankedClusters.map((cluster) => summarizeCluster(cluster, prefs.summary_language, generatedAt)),
-  );
-
-  try {
-    await replaceTodaysStoryCards(storyCards);
-  } catch (err) {
-    console.warn("Failed to persist story cards:", err);
-  }
+  const storyCards = await generateStoryCards({
+    rankedClusters,
+    summaryLanguage: prefs.summary_language,
+    generatedAt,
+  });
+  await persistStoryCards(storyCards);
 
   return {
     storyCards,
