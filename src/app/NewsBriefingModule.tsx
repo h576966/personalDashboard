@@ -10,7 +10,7 @@ interface BriefingResponse {
   briefing?: {
     storyCards?: StoryCard[];
     generatedAt?: string;
-  };
+  } | null;
   error?: string | {
     message?: string;
   };
@@ -49,6 +49,11 @@ export default function NewsBriefingModule({
     setIsLoading(true);
     setError(null);
 
+    const applyBriefingResponse = (data: BriefingResponse, fromCache: boolean) => {
+      setStoryCards(data.briefing?.storyCards ?? []);
+      setCacheEmpty(fromCache && data.briefing === null);
+    };
+
     try {
       const res = await fetch("/api/news/briefings", {
         method: refresh ? "POST" : "GET",
@@ -63,12 +68,21 @@ export default function NewsBriefingModule({
         );
       }
 
-      if (data.briefing === null) {
-        setStoryCards([]);
-        setCacheEmpty(true);
+      if (!refresh && data.briefing === null) {
+        const fallbackRes = await fetch("/api/news/briefings", { method: "POST" });
+        const fallbackData = (await fallbackRes.json()) as BriefingResponse;
+
+        if (!fallbackRes.ok) {
+          throw new Error(
+            typeof fallbackData.error === "string"
+              ? fallbackData.error
+              : fallbackData.error?.message ?? "Failed to load news briefing",
+          );
+        }
+
+        applyBriefingResponse(fallbackData, false);
       } else {
-        setStoryCards(data.briefing?.storyCards ?? []);
-        setCacheEmpty(false);
+        applyBriefingResponse(data, !refresh);
       }
       setHasLoaded(true);
     } catch (err) {
