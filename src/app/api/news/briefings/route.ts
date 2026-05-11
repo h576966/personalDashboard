@@ -2,8 +2,9 @@ import { NextResponse } from "next/server";
 import { errorResponse } from "@/lib/api/errors";
 import { authErrorResponse, requireCurrentHousehold } from "@/lib/auth/household";
 import { getTodaysStoryCards } from "@/lib/db/storyClusters";
+import { getTopics } from "@/lib/db/topics";
 import { buildDailyNewsBriefing } from "@/lib/news/briefing";
-import { getBriefingGetPayload } from "./payload";
+import { getBriefingGetPayload, shouldRefreshBriefingForTopics } from "./payload";
 
 export const maxDuration = 120;
 
@@ -14,9 +15,17 @@ async function buildAndReturn(householdId: string) {
 
 export async function GET() {
   try {
-    await requireCurrentHousehold();
+    const { householdId } = await requireCurrentHousehold();
 
-    const storyCards = await getTodaysStoryCards();
+    const [storyCards, topics] = await Promise.all([
+      getTodaysStoryCards(),
+      getTopics(),
+    ]);
+
+    if (shouldRefreshBriefingForTopics(storyCards, topics)) {
+      return await buildAndReturn(householdId);
+    }
+
     return NextResponse.json(getBriefingGetPayload(storyCards));
   } catch (err) {
     const authResponse = authErrorResponse(err);
