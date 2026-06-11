@@ -37,16 +37,16 @@ the active focus area within the same workspace view.
 
 ### Default State
 
-- Show **News** first so the household lands on the daily briefing.
-- Keep Lists, Notes, Read Later, and Settings one click away in the section rail.
+- Show **Lists** first so the household lands on coordination work.
+- Keep Notes, Read Later, and Settings one click away in the section rail.
 
 ### Interaction States
 
 - **Search:** If the user searches, expand Search results and give them more space. The rest
   of the dashboard recedes visually but remains accessible.
-- **Topic Editor:** Keep topic and source controls inside Settings so the News surface stays calm.
-- **Settings:** App language, account actions, and news configuration live in the Settings module.
-  Keep technical configuration visually subordinate to the daily overview.
+- **Watched Topics:** Keep watched-topic controls inside Settings.
+- **Settings:** App language, account actions, and watched-topic configuration live in the
+  Settings module.
 
 ### Mobile
 
@@ -58,8 +58,8 @@ the active focus area within the same workspace view.
 
 Assume a non-technical family member is the primary user. They should be able to:
 
-- Read the briefing
 - Adjust settings
+- Manage watched topics
 - Add a note
 - Add a list item
 - Save something to read later

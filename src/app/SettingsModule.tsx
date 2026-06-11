@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import BriefingPreferencesPanel from "./BriefingPreferencesPanel";
+import WatchTopicsPanel from "./WatchTopicsPanel";
 import { ActionButton, InlineNotice, ModuleCard, ModuleHeader } from "./components/ModuleChrome";
 import { LANGUAGE_OPTIONS, type AppCopy, type AppLanguage } from "@/lib/i18n";
 
@@ -40,12 +40,11 @@ export default function SettingsModule({
     setLanguageError(null);
 
     try {
-      const res = await fetch("/api/briefing-preferences", {
+      const res = await fetch("/api/app-preferences", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           app_language: nextLanguage,
-          summary_language: nextLanguage,
         }),
       });
       const data = await res.json();
@@ -117,7 +116,7 @@ export default function SettingsModule({
         </div>
       </ModuleCard>
 
-      <BriefingPreferencesPanel copy={copy} onSaved={onPreferencesChanged} />
+      <WatchTopicsPanel copy={copy} />
     </section>
   );
 }

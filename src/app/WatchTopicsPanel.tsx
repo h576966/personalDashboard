@@ -20,7 +20,6 @@ interface WatchTopicsResponse {
 }
 
 interface WatchTopicsPanelProps {
-  onChanged?: () => void;
   copy: AppCopy;
 }
 
@@ -38,7 +37,7 @@ function splitLines(value: string): string[] {
     .filter(Boolean);
 }
 
-export default function WatchTopicsPanel({ onChanged, copy }: WatchTopicsPanelProps) {
+export default function WatchTopicsPanel({ copy }: WatchTopicsPanelProps) {
   const [topics, setTopics] = useState<WatchTopic[]>([]);
   const [name, setName] = useState("");
   const [queries, setQueries] = useState("");
@@ -52,7 +51,7 @@ export default function WatchTopicsPanel({ onChanged, copy }: WatchTopicsPanelPr
     setError(null);
 
     try {
-      const res = await fetch("/api/news-watch-topics");
+      const res = await fetch("/api/watch-topics");
       const data = (await res.json()) as WatchTopicsResponse;
 
       if (!res.ok) throw new Error(errorMessage(data, "Failed to load watch topics"));
@@ -73,7 +72,7 @@ export default function WatchTopicsPanel({ onChanged, copy }: WatchTopicsPanelPr
     setError(null);
 
     try {
-      const res = await fetch("/api/news-watch-topics", {
+      const res = await fetch("/api/watch-topics", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -89,7 +88,6 @@ export default function WatchTopicsPanel({ onChanged, copy }: WatchTopicsPanelPr
       setName("");
       setQueries("");
       setDomains("");
-      onChanged?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save watch topic");
     } finally {
@@ -102,7 +100,7 @@ export default function WatchTopicsPanel({ onChanged, copy }: WatchTopicsPanelPr
     setError(null);
 
     try {
-      const res = await fetch(`/api/news-watch-topics/${topic.id}`, {
+      const res = await fetch(`/api/watch-topics/${topic.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ enabled: !topic.enabled }),
@@ -113,7 +111,6 @@ export default function WatchTopicsPanel({ onChanged, copy }: WatchTopicsPanelPr
       if (data.topic) {
         setTopics((prev) => prev.map((item) => (item.id === data.topic!.id ? data.topic! : item)));
       }
-      onChanged?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update watch topic");
     } finally {
@@ -126,12 +123,11 @@ export default function WatchTopicsPanel({ onChanged, copy }: WatchTopicsPanelPr
     setError(null);
 
     try {
-      const res = await fetch(`/api/news-watch-topics/${topic.id}`, { method: "DELETE" });
+      const res = await fetch(`/api/watch-topics/${topic.id}`, { method: "DELETE" });
       const data = (await res.json()) as WatchTopicsResponse;
 
       if (!res.ok) throw new Error(errorMessage(data, "Failed to delete watch topic"));
       setTopics((prev) => prev.filter((item) => item.id !== topic.id));
-      onChanged?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete watch topic");
     } finally {
@@ -151,10 +147,10 @@ export default function WatchTopicsPanel({ onChanged, copy }: WatchTopicsPanelPr
     <section className="rounded-md border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-700 dark:bg-zinc-900">
       <div>
         <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-          {copy.newsSettings.watchTopics}
+          {copy.watchTopics.watchTopics}
         </h3>
         <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-          {copy.newsSettings.watchTopicsDescription}
+          {copy.watchTopics.watchTopicsDescription}
         </p>
       </div>
 
@@ -168,21 +164,21 @@ export default function WatchTopicsPanel({ onChanged, copy }: WatchTopicsPanelPr
         <input
           value={name}
           onChange={(event) => setName(event.target.value)}
-          placeholder={copy.newsSettings.watchTopicName}
+          placeholder={copy.watchTopics.watchTopicName}
           className="w-full rounded-md border border-zinc-300 bg-white p-2 text-sm text-zinc-900 outline-none focus:border-primary dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
         />
         <textarea
           value={queries}
           onChange={(event) => setQueries(event.target.value)}
           rows={2}
-          placeholder={copy.newsSettings.searchTerms}
+          placeholder={copy.watchTopics.searchTerms}
           className="w-full rounded-md border border-zinc-300 bg-white p-2 text-sm text-zinc-900 outline-none focus:border-primary dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
         />
         <textarea
           value={domains}
           onChange={(event) => setDomains(event.target.value)}
           rows={2}
-          placeholder={copy.newsSettings.sourceDomains}
+          placeholder={copy.watchTopics.sourceDomains}
           className="w-full rounded-md border border-zinc-300 bg-white p-2 text-sm text-zinc-900 outline-none focus:border-primary dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
         />
         <button
@@ -191,15 +187,15 @@ export default function WatchTopicsPanel({ onChanged, copy }: WatchTopicsPanelPr
           disabled={updatingId === "new" || !name.trim() || splitLines(queries).length === 0}
           className="rounded-md border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-600 hover:border-primary hover:text-primary disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-300"
         >
-          {updatingId === "new" ? copy.newsSettings.adding : copy.newsSettings.addWatchTopic}
+          {updatingId === "new" ? copy.watchTopics.adding : copy.watchTopics.addWatchTopic}
         </button>
       </div>
 
       {isLoading ? (
-        <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">{copy.newsSettings.loadingWatchTopics}</p>
+        <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">{copy.watchTopics.loadingWatchTopics}</p>
       ) : topics.length === 0 ? (
         <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">
-          {copy.newsSettings.watchTopicsHint}
+          {copy.watchTopics.watchTopicsHint}
         </p>
       ) : (
         <div className="mt-3 space-y-2">
@@ -236,7 +232,7 @@ export default function WatchTopicsPanel({ onChanged, copy }: WatchTopicsPanelPr
                     disabled={updatingId === topic.id}
                     className="text-xs font-medium text-zinc-400 hover:text-red-600 disabled:opacity-50"
                   >
-                    {copy.newsSettings.remove}
+                    {copy.watchTopics.remove}
                   </button>
                 </div>
               </div>

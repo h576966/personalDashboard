@@ -43,7 +43,7 @@ type ReadLaterTab = "unread" | "read" | "archived";
 const PAGE_SIZE = 8;
 
 function sourceLabel(item: ReadLaterItem): string {
-  if (item.source && item.source !== "search" && item.source !== "news") return item.source;
+  if (item.source && item.source !== "search") return item.source;
 
   try {
     return new URL(item.url).hostname.replace(/^www\./, "");

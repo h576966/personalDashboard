@@ -1,7 +1,6 @@
 "use client";
 
 import ListsModule from "./ListsModule";
-import NewsBriefingModule from "./NewsBriefingModule";
 import NotesModule from "./NotesModule";
 import ReadLaterModule from "./ReadLaterModule";
 import SearchModule from "./SearchModule";
@@ -37,12 +36,10 @@ export default function DashboardShell({ userEmail }: DashboardShellProps) {
     notesCount,
     notice,
     openListCount,
-    storyCount,
     setQuery,
     setFreshness,
     setCountry,
     setOpenListCount,
-    setStoryCount,
     loadPreferences,
     saveItem,
     updateSavedStatus,
@@ -193,16 +190,6 @@ export default function DashboardShell({ userEmail }: DashboardShellProps) {
             <ListsModule onOpenCountChange={setOpenListCount} copy={copy} />
           )}
 
-          {!isSearching && !searchData && !searchError && activeModule === "news" && (
-            <NewsBriefingModule
-              savedUrls={savedUrls}
-              appLanguage={appLanguage}
-              copy={copy}
-              onStoryCountChange={setStoryCount}
-              onSaveSource={(item) => saveItem({ ...item, source: "news" })}
-            />
-          )}
-
           {!isSearching && !searchData && !searchError && activeModule === "notes" && (
             <NotesModule
               notes={notes}
@@ -292,7 +279,6 @@ export default function DashboardShell({ userEmail }: DashboardShellProps) {
                     <ModuleCount value={moduleCount(module.id, {
                       openListCount,
                       notesCount,
-                      storyCount,
                       unreadSavedCount: hasLoadedSaved ? unreadSavedCount : null,
                     })} active={isActive} />
                   </button>
@@ -328,13 +314,11 @@ function moduleCount(
   counts: {
     openListCount: number | null;
     notesCount: number | null;
-    storyCount: number | null;
     unreadSavedCount: number | null;
   },
 ): number | null {
   if (module === "lists") return counts.openListCount;
   if (module === "notes") return counts.notesCount;
-  if (module === "news") return counts.storyCount;
   if (module === "readLater") return counts.unreadSavedCount;
   return null;
 }

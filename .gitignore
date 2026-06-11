@@ -47,3 +47,5 @@ logs/*
 
 # Database
 # (migrated to Supabase Postgres — no local DB files)
+data/*.db
+data/*.db-*
