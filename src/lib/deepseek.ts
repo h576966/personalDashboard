@@ -1,3 +1,9 @@
+import {
+  parseWatchTopicSuggestionContent,
+  type WatchTopicSuggestion,
+} from "@/lib/watchTopics/suggestions";
+import { DEEPSEEK_UPSTREAM_TIMEOUT_MS } from "@/lib/config";
+
 export class DeepSeekError extends Error {
   constructor(
     message: string,
@@ -53,10 +59,17 @@ async function callDeepSeek(
   }
 
   const model = process.env.DEEPSEEK_MODEL ?? "deepseek-v4-flash";
+  const controller = new AbortController();
+  const timeout = setTimeout(
+    () => controller.abort(),
+    DEEPSEEK_UPSTREAM_TIMEOUT_MS,
+  );
 
-  const response = await fetch(
-    "https://api.deepseek.com/chat/completions",
-    {
+  let response: Response;
+
+  try {
+    response = await fetch("https://api.deepseek.com/chat/completions", {
+      signal: controller.signal,
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -71,8 +84,15 @@ async function callDeepSeek(
         max_tokens: options?.maxTokens ?? 256,
         temperature: options?.temperature ?? 0.7,
       }),
-    },
-  );
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new DeepSeekError("DeepSeek API timed out", 504);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
 
   if (!response.ok) {
     throw new DeepSeekError(
@@ -158,6 +178,28 @@ export async function summarizeResults(
   }
 
   return parsed;
+}
+
+export async function suggestWatchTopic(topic: string): Promise<WatchTopicSuggestion> {
+  const systemPrompt =
+    "You suggest precise monitoring configuration for a personal dashboard watch topic. " +
+    "Return conservative search terms and high-quality source domains likely to carry meaningful updates. " +
+    "Prefer official sources and focused specialist publications over broad aggregators. " +
+    "Return valid JSON only with this exact shape:\n" +
+    '{"name":"...","queries":["..."],"sourceDomains":["example.com"]}\n\n' +
+    "Rules:\n" +
+    "- queries: 3 to 6 concise search queries.\n" +
+    "- sourceDomains: 0 to 6 plain domains only, no protocols, paths, or wildcards.\n" +
+    "- include the original topic as one query.\n" +
+    "- do not invent obscure domains if unsure.";
+
+  const userPrompt = `Topic: ${topic.trim()}`;
+  const content = await callDeepSeek(systemPrompt, userPrompt, {
+    maxTokens: 450,
+    temperature: 0.25,
+  });
+
+  return parseWatchTopicSuggestionContent(topic, content);
 }
 
 export async function classifyWatchUpdate(input: {

@@ -1,18 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { searchBrave, BraveSearchError } from "@/lib/brave";
-import { processSearchResults } from "@/lib/search";
+import {
+  isBetterResultSet,
+  processSearchResults,
+  shouldRewriteQuery,
+  type ScoredResult,
+} from "@/lib/search";
 import { searchCache, type CacheEntry } from "@/lib/cache";
 import { COUNTRY_VALUES } from "@/lib/countries";
 import { errorResponse } from "@/lib/api/errors";
 import {
   rewriteQuery,
-  summarizeResults,
   DeepSeekError,
 } from "@/lib/deepseek";
 import {
   SEARCH_MIN_COUNT,
   SEARCH_MAX_COUNT,
   SEARCH_DEFAULT_COUNT,
+  SEARCH_CACHE_TTL_BY_FRESHNESS,
+  SEARCH_UPSTREAM_TIMEOUT_MS,
 } from "@/lib/config";
 
 const VALID_FRESHNESS = new Set(["pd", "pw", "pm", "py"]);
@@ -28,6 +34,89 @@ interface SearchRequestBody {
 }
 
 type Freshness = "pd" | "pw" | "pm" | "py";
+
+function cacheTtl(freshness: Freshness | undefined): number {
+  return freshness
+    ? SEARCH_CACHE_TTL_BY_FRESHNESS[freshness]
+    : SEARCH_CACHE_TTL_BY_FRESHNESS.default;
+}
+
+function cachedResponse(entry: CacheEntry, stale = false) {
+  return NextResponse.json({
+    results: entry.results,
+    ...(entry.rewrittenQuery !== undefined && {
+      rewrittenQuery: entry.rewrittenQuery,
+    }),
+    ...(stale && { stale: true }),
+  });
+}
+
+async function searchWithTimeout(
+  query: string,
+  count: number,
+  freshness: Freshness | undefined,
+  country: string | undefined,
+) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), SEARCH_UPSTREAM_TIMEOUT_MS);
+
+  try {
+    return await searchBrave(query, count, freshness, country, {
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new BraveSearchError("Search API timed out", 504);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function maybeRewriteWeakSearch(
+  originalQuery: string,
+  currentResults: ScoredResult[],
+  count: number,
+  freshness: Freshness | undefined,
+  country: string | undefined,
+): Promise<{ results: ScoredResult[]; rewrittenQuery?: string }> {
+  if (!shouldRewriteQuery(originalQuery, currentResults)) {
+    return { results: currentResults };
+  }
+
+  try {
+    const rewrittenQuery = await rewriteQuery(originalQuery);
+    const normalizedRewrite = rewrittenQuery.trim();
+
+    if (!normalizedRewrite || normalizedRewrite.toLowerCase() === originalQuery.toLowerCase()) {
+      return { results: currentResults };
+    }
+
+    const rewrittenRawResults = await searchWithTimeout(
+      normalizedRewrite,
+      count,
+      freshness,
+      country,
+    );
+    const rewrittenResults = processSearchResults(
+      rewrittenRawResults.web?.results ?? [],
+      normalizedRewrite,
+    );
+
+    if (isBetterResultSet(rewrittenResults, currentResults)) {
+      return { results: rewrittenResults, rewrittenQuery: normalizedRewrite };
+    }
+  } catch (err) {
+    if (err instanceof DeepSeekError || err instanceof BraveSearchError) {
+      console.warn("Weak search rewrite skipped:", err.message);
+    } else {
+      console.warn("Unexpected weak search rewrite error:", err);
+    }
+  }
+
+  return { results: currentResults };
+}
 
 function validateBody(body: unknown): {
   query: string;
@@ -109,44 +198,20 @@ export async function POST(request: NextRequest) {
     // Check cache
     const cacheKey = `${validated.query}|${validated.count}|${validated.freshness ?? "any"}|${validated.country ?? "any"}`;
     const cached = searchCache.get(cacheKey);
-    if (cached) {
-      return NextResponse.json({
-        results: cached.results,
-        ...(cached.summary !== undefined && { summary: cached.summary }),
-        ...(cached.suggestions !== undefined && {
-          suggestions: cached.suggestions,
-        }),
-        ...(cached.rewrittenQuery !== undefined && {
-          rewrittenQuery: cached.rewrittenQuery,
-        }),
-      });
-    }
-
-    // Rewrite query via DeepSeek (fall back to original on error)
-    let searchQuery = validated.query;
-    let rewrittenQuery: string | undefined;
-
-    try {
-      rewrittenQuery = await rewriteQuery(validated.query);
-      searchQuery = rewrittenQuery;
-    } catch (err) {
-      if (err instanceof DeepSeekError) {
-        console.warn("Query rewrite failed, using original:", err.message);
-      } else {
-        console.warn("Unexpected query rewrite error:", err);
-      }
-    }
+    if (cached) return cachedResponse(cached);
+    const stale = searchCache.get(cacheKey, { allowStale: true });
 
     let rawResults;
     try {
-      rawResults = await searchBrave(
-        searchQuery,
+      rawResults = await searchWithTimeout(
+        validated.query,
         validated.count,
         validated.freshness,
         validated.country,
       );
     } catch (err) {
       if (err instanceof BraveSearchError) {
+        if (stale) return cachedResponse(stale, true);
         return errorResponse(
           `Search API error: ${err.message}`,
           "UPSTREAM_ERROR",
@@ -156,50 +221,29 @@ export async function POST(request: NextRequest) {
       throw err;
     }
 
-    const results = processSearchResults(
+    const directResults = processSearchResults(
       rawResults.web?.results ?? [],
-      searchQuery,
+      validated.query,
     );
 
-    // Summarize results via DeepSeek (graceful fallback on error)
-    let summary: string | undefined;
-    let suggestions: string[] | undefined;
-
-    if (results.length > 0) {
-      try {
-        const top5 = results.slice(0, 5).map((r) => ({
-          title: r.title,
-          description: r.description,
-          url: r.url,
-        }));
-        const result = await summarizeResults(searchQuery, top5);
-        summary = result.summary;
-        suggestions = result.suggestions;
-      } catch (err) {
-        if (err instanceof DeepSeekError) {
-          console.warn("Result summary failed:", err.message);
-        } else {
-          console.warn("Unexpected summary error:", err);
-        }
-      }
-    }
+    const { results, rewrittenQuery } = await maybeRewriteWeakSearch(
+      validated.query,
+      directResults,
+      validated.count,
+      validated.freshness,
+      validated.country,
+    );
 
     const cacheEntry: CacheEntry = {
       results,
-      summary,
-      suggestions,
       rewrittenQuery,
       timestamp: Date.now(),
+      ttlMs: cacheTtl(validated.freshness),
     };
 
     searchCache.set(cacheKey, cacheEntry);
 
-    return NextResponse.json({
-      results,
-      ...(summary !== undefined && { summary }),
-      ...(suggestions !== undefined && { suggestions }),
-      ...(rewrittenQuery !== undefined && { rewrittenQuery }),
-    });
+    return cachedResponse(cacheEntry);
   } catch (err) {
     console.error("Unexpected search error:", err);
     return errorResponse(

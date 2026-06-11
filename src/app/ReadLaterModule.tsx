@@ -160,82 +160,85 @@ export default function ReadLaterModule({
             ) : (
               <>
                 <ul className="space-y-2 sm:space-y-3">
-                  {visibleItems.map((item) => (
-                    <li
-                      key={item.id}
-                      className="rounded-md border border-zinc-200 bg-white p-3 shadow-sm dark:border-zinc-700 dark:bg-zinc-900 sm:p-4"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <a
-                            href={item.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-start gap-1.5 text-sm font-semibold leading-snug text-zinc-900 hover:text-primary dark:text-zinc-100 dark:hover:text-secondary sm:text-base"
-                          >
-                            <span>{item.title}</span>
-                            <ExternalLink className="mt-0.5 h-3.5 w-3.5 shrink-0 text-zinc-400" />
-                          </a>
-                          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-zinc-400">
-                            <span>{sourceLabel(item)}</span>
-                            {formatShortDate(item.created_at, appLanguage) && (
-                              <span>{formatShortDate(item.created_at, appLanguage)}</span>
-                            )}
-                            {item.source && item.source !== "search" && (
-                              <span className="capitalize">{item.source}</span>
-                            )}
+                  {visibleItems.map((item) => {
+                    const createdAt = formatShortDate(item.created_at, appLanguage);
+                    const label = sourceLabel(item);
+
+                    return (
+                      <li
+                        key={item.id}
+                        className="rounded-md border border-zinc-200 bg-white p-3 shadow-sm dark:border-zinc-700 dark:bg-zinc-900 sm:p-4"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <a
+                              href={item.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-start gap-1.5 text-sm font-semibold leading-snug text-zinc-900 hover:text-primary dark:text-zinc-100 dark:hover:text-secondary sm:text-base"
+                            >
+                              <span>{item.title}</span>
+                              <ExternalLink className="mt-0.5 h-3.5 w-3.5 shrink-0 text-zinc-400" />
+                            </a>
+                            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-zinc-400">
+                              <span>{label}</span>
+                              {createdAt && <span>{createdAt}</span>}
+                              {item.source && item.source !== "search" && (
+                                <span className="capitalize">{item.source}</span>
+                              )}
+                            </div>
                           </div>
+                          <span className="shrink-0 rounded-md bg-zinc-100 px-2 py-1 text-xs font-medium capitalize text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300">
+                            {statusLabel(item.status, copy)}
+                          </span>
                         </div>
-                        <span className="shrink-0 rounded-md bg-zinc-100 px-2 py-1 text-xs font-medium capitalize text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300">
-                          {statusLabel(item.status, copy)}
-                        </span>
-                      </div>
 
-                      {item.description && (
-                        <p className="mt-2 text-sm leading-6 text-zinc-500 dark:text-zinc-400">
-                          {item.description}
-                        </p>
-                      )}
+                        {item.description && (
+                          <p className="mt-2 text-sm leading-6 text-zinc-500 dark:text-zinc-400">
+                            {item.description}
+                          </p>
+                        )}
 
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {item.status === "archived" ? (
-                          <ActionButton
-                            onClick={() => onRestore(item.id)}
-                            variant="secondary"
-                            className="min-h-8 px-2.5 py-1.5 text-xs"
-                          >
-                            <RotateCcw className="h-4 w-4" />
-                            {copy.readLater.restore}
-                          </ActionButton>
-                        ) : (
-                          <>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {item.status === "archived" ? (
                             <ActionButton
-                              onClick={() =>
-                                onMarkRead(item.id, item.status === "read" ? "unread" : "read")
-                              }
+                              onClick={() => onRestore(item.id)}
                               variant="secondary"
                               className="min-h-8 px-2.5 py-1.5 text-xs"
                             >
-                              {item.status === "read" ? (
-                                <Circle className="h-4 w-4" />
-                              ) : (
-                                <CheckCircle2 className="h-4 w-4" />
-                              )}
-                              {item.status === "read" ? copy.readLater.markUnread : copy.readLater.markRead}
+                              <RotateCcw className="h-4 w-4" />
+                              {copy.readLater.restore}
                             </ActionButton>
-                            <ActionButton
-                              onClick={() => onArchive(item.id)}
-                              variant="danger"
-                              className="min-h-8 px-2.5 py-1.5 text-xs"
-                            >
-                              <Archive className="h-4 w-4" />
-                              {copy.readLater.archive}
-                            </ActionButton>
-                          </>
-                        )}
-                      </div>
-                    </li>
-                  ))}
+                          ) : (
+                            <>
+                              <ActionButton
+                                onClick={() =>
+                                  onMarkRead(item.id, item.status === "read" ? "unread" : "read")
+                                }
+                                variant="secondary"
+                                className="min-h-8 px-2.5 py-1.5 text-xs"
+                              >
+                                {item.status === "read" ? (
+                                  <Circle className="h-4 w-4" />
+                                ) : (
+                                  <CheckCircle2 className="h-4 w-4" />
+                                )}
+                                {item.status === "read" ? copy.readLater.markUnread : copy.readLater.markRead}
+                              </ActionButton>
+                              <ActionButton
+                                onClick={() => onArchive(item.id)}
+                                variant="danger"
+                                className="min-h-8 px-2.5 py-1.5 text-xs"
+                              >
+                                <Archive className="h-4 w-4" />
+                                {copy.readLater.archive}
+                              </ActionButton>
+                            </>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
                 </ul>
                 <ShowMoreButton
                   hiddenCount={hiddenCount}

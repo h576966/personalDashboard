@@ -1,44 +1,35 @@
 import type { FilteredResult } from "./filter";
-import { isBoosted, qualityHeuristics } from "./quality";
+import {
+  diversifyResults as diversifyResultsImpl,
+  isBetterResultSet as isBetterResultSetImpl,
+  scoreResult as scoreResultImpl,
+  searchTerms as searchTermsImpl,
+  shouldRewriteQuery as shouldRewriteQueryImpl,
+} from "./score.mjs";
 
 export interface ScoredResult extends FilteredResult {
   score: number;
+}
+
+export function searchTerms(query: string): string[] {
+  return searchTermsImpl(query) as string[];
 }
 
 export function scoreResult(
   result: FilteredResult,
   query: string,
 ): ScoredResult {
-  const terms = query
-    .toLowerCase()
-    .split(/\s+/)
-    .filter((t) => t.length > 0);
+  return scoreResultImpl(result, query) as ScoredResult;
+}
 
-  const titleLower = result.title.toLowerCase();
-  const descriptionLower = result.description.toLowerCase();
+export function diversifyResults(results: ScoredResult[], maxPerDomain = 2): ScoredResult[] {
+  return diversifyResultsImpl(results, maxPerDomain) as ScoredResult[];
+}
 
-  let score = 0;
+export function shouldRewriteQuery(query: string, results: ScoredResult[]): boolean {
+  return shouldRewriteQueryImpl(query, results) as boolean;
+}
 
-  for (const term of terms) {
-    if (titleLower.includes(term)) {
-      score += 2;
-    }
-    if (descriptionLower.includes(term)) {
-      score += 1;
-    }
-  }
-
-  if (result.description.length < 50) {
-    score -= 1;
-  }
-
-  // Quality heuristics
-  score += qualityHeuristics(result);
-
-  // Boosted domain bonus
-  if (isBoosted(result.url)) {
-    score += 3;
-  }
-
-  return { ...result, score };
+export function isBetterResultSet(candidate: ScoredResult[], current: ScoredResult[]): boolean {
+  return isBetterResultSetImpl(candidate, current) as boolean;
 }

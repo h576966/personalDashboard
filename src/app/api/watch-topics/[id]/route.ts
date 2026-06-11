@@ -4,6 +4,7 @@ import {
   deleteWatchTopic,
   updateWatchTopic,
 } from "@/lib/db/watchTopics";
+import { normalizeDomain } from "@/lib/watchTopics/suggestions";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -27,6 +28,11 @@ function stringList(value: unknown): string[] | undefined {
   return undefined;
 }
 
+function domainList(value: unknown): string[] | undefined {
+  const values = stringList(value);
+  return values?.map((domain) => normalizeDomain(domain)).filter(Boolean);
+}
+
 export async function PATCH(req: Request, context: RouteContext) {
   try {
     const { id } = await context.params;
@@ -40,10 +46,20 @@ export async function PATCH(req: Request, context: RouteContext) {
       return errorResponse("name must be a string", "INVALID_INPUT", 400);
     }
 
+    const queries = stringList(body.queries);
+
+    if (typeof body.name === "string" && !body.name.trim()) {
+      return errorResponse("Watch topic name is required", "INVALID_INPUT", 400);
+    }
+
+    if (body.queries !== undefined && (!queries || queries.length === 0)) {
+      return errorResponse("At least one query is required", "INVALID_INPUT", 400);
+    }
+
     const topic = await updateWatchTopic(id, {
       name: typeof body.name === "string" ? body.name : undefined,
-      queries: stringList(body.queries),
-      sourceDomains: stringList(body.sourceDomains),
+      queries,
+      sourceDomains: domainList(body.sourceDomains),
       enabled: body.enabled,
     });
 

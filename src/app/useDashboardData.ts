@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { getAppCopy, normalizeAppLanguage, type AppLanguage } from "@/lib/i18n";
+import { searchNotes, type NoteSearchResult } from "@/lib/search/notes";
 import { normalizeParam } from "@/lib/utils";
 import type { ActiveModule } from "./modules";
 
@@ -31,23 +32,33 @@ export interface Note {
 }
 
 export interface SearchData {
+  mode: SearchMode;
+  query: string;
   results: SearchResult[];
+  noteResults?: NoteSearchResult[];
   summary?: string;
   suggestions?: string[];
   rewrittenQuery?: string;
+  stale?: boolean;
 }
+
+export type SearchMode = "web" | "notes";
 
 export function useDashboardData() {
   const [activeModule, setActiveModule] = useState<ActiveModule>("lists");
   const [appLanguage, setAppLanguage] = useState<AppLanguage>("en");
 
   const [query, setQuery] = useState("");
+  const [searchMode, setSearchMode] = useState<SearchMode>("web");
   const [freshness, setFreshness] = useState("");
   const [country, setCountry] = useState("");
 
   const [isSearching, setIsSearching] = useState(false);
+  const [isLoadingSearchSummary, setIsLoadingSearchSummary] = useState(false);
   const [searchData, setSearchData] = useState<SearchData | null>(null);
   const [searchError, setSearchError] = useState<string | null>(null);
+  const [searchSummaryError, setSearchSummaryError] = useState<string | null>(null);
+  const searchRequestId = useRef(0);
 
   const [savedItems, setSavedItems] = useState<SavedItem[]>([]);
   const [isLoadingSaved, setIsLoadingSaved] = useState(false);
@@ -157,14 +168,12 @@ export function useDashboardData() {
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      void loadSavedItems();
-      void loadNotes();
       void loadListOverview();
       void loadPreferences();
     }, 0);
 
     return () => window.clearTimeout(timer);
-  }, [loadListOverview, loadNotes, loadPreferences, loadSavedItems]);
+  }, [loadListOverview, loadPreferences]);
 
   function showNotice(message: string) {
     setNotice(message);
@@ -267,13 +276,119 @@ export function useDashboardData() {
     setNotes((prev) => prev.filter((note) => note.id !== id));
   }
 
-  async function handleSearch(searchQuery: string) {
+  async function fetchNotesForSearch(): Promise<Note[]> {
+    if (hasLoadedNotes) return notes;
+
+    setIsLoadingNotes(true);
+    setNotesError(null);
+
+    try {
+      const res = await fetch("/api/notes");
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error?.message ?? "Failed to load notes");
+      }
+
+      const loadedNotes = data.notes ?? [];
+      setNotes(loadedNotes);
+      setHasLoadedNotes(true);
+      return loadedNotes;
+    } catch (err) {
+      setNotes([]);
+      setNotesError(err instanceof Error ? err.message : "Failed to load notes");
+      setHasLoadedNotes(true);
+      return [];
+    } finally {
+      setIsLoadingNotes(false);
+    }
+  }
+
+  async function loadSearchSummary(
+    requestId: number,
+    searchQuery: string,
+    results: SearchResult[],
+    rewrittenQuery?: string,
+  ) {
+    if (results.length === 0) return;
+
+    setIsLoadingSearchSummary(true);
+    setSearchSummaryError(null);
+
+    try {
+      const res = await fetch("/api/search/summary", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          query: rewrittenQuery ?? searchQuery,
+          results: results.slice(0, 5).map((result) => ({
+            title: result.title,
+            description: result.description,
+            url: result.url,
+          })),
+        }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error?.message ?? "Summary failed");
+      }
+
+      if (searchRequestId.current !== requestId) return;
+
+      setSearchData((current) => {
+        if (!current || current.mode !== "web" || current.query !== searchQuery) return current;
+        return {
+          ...current,
+          summary: data.summary,
+          suggestions: data.suggestions,
+        };
+      });
+    } catch (err) {
+      if (searchRequestId.current === requestId) {
+        setSearchSummaryError(err instanceof Error ? err.message : "Summary failed");
+      }
+    } finally {
+      if (searchRequestId.current === requestId) {
+        setIsLoadingSearchSummary(false);
+      }
+    }
+  }
+
+  async function handleSearch(searchQuery: string, modeOverride: SearchMode = searchMode) {
     const trimmed = searchQuery.trim();
     if (!trimmed) return;
 
+    const requestId = searchRequestId.current + 1;
+    searchRequestId.current = requestId;
     setIsSearching(true);
+    setIsLoadingSearchSummary(false);
     setSearchData(null);
     setSearchError(null);
+    setSearchSummaryError(null);
+
+    if (modeOverride === "notes") {
+      try {
+        const sourceNotes = await fetchNotesForSearch();
+        const noteResults = searchNotes(sourceNotes, trimmed);
+
+        if (searchRequestId.current === requestId) {
+          setSearchData({
+            mode: "notes",
+            query: trimmed,
+            results: [],
+            noteResults,
+          });
+        }
+      } catch (err) {
+        setSearchError(err instanceof Error ? err.message : "Search failed");
+      } finally {
+        if (searchRequestId.current === requestId) {
+          setIsSearching(false);
+        }
+      }
+      return;
+    }
 
     try {
       const res = await fetch("/api/search", {
@@ -292,23 +407,55 @@ export function useDashboardData() {
         throw new Error(data.error?.message ?? "Search failed");
       }
 
-      setSearchData(data);
+      if (searchRequestId.current === requestId) {
+        const nextSearchData: SearchData = {
+          mode: "web",
+          query: trimmed,
+          results: data.results ?? [],
+          rewrittenQuery: data.rewrittenQuery,
+          stale: data.stale === true,
+        };
+        setSearchData(nextSearchData);
+        void loadSavedItems();
+        void loadSearchSummary(
+          requestId,
+          trimmed,
+          nextSearchData.results,
+          nextSearchData.rewrittenQuery,
+        );
+      }
     } catch (err) {
-      setSearchError(err instanceof Error ? err.message : "Search failed");
+      if (searchRequestId.current === requestId) {
+        setSearchError(err instanceof Error ? err.message : "Search failed");
+      }
     } finally {
-      setIsSearching(false);
+      if (searchRequestId.current === requestId) {
+        setIsSearching(false);
+      }
     }
   }
 
   function handleSuggestionClick(suggestion: string) {
     setQuery(suggestion);
-    void handleSearch(suggestion);
+    setSearchMode("web");
+    void handleSearch(suggestion, "web");
+  }
+
+  function changeSearchMode(mode: SearchMode) {
+    setSearchMode(mode);
+    setSearchData(null);
+    setSearchError(null);
+    setSearchSummaryError(null);
+    setIsLoadingSearchSummary(false);
   }
 
   function selectModule(module: ActiveModule) {
+    searchRequestId.current += 1;
     setActiveModule(module);
     setSearchData(null);
     setSearchError(null);
+    setSearchSummaryError(null);
+    setIsLoadingSearchSummary(false);
 
     if (module === "readLater") {
       void loadSavedItems();
@@ -330,11 +477,14 @@ export function useDashboardData() {
     appLanguage,
     copy,
     query,
+    searchMode,
     freshness,
     country,
     isSearching,
+    isLoadingSearchSummary,
     searchData,
     searchError,
+    searchSummaryError,
     savedItems,
     isLoadingSaved,
     savedError,
@@ -348,6 +498,7 @@ export function useDashboardData() {
     notice,
     openListCount,
     setQuery,
+    setSearchMode: changeSearchMode,
     setFreshness,
     setCountry,
     setOpenListCount,

@@ -4,6 +4,7 @@ import {
   createWatchTopic,
   getWatchTopics,
 } from "@/lib/db/watchTopics";
+import { normalizeDomain } from "@/lib/watchTopics/suggestions";
 
 function stringList(value: unknown): string[] {
   if (Array.isArray(value)) {
@@ -19,6 +20,10 @@ function stringList(value: unknown): string[] {
   }
 
   return [];
+}
+
+function domainList(value: unknown): string[] {
+  return stringList(value).map((domain) => normalizeDomain(domain)).filter(Boolean);
 }
 
 export async function GET() {
@@ -48,7 +53,7 @@ export async function POST(req: Request) {
     const topic = await createWatchTopic({
       name,
       queries,
-      sourceDomains: stringList(body.sourceDomains),
+      sourceDomains: domainList(body.sourceDomains),
       enabled: body.enabled !== false,
     });
 

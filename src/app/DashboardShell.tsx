@@ -6,6 +6,7 @@ import ReadLaterModule from "./ReadLaterModule";
 import SearchModule from "./SearchModule";
 import SettingsModule from "./SettingsModule";
 import { EmptyState, InlineNotice, SkeletonList } from "./components/ModuleChrome";
+import { formatShortDate } from "@/lib/i18n";
 import { getDashboardModules, type ActiveModule } from "./modules";
 import { useDashboardData } from "./useDashboardData";
 
@@ -19,11 +20,14 @@ export default function DashboardShell({ userEmail }: DashboardShellProps) {
     appLanguage,
     copy,
     query,
+    searchMode,
     freshness,
     country,
     isSearching,
+    isLoadingSearchSummary,
     searchData,
     searchError,
+    searchSummaryError,
     savedItems,
     isLoadingSaved,
     savedError,
@@ -37,6 +41,7 @@ export default function DashboardShell({ userEmail }: DashboardShellProps) {
     notice,
     openListCount,
     setQuery,
+    setSearchMode,
     setFreshness,
     setCountry,
     setOpenListCount,
@@ -63,10 +68,12 @@ export default function DashboardShell({ userEmail }: DashboardShellProps) {
 
       <SearchModule
         query={query}
+        mode={searchMode}
         freshness={freshness}
         country={country}
         isLoading={isSearching}
         onQueryChange={setQuery}
+        onModeChange={setSearchMode}
         onFreshnessChange={setFreshness}
         onCountryChange={setCountry}
         onSearch={handleSearch}
@@ -88,10 +95,15 @@ export default function DashboardShell({ userEmail }: DashboardShellProps) {
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                    {copy.shell.searchResults}
+                    {searchData.mode === "notes" ? copy.search.noteResults : copy.shell.searchResults}
                   </p>
                   <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                    {copy.counts.result(searchData.results.length)}
+                    {copy.counts.result(
+                      searchData.mode === "notes"
+                        ? (searchData.noteResults ?? []).length
+                        : searchData.results.length,
+                    )}
+                    {searchData.stale ? ` ${copy.search.cachedResults}` : ""}
                   </p>
                 </div>
                 <button
@@ -103,7 +115,19 @@ export default function DashboardShell({ userEmail }: DashboardShellProps) {
                 </button>
               </div>
 
-              {searchData.summary && (
+              {searchData.mode === "web" && isLoadingSearchSummary && !searchData.summary && (
+                <div className="rounded-md border border-muted bg-muted p-4 dark:border-primary-hover dark:bg-primary-hover/20">
+                  <p className="text-sm text-zinc-600 dark:text-zinc-300">
+                    {copy.search.summaryLoading}
+                  </p>
+                </div>
+              )}
+
+              {searchData.mode === "web" && searchSummaryError && !searchData.summary && (
+                <InlineNotice>{copy.search.summaryUnavailable}</InlineNotice>
+              )}
+
+              {searchData.mode === "web" && searchData.summary && (
                 <div className="rounded-md border border-muted bg-muted p-4 dark:border-primary-hover dark:bg-primary-hover/20">
                   <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-primary-hover dark:text-secondary">
                     {copy.shell.aiSummary}
@@ -119,7 +143,7 @@ export default function DashboardShell({ userEmail }: DashboardShellProps) {
                 </div>
               )}
 
-              {searchData.suggestions && searchData.suggestions.length > 0 && (
+              {searchData.mode === "web" && searchData.suggestions && searchData.suggestions.length > 0 && (
                 <div className="flex flex-wrap items-center gap-2">
                   {searchData.suggestions.map((suggestion) => (
                     <button
@@ -134,7 +158,46 @@ export default function DashboardShell({ userEmail }: DashboardShellProps) {
                 </div>
               )}
 
-              {searchData.results.length === 0 ? (
+              {searchData.mode === "notes" ? (
+                (searchData.noteResults ?? []).length === 0 ? (
+                  <EmptyState
+                    title={copy.shell.noResultsTitle}
+                    description={copy.shell.noResultsDescription}
+                  />
+                ) : (
+                  <ul className="space-y-4">
+                    {(searchData.noteResults ?? []).map((result) => {
+                      const updatedAt = formatShortDate(result.updated_at, appLanguage);
+
+                      return (
+                        <li
+                          key={result.id}
+                          className="rounded-md border border-zinc-200 bg-white p-4 shadow-sm transition-shadow duration-200 hover:shadow-md dark:border-zinc-700 dark:bg-zinc-800"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="text-base font-medium text-zinc-900 dark:text-zinc-100">
+                                {result.title}
+                              </p>
+                              {updatedAt && (
+                                <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
+                                  {updatedAt}
+                                </p>
+                              )}
+                            </div>
+                            <span className="rounded-md bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-500 dark:bg-zinc-700 dark:text-zinc-300">
+                              {result.score}
+                            </span>
+                          </div>
+                          <p className="mt-2 text-sm leading-6 text-zinc-500 dark:text-zinc-400">
+                            {result.description || copy.notes.noDetails}
+                          </p>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )
+              ) : searchData.results.length === 0 ? (
                 <EmptyState
                   title={copy.shell.noResultsTitle}
                   description={copy.shell.noResultsDescription}

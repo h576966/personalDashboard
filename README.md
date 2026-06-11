@@ -61,19 +61,19 @@ Post-deploy smoke checks:
 - Signed-out users see the Magic Link auth screen.
 - An allowlisted email can complete the `/auth/callback` flow.
 - Lists, Notes, Read Later, and Settings load after login.
-- Settings can create, toggle, and remove watched topics.
+- Settings can create, edit, and remove watched topics.
 
 Post-refactor stabilization smoke checks:
 
 - Lists: create list, rename list, add item, verify non-empty list delete is blocked, clear/delete items, then delete empty list.
-- Watched topics: create a topic, toggle it off/on, then delete it.
+- Watched topics: enter a topic, generate suggested search terms/sources, deselect one chip, add one manual chip, save, edit, and delete it.
 - Settings: change language and verify shell/module copy updates correctly.
 
 ## Current Features
 
-**Clean Search:** Web search powered by the Brave Search API, re-ranked by relevance scoring.
-Results are filtered for quality, scored by term matching, and optionally summarized by DeepSeek AI
-with follow-up suggestions.
+**Clean Search:** A compact Web/Notes toggle keeps search explicit. Web search uses Brave,
+quality filters, source diversity, freshness-aware caching, and automatic DeepSeek summaries
+after results load. Notes search stays local to household notes.
 
 **Lists:** Shared household lists for groceries, errands, and to-dos. Lists can be renamed, and
 empty lists can be deleted. Existing task rows are migrated into a default `To-do` list by
@@ -84,19 +84,20 @@ migration `005`.
 **Read Later:** Search results can be saved into a household reading queue, then marked read,
 archived, or restored from the Archived view.
 
-**Watched Topics:** Focused topics can be saved in Settings with search terms and optional
-source domains for recurring subjects you want to keep track of.
+**Watched Topics:** Focused topics can be saved in Settings through an AI-assisted setup:
+enter one topic, generate suggested search terms and source domains, then keep or remove
+the selected chips before saving. Existing topics can be edited with the same chip editor.
 
 **Settings:** General settings cover account and language, with watched-topic configuration
 kept in the same section.
 
 **Dashboard Layout:** A two-column responsive layout with:
-- **Persistent Top Search** for web queries, notes, and saved links
+- **Persistent Top Search** with Web and Notes modes
 - **Lists-First Main Workspace** where household coordination is the default landing view
 - **Section Rail** for navigation, lightweight module counters, and Settings
 
-Search results temporarily override the main workspace, while modules such as Lists, Notes,
-Read Later, and Settings control the default content.
+Search results temporarily override the main workspace. Web results can be saved to Read Later,
+while Notes results show local note matches without searching saved links.
 
 ## Tech Stack
 
@@ -120,9 +121,10 @@ Read Later, and Settings control the default content.
 - **Minimal but extensible modules** — Modules are compact in the sidebar and expand into the main area.
 - **Shared household first** — One default household is used today, ready for login/member mapping later.
 - **Mobile-aware** — Sidebar collapses into a horizontal module rail on smaller screens.
-- **Precision over recall** — Quality filters and scoring prioritize useful results over volume.
+- **Precision over recall** — Quality filters, dedupe, source diversity, and scoring prioritize
+  useful results over volume.
 - **Deterministic before AI** — Core functionality works without AI. AI enhances results
-  (summaries, suggestions) but is never required.
+  (conditional query rewriting, summaries, watched-topic setup suggestions) but is never required.
 - **Local-first workflow** — Schema and app code live in the repo; data persists in Supabase Postgres.
 - **Developer-friendly config** — Language and watched topics are editable via Settings.
 

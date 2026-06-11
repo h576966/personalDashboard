@@ -19,7 +19,7 @@
 
 ## Layout Conventions
 
-- Dashboard shell: persistent top search with a `max-w-7xl` two-column workspace and a section rail.
+- Dashboard shell: persistent top search with Web/Notes mode toggle, a `max-w-7xl` two-column workspace, and a section rail.
 - Main workspace: roughly 70% width on desktop, stacked below the module rail on mobile.
 - Card surfaces: `rounded-md border border-zinc-200 bg-white p-4 shadow-sm
   dark:border-zinc-700 dark:bg-zinc-800`.
@@ -42,9 +42,12 @@ the active focus area within the same workspace view.
 
 ### Interaction States
 
-- **Search:** If the user searches, expand Search results and give them more space. The rest
-  of the dashboard recedes visually but remains accessible.
-- **Watched Topics:** Keep watched-topic controls inside Settings.
+- **Search:** If the user searches, expand results and give them more space. Web mode shows
+  external results and AI summary when available; Notes mode shows local note matches only.
+  The rest of the dashboard recedes visually but remains accessible.
+- **Watched Topics:** Keep watched-topic controls inside Settings. The setup flow starts
+  with one plain-language topic, then reveals suggested search-term and source-domain chips
+  that are selected by default and can be deselected before saving.
 - **Settings:** App language, account actions, and watched-topic configuration live in the
   Settings module.
 
@@ -71,7 +74,8 @@ Implementation implications:
 
 - Use **plain language** in all UI labels.
 - Provide **presets** and **sensible defaults** for technical fields.
-- Hide complexity behind expandable "Advanced" sections.
+- Reveal technical details progressively, such as suggested watched-topic terms and sources
+  after the user enters the topic.
 - Explain what the app _does_, not how it _works_.
 
 ### Core Mission
@@ -198,5 +202,6 @@ for the canonical reference.
   Avoid acronyms (e.g., write "Past Week" not "pw").
 - **API keys stay server-side** — Never expose API keys to the browser. Browser code calls
   local API routes, never third-party APIs directly.
-- **Graceful AI fallback** — AI features (summaries, query rewriting) must fail silently
-  with fallback. A DeepSeek outage should not break core functionality.
+- **Graceful AI fallback** — AI features (summaries, conditional query rewriting, watched-topic
+  setup suggestions) must fail with fallback. A DeepSeek outage should not block Web or Notes
+  search results or creating a watched topic.

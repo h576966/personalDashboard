@@ -35,6 +35,7 @@ export async function searchBrave(
   count: number = 10,
   freshness?: "pd" | "pw" | "pm" | "py",
   country?: string,
+  options?: { signal?: AbortSignal },
 ): Promise<BraveSearchResponse> {
   const apiKey = process.env.BRAVE_API_KEY;
 
@@ -57,6 +58,7 @@ export async function searchBrave(
   }
 
   const response = await fetch(url.toString(), {
+    signal: options?.signal,
     headers: {
       Accept: "application/json",
       "Accept-Encoding": "gzip",
