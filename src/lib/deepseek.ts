@@ -33,33 +33,11 @@ interface SummaryResponse {
   suggestions: string[];
 }
 
-export interface NewsBriefingStory {
-  title: string;
-  summary: string;
-  sourceUrls: string[];
-}
-
-export interface GeneratedNewsBriefing {
-  title: string;
-  summary: string;
-  whyItMatters: string;
-  angles: string[];
-  stories?: NewsBriefingStory[];
-}
-
 export interface WatchUpdateClassification {
   isMeaningfulUpdate: boolean;
   confidence: number;
   reason: string;
 }
-
-export type BriefingLanguage = "en" | "no" | "sv";
-
-const BRIEFING_LANGUAGE_LABELS: Record<BriefingLanguage, string> = {
-  en: "English",
-  no: "Norwegian",
-  sv: "Swedish",
-};
 
 async function callDeepSeek(
   systemPrompt: string,
@@ -177,100 +155,6 @@ export async function summarizeResults(
     throw new DeepSeekError(
       "summarizeResults: response missing required fields",
     );
-  }
-
-  return parsed;
-}
-
-export async function generateNewsBriefing(input: {
-  topicName: string;
-  topicDescription?: string;
-  sources: { title: string; url: string; description?: string }[];
-  language?: BriefingLanguage;
-}): Promise<GeneratedNewsBriefing> {
-  const allowedUrls = input.sources.map((source) => source.url);
-  const language = BRIEFING_LANGUAGE_LABELS[input.language ?? "en"];
-
-  const systemPrompt =
-    "You create reliability-first news briefings from source snippets. " +
-    "Your job is faithful representation, not narrative writing. " +
-    "Use only the provided source titles, descriptions, and URLs. " +
-    "Do not add facts, causes, dates, numbers, motives, or implications unless directly supported by the provided source text. " +
-    "Do not connect unrelated stories causally or thematically unless the sources themselves do. " +
-    "If the sources cover multiple unrelated stories, keep them separated in stories and make the top-level summary a neutral overview. " +
-    "If the source snippets are thin, explicitly state that the briefing is based on limited source snippets. " +
-    "If sources disagree or frame the story differently, describe that in angles without deciding who is right. " +
-    "Return valid JSON only.";
-
-  const sourceText = input.sources
-    .map(
-      (s, i) =>
-        `${i + 1}. ${s.title}\nURL: ${s.url}\nDescription: ${s.description ?? ""}`,
-    )
-    .join("\n\n");
-
-  const userPrompt =
-    `Topic: ${input.topicName}\n` +
-    `${input.topicDescription ?? ""}\n\n` +
-    `Allowed source URLs:\n${allowedUrls.map((url) => `- ${url}`).join("\n")}\n\n` +
-    `Sources:\n${sourceText}\n\n` +
-    `Write title, summary, whyItMatters, angles, and story text in ${language}. Preserve source names and URLs exactly as provided.\n\n` +
-    "Return JSON with this exact shape:\n" +
-    '{"title":"...","summary":"...","whyItMatters":"...","angles":["..."],"stories":[{"title":"...","summary":"...","sourceUrls":["..."]}]}\n\n' +
-    "Reliability rules:\n" +
-    "- Prefer factual separation over elegant synthesis.\n" +
-    "- If sources cover unrelated stories, stories must contain separate items and the title must not imply one combined event.\n" +
-    "- Each story must be supported by at least one sourceUrl from the allowed list.\n" +
-    "- sourceUrls must exactly match allowed source URLs; do not invent or alter URLs.\n" +
-    "- For short or simple stories, the top-level summary should be 2-3 sentences.\n" +
-    "- For complex, multi-thread, or high-impact stories, the top-level summary may be 3-5 sentences when that improves clarity.\n" +
-    "- Use stories only when the sources contain distinct sub-stories, major angles, or multiple developments worth separating.\n" +
-    "- whyItMatters should be cautious and limited to direct implications supported by the source descriptions; otherwise say implications are unclear from the snippets.\n" +
-    "- angles should describe source framing or emphasis, not add new analysis.\n" +
-    "- Use cautious language when only one source supports a story.";
-
-  const content = await callDeepSeek(systemPrompt, userPrompt, {
-    maxTokens: 850,
-    temperature: 0.3,
-  });
-
-  let parsed: GeneratedNewsBriefing;
-
-  try {
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    const jsonStr = jsonMatch ? jsonMatch[0] : content;
-    parsed = JSON.parse(jsonStr);
-  } catch {
-    throw new DeepSeekError("generateNewsBriefing: failed to parse JSON");
-  }
-
-  if (
-    typeof parsed.title !== "string" ||
-    typeof parsed.summary !== "string" ||
-    typeof parsed.whyItMatters !== "string" ||
-    !Array.isArray(parsed.angles)
-  ) {
-    throw new DeepSeekError("generateNewsBriefing: response missing required fields");
-  }
-
-  if (parsed.stories !== undefined && !Array.isArray(parsed.stories)) {
-    throw new DeepSeekError("generateNewsBriefing: stories must be an array");
-  }
-
-  if (parsed.stories) {
-    const allowedUrlSet = new Set(allowedUrls);
-    parsed.stories = parsed.stories
-      .filter(
-        (story) =>
-          typeof story.title === "string" &&
-          typeof story.summary === "string" &&
-          Array.isArray(story.sourceUrls),
-      )
-      .map((story) => ({
-        ...story,
-        sourceUrls: story.sourceUrls.filter((url) => allowedUrlSet.has(url)),
-      }))
-      .filter((story) => story.sourceUrls.length > 0);
   }
 
   return parsed;

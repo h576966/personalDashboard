@@ -1,8 +1,3 @@
-// ── News Collection ──────────────────────────────────────────────
-
-/** Maximum number of news items to keep in a single briefing run. */
-export const GLOBAL_DAILY_LIMIT = 50;
-
 // ── Search ───────────────────────────────────────────────────────
 
 export const SEARCH_MIN_COUNT = 1;

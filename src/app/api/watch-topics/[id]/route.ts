@@ -49,7 +49,7 @@ export async function PATCH(req: Request, context: RouteContext) {
 
     return NextResponse.json({ topic });
   } catch (error) {
-    console.error("PATCH news-watch-topic failed", error);
+    console.error("PATCH watch-topic failed", error);
     return errorResponse("Failed to update watch topic", "INTERNAL_ERROR", 500);
   }
 }
@@ -60,7 +60,7 @@ export async function DELETE(_req: Request, context: RouteContext) {
     await deleteWatchTopic(id);
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("DELETE news-watch-topic failed", error);
+    console.error("DELETE watch-topic failed", error);
     return errorResponse("Failed to delete watch topic", "INTERNAL_ERROR", 500);
   }
 }

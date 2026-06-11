@@ -60,15 +60,13 @@ Post-deploy smoke checks:
 
 - Signed-out users see the Magic Link auth screen.
 - An allowlisted email can complete the `/auth/callback` flow.
-- News opens from cache without triggering a refresh.
-- Manual News refresh completes.
 - Lists, Notes, Read Later, and Settings load after login.
+- Settings can create, toggle, and remove watched topics.
 
 Post-refactor stabilization smoke checks:
 
 - Lists: create list, rename list, add item, verify non-empty list delete is blocked, clear/delete items, then delete empty list.
-- News: confirm `/api/news/briefings` GET serves cache/empty only, and manual refresh (`POST /api/news/briefings`) returns a fresh briefing.
-- News: verify save source, thumbs feedback, details expand/collapse, and image visibility rules still behave as before.
+- Watched topics: create a topic, toggle it off/on, then delete it.
 - Settings: change language and verify shell/module copy updates correctly.
 
 ## Current Features
@@ -83,32 +81,22 @@ migration `005`.
 
 **Notes:** Freeform shared notes for drafts, reminders, and household reference material.
 
-**Read Later:** Search results and news sources can be saved into a household reading queue,
-then marked read, archived, or restored from the Archived view.
+**Read Later:** Search results can be saved into a household reading queue, then marked read,
+archived, or restored from the Archived view.
 
-**News Briefing:** Curated news aggregation from configurable topics, trusted sources,
-muted topics, watch topics, and feedback. Today's generated story cards are cached in
-Supabase so normal page loads do not rebuild Brave and DeepSeek results. Feedback, saved
-news links, and archived news links provide lightweight implicit personalization on refresh.
-Richer story cards can include expandable detail and optional source-provided images. The
-active news path is the story-card briefing at `/api/news/briefings`.
+**Watched Topics:** Focused topics can be saved in Settings with search terms and optional
+source domains for recurring subjects you want to keep track of.
 
-**Settings:** App and news configuration lives in a dedicated Settings section. General settings
-cover account and language, while News settings are grouped into basics, interests, trusted
-sources, muted/watch topics, and collapsed advanced filters.
-
-**Nordic-First News:** News settings include regional focus (`Norway + Sweden`, `Norway`,
-`Sweden`, or `Global`). The app language preference supports `English`, `Norwegian`, and
-`Swedish`, and intentionally controls both active UI copy and generated news summaries in v1.
-Trusted sources include a reproducible Nordic source pack that can be synced from the UI.
+**Settings:** General settings cover account and language, with watched-topic configuration
+kept in the same section.
 
 **Dashboard Layout:** A two-column responsive layout with:
-- **Persistent Top Search** for news, notes, saved links, and web queries
-- **News-First Main Workspace** where the daily briefing is the default landing view
+- **Persistent Top Search** for web queries, notes, and saved links
+- **Lists-First Main Workspace** where household coordination is the default landing view
 - **Section Rail** for navigation, lightweight module counters, and Settings
 
-Search results temporarily override the main workspace, while modules (e.g. News, Read Later)
-control the default content.
+Search results temporarily override the main workspace, while modules such as Lists, Notes,
+Read Later, and Settings control the default content.
 
 ## Tech Stack
 
@@ -125,8 +113,8 @@ control the default content.
 ## Product Principles
 
 - **Single dashboard shell** — One layout with a persistent section rail instead of page navigation.
-- **News-first landing** — The dashboard opens on the daily briefing while keeping household
-  lists, notes, and read-later one click away.
+- **Lists-first landing** — The dashboard opens on household coordination while keeping notes,
+  read-later, and settings one click away.
 - **Workspace-driven UI** — The main area adapts based on user actions (search vs module selection).
 - **Useful data over decorative copy** — Counters and labels are preferred over ornamental status text.
 - **Minimal but extensible modules** — Modules are compact in the sidebar and expand into the main area.
@@ -136,12 +124,12 @@ control the default content.
 - **Deterministic before AI** — Core functionality works without AI. AI enhances results
   (summaries, suggestions) but is never required.
 - **Local-first workflow** — Schema and app code live in the repo; data persists in Supabase Postgres.
-- **Developer-friendly config** — Topics, sources, language, and thresholds editable via Settings.
+- **Developer-friendly config** — Language and watched topics are editable via Settings.
 
 ## Database Migrations
 
 SQL migrations live in `src/lib/db/migrations/`. Apply pending migration files in Supabase
-SQL Editor, then record them in `schema_migrations`:
+SQL Editor in filename order, then record each applied version in `schema_migrations`:
 
 ```sql
 INSERT INTO public.schema_migrations (version)
@@ -149,18 +137,8 @@ VALUES ('009_app_language_preference')
 ON CONFLICT (version) DO NOTHING;
 ```
 
-Legacy schedule/task tables were replaced by household-scoped lists in migration `005` and dropped
-in migration `006`. Prefer hiding or removing unused code first, then only drop tables after a
-read-only audit confirms row counts, dependencies, and backup status. Use
-`docs/supabase_cleanup_audit.sql` for the read-only database audit.
-
-Migration `007` adds Nordic news preferences and expands the default trusted source pack. Existing
-projects should run the migration, record it in `schema_migrations`, then use **Settings > News >
-Trusted sources > Sync defaults** to ensure the UI and database source list are aligned.
-
-Migration `008` adds cached story detail and optional source image metadata for richer news cards.
-Migration `009` adds the user-facing app language preference; in v1 the selected app language also
-sets the generated news summary language and is managed from Settings.
+Migrations are append-only project history. Do not edit a migration after it has been applied to
+Supabase; add a new migration for schema changes instead.
 
 ## Directory Structure
 

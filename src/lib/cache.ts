@@ -1,4 +1,9 @@
 import type { ScoredResult } from "./search";
+import {
+  CACHE_CLEANUP_INTERVAL_MS,
+  CACHE_MAX_SIZE,
+  CACHE_TTL_MS,
+} from "./config";
 
 export interface CacheEntry {
   results: ScoredResult[];
@@ -8,35 +13,28 @@ export interface CacheEntry {
   timestamp: number;
 }
 
-const MAX_SIZE = 500;
-const TTL_MS = 60_000;
-const CLEANUP_INTERVAL_MS = 300_000;
-
 const store = new Map<string, CacheEntry>();
-let cleanupStarted = false;
+let lastCleanup = 0;
 
-function startCleanup(): void {
-  if (cleanupStarted) return;
-  cleanupStarted = true;
+function cleanupExpiredEntries(now = Date.now()): void {
+  if (now - lastCleanup < CACHE_CLEANUP_INTERVAL_MS) return;
+  lastCleanup = now;
 
-  setInterval(() => {
-    const now = Date.now();
-    for (const [key, entry] of store) {
-      if (now - entry.timestamp > TTL_MS) {
-        store.delete(key);
-      }
+  for (const [key, entry] of store) {
+    if (now - entry.timestamp > CACHE_TTL_MS) {
+      store.delete(key);
     }
-  }, CLEANUP_INTERVAL_MS);
+  }
 }
-
-startCleanup();
 
 export const searchCache = {
   get(key: string): CacheEntry | undefined {
+    cleanupExpiredEntries();
+
     const entry = store.get(key);
     if (!entry) return undefined;
 
-    if (Date.now() - entry.timestamp > TTL_MS) {
+    if (Date.now() - entry.timestamp > CACHE_TTL_MS) {
       store.delete(key);
       return undefined;
     }
@@ -45,8 +43,10 @@ export const searchCache = {
   },
 
   set(key: string, entry: CacheEntry): void {
+    cleanupExpiredEntries(entry.timestamp);
+
     // Evict oldest entry if at capacity
-    if (store.size >= MAX_SIZE) {
+    if (store.size >= CACHE_MAX_SIZE) {
       const oldestKey = store.keys().next().value;
       if (oldestKey !== undefined) {
         store.delete(oldestKey);

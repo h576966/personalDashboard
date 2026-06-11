@@ -26,7 +26,7 @@ export async function GET() {
     const topics = await getWatchTopics();
     return NextResponse.json({ topics });
   } catch (error) {
-    console.error("GET news-watch-topics failed", error);
+    console.error("GET watch-topics failed", error);
     return errorResponse("Failed to load watch topics", "INTERNAL_ERROR", 500);
   }
 }
@@ -54,7 +54,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ topic }, { status: 201 });
   } catch (error) {
-    console.error("POST news-watch-topics failed", error);
+    console.error("POST watch-topics failed", error);
     return errorResponse("Failed to save watch topic", "INTERNAL_ERROR", 500);
   }
 }

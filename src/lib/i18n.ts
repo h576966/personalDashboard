@@ -2,16 +2,14 @@ import { getAuthCopy } from "./i18n/domains/auth";
 import { getCountsCopy } from "./i18n/domains/counts";
 import { getListsCopy } from "./i18n/domains/lists";
 import { getModulesCopy } from "./i18n/domains/modules";
-import { getNewsCopy } from "./i18n/domains/news";
-import { getNewsSettingsCopy } from "./i18n/domains/newsSettings";
 import { getNoticesCopy } from "./i18n/domains/notices";
 import { getNotesCopy } from "./i18n/domains/notes";
-import { getPreferencesCopy } from "./i18n/domains/preferences";
 import { getReadLaterCopy } from "./i18n/domains/readLater";
 import { getSearchCopy } from "./i18n/domains/search";
 import { getSettingsCopy } from "./i18n/domains/settings";
 import { getShellCopy } from "./i18n/domains/shell";
 import { getShowMoreCopy } from "./i18n/domains/showMore";
+import { getWatchTopicsCopy } from "./i18n/domains/watchTopics";
 import {
   formatShortDate,
   formatShortTime,
@@ -39,9 +37,7 @@ export const appCopy = Object.fromEntries(
       lists: getListsCopy(language),
       notes: getNotesCopy(language),
       readLater: getReadLaterCopy(language),
-      news: getNewsCopy(language),
-      preferences: getPreferencesCopy(language),
-      newsSettings: getNewsSettingsCopy(language),
+      watchTopics: getWatchTopicsCopy(language),
       notices: getNoticesCopy(language),
       showMore: getShowMoreCopy(language),
     },
@@ -58,9 +54,7 @@ export const appCopy = Object.fromEntries(
     lists: ReturnType<typeof getListsCopy>;
     notes: ReturnType<typeof getNotesCopy>;
     readLater: ReturnType<typeof getReadLaterCopy>;
-    news: ReturnType<typeof getNewsCopy>;
-    preferences: ReturnType<typeof getPreferencesCopy>;
-    newsSettings: ReturnType<typeof getNewsSettingsCopy>;
+    watchTopics: ReturnType<typeof getWatchTopicsCopy>;
     notices: ReturnType<typeof getNoticesCopy>;
     showMore: ReturnType<typeof getShowMoreCopy>;
   }

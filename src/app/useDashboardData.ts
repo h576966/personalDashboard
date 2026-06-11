@@ -38,7 +38,7 @@ export interface SearchData {
 }
 
 export function useDashboardData() {
-  const [activeModule, setActiveModule] = useState<ActiveModule>("news");
+  const [activeModule, setActiveModule] = useState<ActiveModule>("lists");
   const [appLanguage, setAppLanguage] = useState<AppLanguage>("en");
 
   const [query, setQuery] = useState("");
@@ -61,7 +61,6 @@ export function useDashboardData() {
 
   const [notice, setNotice] = useState<string | null>(null);
   const [openListCount, setOpenListCount] = useState<number | null>(null);
-  const [storyCount, setStoryCount] = useState<number | null>(null);
   const copy = useMemo(() => getAppCopy(appLanguage), [appLanguage]);
 
   const savedUrls = useMemo(
@@ -76,7 +75,7 @@ export function useDashboardData() {
 
   const loadPreferences = useCallback(async () => {
     try {
-      const res = await fetch("/api/briefing-preferences");
+      const res = await fetch("/api/app-preferences");
       const data = await res.json();
 
       if (!res.ok) return;
@@ -311,7 +310,7 @@ export function useDashboardData() {
     setSearchData(null);
     setSearchError(null);
 
-    if (module === "readLater" || module === "news") {
+    if (module === "readLater") {
       void loadSavedItems();
     }
 
@@ -348,12 +347,10 @@ export function useDashboardData() {
     notesCount,
     notice,
     openListCount,
-    storyCount,
     setQuery,
     setFreshness,
     setCountry,
     setOpenListCount,
-    setStoryCount,
     loadPreferences,
     saveItem,
     updateSavedStatus,

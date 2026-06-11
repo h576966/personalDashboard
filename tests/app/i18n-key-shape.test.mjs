@@ -16,9 +16,7 @@ const requiredDomains = [
   "lists",
   "notes",
   "readLater",
-  "news",
-  "preferences",
-  "newsSettings",
+  "watchTopics",
   "notices",
   "showMore",
 ];

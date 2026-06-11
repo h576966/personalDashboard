@@ -392,87 +392,60 @@ function checkRuleFilesExist() {
   }
 }
 
-function checkReadmeAgentCount() {
-  const section = 'README agent count';
+function checkAgentsMdAgentCount() {
+  const section = 'AGENTS.md agent count';
   results.push(`\n[${section}]`);
 
-  const content = readText(join(ROOT, 'README.md'));
+  const config = readJsonc(join(ROOT, 'kilo.jsonc'));
+  const projectAgents = Object.keys(config.agent).filter(a => !BUILTIN_AGENTS.includes(a));
+  const content = readText(join(ROOT, 'AGENTS.md'));
   const lines = content.split('\n');
-
-  let inPhilosophy = false;
-  for (const line of lines) {
-    if (line.startsWith('## Philosophy')) inPhilosophy = true;
-    if (inPhilosophy && line.includes('agents')) {
-      if (/Seven focused agents/.test(line)) {
-        pass('Says "Seven focused agents"');
-      } else {
-        fail('Says "Seven focused agents"', `found: "${line.trim()}"`);
-      }
-      return;
-    }
-  }
-  fail('"Six focused agents" line found', 'not found in Philosophy section');
-
-}
-
-function checkReadmeDirectoryTree() {
-  const section = 'README directory tree';
-  results.push(`\n[${section}]`);
-
-  const content = readText(join(ROOT, 'README.md'));
-  const lines = content.split('\n');
-
-  let inTree = false;
-  let inAgents = false;
-  const treeAgentFiles = [];
+  const tableAgents = [];
 
   for (const line of lines) {
     const trimmed = line.trim();
-    if (trimmed === '```' && !inTree) {
-      inTree = true;
-      continue;
-    }
-    if (trimmed === '```' && inTree) {
-      inTree = false;
-      break;
-    }
-    if (!inTree) continue;
+    if (!trimmed.startsWith('|') || !trimmed.endsWith('|')) continue;
+    if (/Agent.*Mode.*Model.*Use for/i.test(trimmed)) continue;
+    if (/^\|[-\|\s]+\|$/.test(trimmed)) continue;
 
-    if (line.includes('agents/')) {
-      inAgents = true;
-      continue;
-    }
-    if (inAgents && line.includes('.md')) {
-      const match = line.match(/[\w-]+\.md/);
-      if (match) {
-        treeAgentFiles.push(match[0]);
-      }
-      continue;
-    }
-    if (inAgents && line.includes('commands/')) {
-      inAgents = false;
+    const cells = trimmed.split('|').map(c => c.trim()).filter(Boolean);
+    if (cells.length >= 4 && projectAgents.includes(cells[0])) {
+      tableAgents.push(cells[0]);
     }
   }
 
-  if (treeAgentFiles.length === 0) {
-    fail('Agent files found in tree', 'no agent .md files found');
-    return;
+  const uniqueAgents = [...new Set(tableAgents)];
+  if (uniqueAgents.length === projectAgents.length) {
+    pass(`AGENTS.md lists ${projectAgents.length} project agents`);
+  } else {
+    fail(
+      `AGENTS.md lists ${projectAgents.length} project agents`,
+      `found ${uniqueAgents.length}: ${uniqueAgents.join(', ')}`,
+    );
   }
+}
+
+function checkAgentOverrideDirectory() {
+  const section = 'Agent override directory';
+  results.push(`\n[${section}]`);
+
+  const agentsDir = join(ROOT, '.kilo', 'agents');
+  const agentFiles = readdirSync(agentsDir).filter(f => f.endsWith('.md'));
 
   const expected = ['plan.md', 'ask.md', 'reviewer.md', 'code.md', 'flash-patch.md', 'flash-debug.md', 'ship.md'];
   for (const file of expected) {
-    if (treeAgentFiles.includes(file)) {
-      pass(`${file} in tree`);
+    if (agentFiles.includes(file)) {
+      pass(`${file} exists`);
     } else {
-      fail(`${file} in tree`, 'missing from directory tree');
+      fail(`${file} exists`, 'missing from .kilo/agents');
     }
   }
 
-  const extra = treeAgentFiles.filter(f => !expected.includes(f));
+  const extra = agentFiles.filter(f => !expected.includes(f));
   if (extra.length === 0) {
-    pass('No extra agent files in tree');
+    pass('No extra agent override files');
   } else {
-    fail('No extra agent files in tree', `found: ${extra.join(', ')}`);
+    fail('No extra agent override files', `found: ${extra.join(', ')}`);
   }
 }
 
@@ -572,7 +545,7 @@ function checkAgentPromptQuality() {
 
 // ── Main runner ─────────────────────────────────────────────────
 
-console.log('\nValidating KiloTemplate...');
+console.log('\nValidating personalDashboard agent config...');
 
 try {
   checkJsonConfig();
@@ -583,8 +556,8 @@ try {
   checkCommandAgentLinks();
   checkRuleFilesExist();
   checkActivatedRules();
-  checkReadmeAgentCount();
-  checkReadmeDirectoryTree();
+  checkAgentsMdAgentCount();
+  checkAgentOverrideDirectory();
 } catch (e) {
   console.error(`\n\x1b[31mFatal error: ${e.message}\x1b[0m`);
   process.exit(1);
